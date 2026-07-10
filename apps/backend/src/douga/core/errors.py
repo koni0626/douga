@@ -16,3 +16,15 @@ class NotFoundError(ApplicationError):
 class ConflictError(ApplicationError):
     def __init__(self, code: str, message_key: str) -> None:
         super().__init__(code=code, message_key=message_key, status_code=409)
+
+
+class UnauthorizedError(ApplicationError):
+    def __init__(
+        self, code: str = "AUTH_REQUIRED", message_key: str = "errors.authRequired"
+    ) -> None:
+        super().__init__(code=code, message_key=message_key, status_code=401)
+
+
+class ForbiddenError(ApplicationError):
+    def __init__(self, code: str, message_key: str) -> None:
+        super().__init__(code=code, message_key=message_key, status_code=403)

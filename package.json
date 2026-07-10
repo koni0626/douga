@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "render:spike": "node scripts/render-spike.mjs",
     "test": "pnpm check:i18n && pnpm -r --if-present test",
+    "test:e2e": "playwright test",
     "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {

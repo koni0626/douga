@@ -14,6 +14,7 @@ from douga.core.config import get_settings
 from douga.core.errors import ApplicationError
 from douga.core.logging import configure_logging
 from douga.db.engine import engine
+from douga.modules.auth.controller import router as auth_router
 from douga.modules.health.controller import router as health_router
 
 
@@ -33,7 +34,7 @@ def create_app() -> FastAPI:
         allow_origins=list(settings.allowed_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Request-ID"],
     )
 
     @app.middleware("http")
@@ -55,15 +56,14 @@ def create_app() -> FastAPI:
         return response
 
     @app.exception_handler(ApplicationError)
-    async def application_error_handler(
-        _: Request, error: ApplicationError
-    ) -> JSONResponse:
+    async def application_error_handler(_: Request, error: ApplicationError) -> JSONResponse:
         return JSONResponse(
             status_code=error.status_code,
             content={"error": {"code": error.code, "message_key": error.message_key}},
         )
 
     app.include_router(health_router, prefix="/api/v1")
+    app.include_router(auth_router, prefix="/api/v1")
     return app
 
 

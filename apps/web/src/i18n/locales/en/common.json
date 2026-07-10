@@ -7,5 +7,48 @@
   "currentTime": "Position: {{seconds}}s",
   "play": "Play",
   "pause": "Pause",
-  "reset": "Reset"
+  "reset": "Reset",
+  "loading": "Loading…",
+  "save": "Save",
+  "navigation": "Main navigation",
+  "auth": {
+    "registerTitle": "Create an account",
+    "registerLead": "Get started with your email address and password.",
+    "loginTitle": "Log in",
+    "loginLead": "Log in to continue editing.",
+    "email": "Email address",
+    "password": "Password",
+    "passwordConfirmation": "Confirm password",
+    "register": "Create account",
+    "login": "Log in",
+    "logout": "Log out",
+    "submitting": "Submitting…",
+    "haveAccount": "Already have an account?",
+    "needAccount": "Need an account?"
+  },
+  "home": {
+    "nav": "Home",
+    "title": "Start creating your video",
+    "lead": "Edit image-led scenes and captions that advance like a visual novel.",
+    "signedInAs": "Signed in as {{email}}"
+  },
+  "settings": {
+    "nav": "Settings",
+    "title": "Default settings",
+    "uiLocale": "Interface language",
+    "contentLocale": "New video language",
+    "width": "Width",
+    "height": "Height",
+    "fps": "FPS",
+    "saved": "Settings saved."
+  },
+  "errors": {
+    "authRequired": "Please log in.",
+    "emailAlreadyRegistered": "This email address is already registered.",
+    "invalidCredentials": "The email address or password is incorrect.",
+    "csrfInvalid": "This page has expired. Please reload it.",
+    "originNotAllowed": "Requests from this origin are not allowed.",
+    "rateLimited": "Too many attempts. Please try again later.",
+    "unknown": "Something went wrong. Please try again."
+  }
 }

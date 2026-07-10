@@ -52,5 +52,7 @@ jobs:
       - run: uv run mypy apps/backend/src apps/backend/tests
       - run: uv run alembic -c apps/backend/alembic.ini upgrade head
       - run: uv run pytest --cov=apps/backend/src --cov-report=term-missing
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
       - run: pnpm audit --audit-level high
       - run: uvx pip-audit

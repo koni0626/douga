@@ -7,5 +7,48 @@
   "currentTime": "現在位置: {{seconds}}秒",
   "play": "再生",
   "pause": "一時停止",
-  "reset": "先頭に戻る"
+  "reset": "先頭に戻る",
+  "loading": "読み込み中…",
+  "save": "保存",
+  "navigation": "メインナビゲーション",
+  "auth": {
+    "registerTitle": "アカウント作成",
+    "registerLead": "メールアドレスとパスワードで始められます。",
+    "loginTitle": "ログイン",
+    "loginLead": "編集を続けるにはログインしてください。",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "passwordConfirmation": "パスワード（確認）",
+    "register": "登録する",
+    "login": "ログインする",
+    "logout": "ログアウト",
+    "submitting": "送信中…",
+    "haveAccount": "すでにアカウントをお持ちですか？",
+    "needAccount": "アカウントをお持ちでないですか？"
+  },
+  "home": {
+    "nav": "ホーム",
+    "title": "動画づくりを始めましょう",
+    "lead": "画像中心のシーンと、ノベルゲームのように流れるテロップを編集できます。",
+    "signedInAs": "{{email}} でログイン中"
+  },
+  "settings": {
+    "nav": "設定",
+    "title": "既定値の設定",
+    "uiLocale": "画面の言語",
+    "contentLocale": "新規動画の言語",
+    "width": "幅",
+    "height": "高さ",
+    "fps": "FPS",
+    "saved": "設定を保存しました。"
+  },
+  "errors": {
+    "authRequired": "ログインが必要です。",
+    "emailAlreadyRegistered": "このメールアドレスは登録済みです。",
+    "invalidCredentials": "メールアドレスまたはパスワードが違います。",
+    "csrfInvalid": "画面の有効期限が切れました。再読み込みしてください。",
+    "originNotAllowed": "この送信元からの操作は許可されていません。",
+    "rateLimited": "試行回数が多すぎます。しばらく待ってからお試しください。",
+    "unknown": "処理に失敗しました。もう一度お試しください。"
+  }
 }

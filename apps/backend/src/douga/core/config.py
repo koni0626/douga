@@ -16,6 +16,14 @@ class Settings(BaseSettings):
     app_secret_key: str = Field(min_length=32)
     database_url: str = "postgresql+asyncpg://douga:douga-local-only@127.0.0.1:5432/douga"
     allowed_origins: tuple[str, ...] = ("http://127.0.0.1:5173",)
+    session_cookie_name: str = "douga_session"
+    csrf_cookie_name: str = "douga_csrf"
+    session_lifetime_hours: int = Field(default=336, ge=1, le=24 * 90)
+    auth_rate_limit_per_minute: int = Field(default=10, ge=1, le=1000)
+
+    @property
+    def secure_cookies(self) -> bool:
+        return self.app_env == "production"
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
