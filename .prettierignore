@@ -1,0 +1,8 @@
+.venv/
+.local-data/
+node_modules/
+**/dist/
+**/generated/
+docs/
+pnpm-lock.yaml
+uv.lock

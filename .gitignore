@@ -7,6 +7,7 @@ venv/
 
 # Local application data
 .local-data/
+.local-tools/
 
 # Python
 __pycache__/
@@ -30,6 +31,12 @@ node_modules/
 dist/
 build/
 coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+.coverage
+htmlcov/
+*.egg-info/
 *.egg-info/
 
 # IDE and editor

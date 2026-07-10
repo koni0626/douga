@@ -7,6 +7,7 @@ Before changing code, read:
 - `docs/folder-structure.md`
 - `docs/database-design.md`
 - `docs/functional-design.md`
+- `docs/implementation-plan.md`
 
 Required implementation rules:
 

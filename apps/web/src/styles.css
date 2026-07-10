@@ -1,0 +1,120 @@
+:root {
+  color: #e5eef8;
+  background: #07111f;
+  font-family: Inter, "Yu Gothic", Meiryo, system-ui, sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+select {
+  border: 1px solid #36516d;
+  border-radius: 10px;
+  color: #f8fafc;
+  background: #10243a;
+  font: inherit;
+  padding: 0.7rem 1rem;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app {
+  width: min(1500px, 100%);
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.app--render {
+  width: 1920px;
+  height: 1080px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.toolbar h1,
+.toolbar p {
+  margin: 0;
+}
+
+.eyebrow {
+  color: #60a5fa;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.toolbar__actions {
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.toolbar__actions label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.canvas-shell {
+  overflow: hidden;
+  border: 1px solid #36516d;
+  border-radius: 18px;
+  background: #000;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 35%);
+}
+
+.canvas-shell svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.app--render .canvas-shell {
+  width: 1920px;
+  height: 1080px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.app--render .canvas-shell svg {
+  width: 1920px;
+  height: 1080px;
+}
+
+.time-readout {
+  color: #9fb2c7;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 800px) {
+  .app {
+    padding: 1rem;
+  }
+
+  .toolbar,
+  .toolbar__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

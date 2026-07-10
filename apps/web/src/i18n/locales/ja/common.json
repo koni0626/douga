@@ -1,0 +1,11 @@
+{
+  "appName": "Douga",
+  "language": "言語",
+  "japanese": "日本語",
+  "english": "English",
+  "preview": "プレビュー",
+  "currentTime": "現在位置: {{seconds}}秒",
+  "play": "再生",
+  "pause": "一時停止",
+  "reset": "先頭に戻る"
+}

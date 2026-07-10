@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://douga.local/schemas/project-v1.schema.json",
+  "title": "ProjectDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "name",
+    "content_locale",
+    "video",
+    "caption_style",
+    "scenes"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "project_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "content_locale": { "type": "string", "enum": ["ja", "en"] },
+    "video": { "$ref": "#/$defs/videoSettings" },
+    "caption_style": { "$ref": "#/$defs/captionStyle" },
+    "scenes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scene" },
+      "maxItems": 1000
+    }
+  },
+  "$defs": {
+    "videoSettings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "fps"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 16, "maximum": 7680 },
+        "height": { "type": "integer", "minimum": 16, "maximum": 4320 },
+        "fps": { "type": "number", "exclusiveMinimum": 0, "maximum": 120 }
+      }
+    },
+    "captionStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height",
+        "padding",
+        "font_family",
+        "font_size",
+        "line_height",
+        "max_lines",
+        "text_color",
+        "background_color",
+        "background_opacity",
+        "border_radius",
+        "text_align"
+      ],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "padding": { "type": "number", "minimum": 0 },
+        "font_family": { "type": "string", "minLength": 1 },
+        "font_size": { "type": "number", "exclusiveMinimum": 0 },
+        "font_weight": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 900,
+          "default": 600
+        },
+        "line_height": { "type": "number", "minimum": 0.5, "maximum": 3 },
+        "max_lines": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "text_color": { "type": "string", "minLength": 1 },
+        "background_color": { "type": "string", "minLength": 1 },
+        "background_opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "border_radius": { "type": "number", "minimum": 0 },
+        "text_align": { "type": "string", "enum": ["left", "center", "right"] }
+      }
+    },
+    "background": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "color"],
+          "properties": {
+            "type": { "const": "color" },
+            "color": { "type": "string", "minLength": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "asset_id"],
+          "properties": {
+            "type": { "const": "asset" },
+            "asset_id": { "type": "string", "minLength": 1 },
+            "fallback_color": { "type": "string", "default": "#111827" }
+          }
+        }
+      ]
+    },
+    "baseLayer": {
+      "type": "object",
+      "required": ["id", "x", "y", "width", "height", "rotation", "opacity"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 },
+        "rotation": { "type": "number" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "imageLayer": {
+      "allOf": [
+        { "$ref": "#/$defs/baseLayer" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "asset_id",
+            "x",
+            "y",
+            "width",
+            "height",
+            "rotation",
+            "opacity"
+          ],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "type": { "const": "image" },
+            "asset_id": { "type": "string", "minLength": 1 },
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 },
+            "rotation": { "type": "number" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      ]
+    },
+    "textLayer": {
+      "allOf": [
+        { "$ref": "#/$defs/baseLayer" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "text",
+            "font_size",
+            "color",
+            "x",
+            "y",
+            "width",
+            "height",
+            "rotation",
+            "opacity"
+          ],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "type": { "const": "text" },
+            "text": { "type": "string" },
+            "font_size": { "type": "number", "exclusiveMinimum": 0 },
+            "color": { "type": "string", "minLength": 1 },
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 },
+            "rotation": { "type": "number" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      ]
+    },
+    "shapeLayer": {
+      "allOf": [
+        { "$ref": "#/$defs/baseLayer" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "shape",
+            "fill",
+            "x",
+            "y",
+            "width",
+            "height",
+            "rotation",
+            "opacity"
+          ],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "type": { "const": "shape" },
+            "shape": { "type": "string", "enum": ["rectangle", "ellipse"] },
+            "fill": { "type": "string", "minLength": 1 },
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "width": { "type": "number", "exclusiveMinimum": 0 },
+            "height": { "type": "number", "exclusiveMinimum": 0 },
+            "rotation": { "type": "number" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      ]
+    },
+    "layer": {
+      "oneOf": [
+        { "$ref": "#/$defs/imageLayer" },
+        { "$ref": "#/$defs/textLayer" },
+        { "$ref": "#/$defs/shapeLayer" }
+      ]
+    },
+    "dialogue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "text",
+        "display_effect",
+        "duration_mode",
+        "manual_page_breaks"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "speaker": { "type": ["string", "null"], "maxLength": 100 },
+        "text": { "type": "string", "maxLength": 20000 },
+        "display_effect": {
+          "type": "string",
+          "enum": ["instant", "fade", "typewriter"]
+        },
+        "duration_mode": {
+          "type": "string",
+          "enum": ["auto", "manual", "narration"]
+        },
+        "duration_ms": { "type": ["integer", "null"], "minimum": 1 },
+        "manual_page_breaks": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "background", "layers", "dialogues"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "background": { "$ref": "#/$defs/background" },
+        "layers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/layer" },
+          "maxItems": 1000
+        },
+        "dialogues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dialogue" },
+          "maxItems": 10000
+        }
+      }
+    }
+  }
+}

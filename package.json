@@ -1,0 +1,25 @@
+{
+  "name": "douga-workspace",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "dev:web": "pnpm --filter @douga/web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "generate": "pnpm -r --if-present generate",
+    "lint": "eslint .",
+    "render:spike": "node scripts/render-spike.mjs",
+    "test": "pnpm check:i18n && pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.61.1",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.63.0"
+  }
+}
