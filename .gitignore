@@ -1,0 +1,49 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Local application data
+.local-data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Node.js
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+
+# Build output
+dist/
+build/
+coverage/
+*.egg-info/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
