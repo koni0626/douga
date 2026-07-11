@@ -29,9 +29,15 @@ test("render a project and show the completed MP4", async ({ page }) => {
   await page.locator(".scene-thumbnail-list").click({ button: "right" });
   await page.getByRole("menuitem", { name: "新規追加" }).click();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
+  const savedRevision = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/v1\/projects\/[^/]+\/revisions$/.test(response.url()) &&
+      response.ok(),
+  );
   await page.getByRole("button", { name: "テロップを追加" }).click();
-  await expect(page.getByText("保存済み")).toBeVisible();
-  await page.getByRole("link", { name: "プロジェクトへ戻る" }).click();
+  await savedRevision;
+  await page.getByRole("link", { name: "プロジェクト", exact: true }).click();
   await page.getByRole("button", { name: "MP4を書き出す" }).click();
   await expect(
     page.getByRole("heading", { name: "E2E完成動画.mp4" }),

@@ -79,10 +79,16 @@ test("upload and display an image asset", async ({ page }) => {
     .getByRole("button", { name: "pixel.png" })
     .click();
   await page.getByRole("button", { name: "音声" }).click();
+  const savedRevision = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/v1\/projects\/[^/]+\/revisions$/.test(response.url()) &&
+      response.ok(),
+  );
   await page
     .getByRole("button", { name: "tone.wav" })
     .click({ timeout: 10_000 });
-  await expect(page.getByText("保存済み")).toBeVisible();
+  await savedRevision;
   await page.reload();
   await expect(page.locator(".editor-preview image")).toBeVisible();
 });

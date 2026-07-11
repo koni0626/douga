@@ -223,8 +223,7 @@ button,
 .page-heading,
 .inline-form,
 .search-form,
-.card-actions,
-.editor-toolbar {
+.card-actions {
   align-items: end;
   display: flex;
   gap: 1rem;
@@ -281,36 +280,6 @@ button,
 
 .editor-shell {
   min-height: 100vh;
-}
-
-.editor-toolbar {
-  align-items: center;
-  background: #0b1b2a;
-  border-bottom: 1px solid #29445e;
-  padding: 0.8rem 1.25rem;
-}
-
-.editor-toolbar h1 {
-  flex: 1;
-  font-size: 1.2rem;
-  margin: 0;
-}
-
-.editor-toolbar a {
-  color: #8fc9ff;
-}
-
-.save-state {
-  color: #9fb2c7;
-}
-
-.save-state--saved {
-  color: #89e8bd;
-}
-
-.save-state--conflict,
-.save-state--error {
-  color: #ff9d9d;
 }
 
 .editor-body,
@@ -1028,7 +997,6 @@ button,
   .field-row,
   .page-heading,
   .inline-form,
-  .editor-toolbar,
   .site-header,
   .site-header nav {
     align-items: stretch;

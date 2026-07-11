@@ -1,6 +1,6 @@
 import { type DragEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import { SceneRenderer } from "@douga/scene-renderer";
@@ -474,13 +474,6 @@ export function ProjectEditorPage() {
 
   return (
     <main className="editor-shell">
-      <header className="editor-toolbar">
-        <Link to="/projects">{t("editor.back")}</Link>
-        <h1>{detail.project.name}</h1>
-        <span className={`save-state save-state--${saveState}`}>
-          {t(`editor.saveState.${saveState}`)}
-        </span>
-      </header>
       <div className="editor-workspace">
         <aside className="scene-panel">
           <h2>{t("editor.scenes")}</h2>
