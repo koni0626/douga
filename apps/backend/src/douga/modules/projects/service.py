@@ -117,7 +117,17 @@ class ProjectService:
                 "fps": float(settings.default_video_fps),
             },
             "caption_style": {**default_caption_style(), **settings.default_caption_settings},
-            "scenes": [],
+            # Schema v1 keeps the legacy scenes array as a storage envelope.
+            # The editor exposes this as a single canvas, not as user-facing scenes.
+            "scenes": [
+                {
+                    "id": str(uuid4()),
+                    "name": "Canvas",
+                    "background": {"type": "color", "color": "#16324f"},
+                    "layers": [],
+                    "dialogues": [],
+                }
+            ],
             "audio_tracks": [],
         }
         self._validate_document(document, project_id)
@@ -128,6 +138,7 @@ class ProjectService:
             content_locale=locale,
             current_revision_number=1,
             lock_version=0,
+            scene_count=1,
         )
         revision = self._revision(project_id, user_id, 1, document, "project created")
         await self.repository.add(project, revision)

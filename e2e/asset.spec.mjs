@@ -71,8 +71,6 @@ test("upload and display an image asset", async ({ page }) => {
   await page.getByRole("button", { name: "作成" }).click();
   const readyAssets = await (await readyAssetsResponse).json();
   expect(readyAssets.items.map((asset) => asset.name)).toContain("tone.wav");
-  await page.locator(".scene-thumbnail-list").click({ button: "right" });
-  await page.getByRole("menuitem", { name: "新規追加" }).click();
   await page.getByRole("button", { name: "レイヤー" }).click();
   await page
     .locator(".asset-picker")

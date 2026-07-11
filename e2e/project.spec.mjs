@@ -14,7 +14,7 @@ async function seekTimeline(page, timeMs) {
     }, timeMs);
 }
 
-test("create a project and auto-save a scene", async ({ page }) => {
+test("create a project and auto-save its canvas", async ({ page }) => {
   const email = `project-e2e-${Date.now()}@example.com`;
   await page.goto("/register");
   await page.getByLabel("メールアドレス").fill(email);
@@ -31,11 +31,8 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await page.getByRole("button", { name: "作成" }).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
   await expect(page.locator(".scene-panel")).toHaveCount(0);
-  await expect(page.locator(".timeline-scene-strip")).toBeVisible();
-
-  await page.locator(".scene-thumbnail-list").click({ button: "right" });
-  await page.getByRole("menuitem", { name: "新規追加" }).click();
-  const dropZone = page.getByLabel("シーン画像のドロップ領域");
+  await expect(page.locator(".timeline-scene-strip")).toHaveCount(0);
+  const dropZone = page.getByLabel("キャンバス画像のドロップ領域");
   await dropZone.evaluate((element) => {
     element.dispatchEvent(
       new globalThis.DragEvent("dragenter", {
@@ -46,7 +43,7 @@ test("create a project and auto-save a scene", async ({ page }) => {
     );
   });
   await expect(
-    page.getByText("ここに画像をドロップしてシーンへ追加"),
+    page.getByText("ここに画像をドロップしてキャンバスへ追加"),
   ).toBeVisible();
   await dropZone.evaluate((element, base64) => {
     const binary = globalThis.atob(base64);
@@ -193,9 +190,6 @@ test("create a project and auto-save a scene", async ({ page }) => {
     .fill("ノベルゲームのように自動で送られるテロップです。");
   await savedRevision;
   await page.reload();
-  await expect(
-    page.getByRole("button", { name: "1. シーン 1", exact: true }),
-  ).toBeVisible();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
   await expect(page.getByLabel("テロップ本文")).toHaveValue(
     "ノベルゲームのように自動で送られるテロップです。",
@@ -203,49 +197,4 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
   await seekTimeline(page, 4500);
   await expect(page.locator(".editor-preview image")).toBeVisible();
-
-  const originalScene = page.getByRole("button", {
-    name: "1. シーン 1",
-    exact: true,
-  });
-  await originalScene.click({ button: "right" });
-  await expect(page.getByRole("menuitem", { name: "新規追加" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "複製" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "削除" })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Control+C");
-  await page.keyboard.press("Control+V");
-
-  const copiedScene = page.getByRole("button", {
-    name: "2. シーン 1 コピー",
-    exact: true,
-  });
-  await expect(copiedScene).toBeVisible();
-  const copiedItem = page.locator(".scene-thumbnail-item").filter({
-    has: copiedScene,
-  });
-  const originalItem = page.locator(".scene-thumbnail-item").filter({
-    has: originalScene,
-  });
-  await copiedItem.dragTo(originalItem, { targetPosition: { x: 20, y: 2 } });
-  const movedCopy = page.getByRole("button", {
-    name: "1. シーン 1 コピー",
-    exact: true,
-  });
-  await expect(movedCopy).toBeVisible();
-  await page.keyboard.press("Control+Z");
-  await expect(
-    page.getByRole("button", {
-      name: "2. シーン 1 コピー",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await page.keyboard.press("Control+Y");
-  await expect(movedCopy).toBeVisible();
-  await movedCopy.click({ button: "right" });
-  await page.getByRole("menuitem", { name: "削除" }).click();
-  await expect(movedCopy).toHaveCount(0);
-  await expect(
-    page.getByRole("button", { name: "1. シーン 1", exact: true }),
-  ).toBeVisible();
 });

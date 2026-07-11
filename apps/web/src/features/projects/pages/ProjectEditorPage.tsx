@@ -25,7 +25,6 @@ import {
   type EditorTool,
 } from "../components/FloatingEditorTools";
 import { ObjectTimeline } from "../components/ObjectTimeline";
-import { SceneThumbnailList } from "../components/SceneThumbnailList";
 
 type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
@@ -53,6 +52,22 @@ function fitImageToCanvas(asset: AssetDto, video: ProjectDocument["video"]) {
   };
 }
 
+function ensureCanvas(document: ProjectDocument): ProjectDocument {
+  if (document.scenes.length > 0) return document;
+  return {
+    ...document,
+    scenes: [
+      {
+        id: crypto.randomUUID(),
+        name: "Canvas",
+        background: { type: "color", color: "#16324f" },
+        layers: [],
+        dialogues: [],
+      },
+    ],
+  };
+}
+
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
@@ -65,7 +80,7 @@ export function ProjectEditorPage() {
   const { projectId } = useParams();
   const [detail, setDetail] = useState<ProjectDetailDto>();
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [selectedSceneIndex, setSelectedSceneIndex] = useState(0);
+  const selectedSceneIndex = 0;
   const [selectedLayerId, setSelectedLayerId] = useState<string>();
   const [assets, setAssets] = useState<AssetDto[]>([]);
   const [timeMs, setTimeMs] = useState(0);
@@ -80,7 +95,6 @@ export function ProjectEditorPage() {
   const futureRef = useRef<ProjectDocument[]>([]);
   const changeSequenceRef = useRef(0);
   const saveInFlightRef = useRef(false);
-  const copiedSceneRef = useRef<Scene | undefined>(undefined);
 
   useEffect(() => {
     if (!projectId) return;
@@ -91,8 +105,10 @@ export function ProjectEditorPage() {
     ])
       .then(([result, assetList]) => {
         if (!active) return;
-        setDetail(result);
-        documentRef.current = result.document;
+        const document = ensureCanvas(result.document);
+        setDetail({ ...result, document });
+        documentRef.current = document;
+        if (document !== result.document) setSaveState("dirty");
         setAssets(assetList.items);
       })
       .catch(() => {
@@ -204,98 +220,11 @@ export function ProjectEditorPage() {
     applyDocument(next, false);
   }
 
-  function addScene() {
-    mutate((document) => {
-      document.scenes.push({
-        id: crypto.randomUUID(),
-        name: t("editor.defaultSceneName", {
-          count: document.scenes.length + 1,
-        }),
-        background: { type: "color", color: "#16324f" },
-        layers: [],
-        dialogues: [],
-      });
-      setSelectedSceneIndex(document.scenes.length - 1);
-    });
-  }
-
   function updateScene(mutator: (scene: Scene) => void) {
     mutate((document) => {
-      const scene = document.scenes[selectedSceneIndex];
+      const scene = document.scenes[0];
       if (scene) mutator(scene);
     });
-  }
-
-  function cloneScene(source: Scene): Scene {
-    const copy = structuredClone(source);
-    copy.id = crypto.randomUUID();
-    copy.name = `${source.name} ${t("editor.copySuffix")}`;
-    copy.layers = copy.layers.map((layer) => ({
-      ...layer,
-      id: crypto.randomUUID(),
-    }));
-    copy.dialogues = copy.dialogues.map((dialogue) => ({
-      ...dialogue,
-      id: crypto.randomUUID(),
-    }));
-    return copy;
-  }
-
-  function duplicateScene(sceneIndex: number) {
-    mutate((document) => {
-      const source = document.scenes[sceneIndex];
-      if (!source) return;
-      const copy = cloneScene(source);
-      document.scenes.splice(sceneIndex + 1, 0, copy);
-      setSelectedSceneIndex(sceneIndex + 1);
-    });
-  }
-
-  function copySelectedScene(): boolean {
-    const source = documentRef.current?.scenes[selectedSceneIndex];
-    if (!source) return false;
-    copiedSceneRef.current = structuredClone(source);
-    return true;
-  }
-
-  function pasteCopiedScene(): boolean {
-    const source = copiedSceneRef.current;
-    if (!source) return false;
-    const insertIndex = selectedSceneIndex + 1;
-    mutate((document) => {
-      document.scenes.splice(insertIndex, 0, cloneScene(source));
-    });
-    setSelectedSceneIndex(insertIndex);
-    setSelectedLayerId(undefined);
-    setTimeMs(0);
-    return true;
-  }
-
-  function deleteScene(sceneIndex: number) {
-    mutate((document) => document.scenes.splice(sceneIndex, 1));
-    setSelectedSceneIndex((current) => {
-      if (current > sceneIndex) return current - 1;
-      if (current === sceneIndex) return Math.max(0, current - 1);
-      return current;
-    });
-    setSelectedLayerId(undefined);
-  }
-
-  function reorderScene(
-    sourceIndex: number,
-    targetIndex: number,
-    position: "before" | "after",
-  ) {
-    let destinationIndex = targetIndex + (position === "after" ? 1 : 0);
-    if (sourceIndex < destinationIndex) destinationIndex -= 1;
-    if (sourceIndex === destinationIndex) return;
-    mutate((document) => {
-      const [movedScene] = document.scenes.splice(sourceIndex, 1);
-      if (movedScene) document.scenes.splice(destinationIndex, 0, movedScene);
-    });
-    setSelectedSceneIndex(destinationIndex);
-    setSelectedLayerId(undefined);
-    setTimeMs(0);
   }
 
   function addDialogue() {
@@ -456,18 +385,10 @@ export function ProjectEditorPage() {
         redo();
         return;
       }
-      if (key === "c") {
-        if (window.getSelection()?.toString()) return;
-        if (copySelectedScene()) event.preventDefault();
-        return;
-      }
-      if (key === "v" && pasteCopiedScene()) {
-        event.preventDefault();
-      }
     };
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [detail, selectedSceneIndex]);
+  }, [detail]);
 
   if (!detail) {
     return (
@@ -602,25 +523,6 @@ export function ProjectEditorPage() {
         </section>
 
         <section className="editor-timeline-area">
-          <div className="timeline-scene-strip" aria-label={t("editor.scenes")}>
-            <SceneThumbnailList
-              addLabel={t("editor.newScene")}
-              assetUrl={assetContentUrl}
-              deleteLabel={t("editor.delete")}
-              duplicateLabel={t("editor.duplicate")}
-              onDelete={deleteScene}
-              onDuplicate={duplicateScene}
-              onAdd={addScene}
-              onReorder={reorderScene}
-              onSelect={(index) => {
-                setSelectedSceneIndex(index);
-                setSelectedLayerId(undefined);
-                setTimeMs(0);
-              }}
-              project={project}
-              selectedSceneIndex={selectedSceneIndex}
-            />
-          </div>
           {scene ? (
             <ObjectTimeline
               durationMs={SCENE_DURATION_MS}
@@ -676,17 +578,6 @@ export function ProjectEditorPage() {
             <>
               <details open hidden={activeTool !== "scene"}>
                 <summary>{t("editor.sceneSettings")}</summary>
-                <label>
-                  <span>{t("editor.sceneName")}</span>
-                  <input
-                    value={scene.name}
-                    onChange={(event) =>
-                      updateScene((item) => {
-                        item.name = event.target.value;
-                      })
-                    }
-                  />
-                </label>
                 <label>
                   <span>{t("editor.backgroundColor")}</span>
                   <input

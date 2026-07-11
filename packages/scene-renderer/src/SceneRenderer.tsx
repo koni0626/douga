@@ -133,7 +133,7 @@ export function SceneRenderer({
       width={width}
       height={height}
       role="img"
-      aria-label={scene.name}
+      aria-label={project.name}
       data-render-canvas
     >
       <rect x={0} y={0} width={width} height={height} fill={backgroundColor} />

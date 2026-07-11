@@ -122,7 +122,6 @@ export function ProjectListPage() {
               <Link to={`/projects/${project.id}`}>
                 <h2>{project.name}</h2>
               </Link>
-              <p>{t("projects.sceneCount", { count: project.scene_count })}</p>
               <p>
                 {t("projects.revision", {
                   count: project.current_revision_number,
