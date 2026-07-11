@@ -29,7 +29,7 @@ type Dialogue = Scene["dialogues"][number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
 
-const SCENE_DURATION_MS = 10_000;
+const SCENE_DURATION_MS = 5_000;
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   return (

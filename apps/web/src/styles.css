@@ -590,7 +590,7 @@ button,
   background: #081827;
   border-top: 1px solid #36516d;
   min-width: 0;
-  padding: 0.7rem 1rem 1rem;
+  padding: 0.4rem 0.75rem 0.55rem;
 }
 
 .editor-timeline-area {
@@ -602,25 +602,25 @@ button,
 
 .timeline-scene-strip {
   border-top: 1px solid #36516d;
-  padding: 0.45rem 1rem;
+  padding: 0.3rem 0.75rem;
 }
 
 .timeline-scene-strip .scene-thumbnail-list {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.4rem;
   min-height: 0;
   overflow-x: auto;
   padding-bottom: 0.25rem;
 }
 
 .timeline-scene-strip .scene-thumbnail-item {
-  flex: 0 0 8.5rem;
+  flex: 0 0 6rem;
   padding: 0;
 }
 
 .timeline-scene-strip .scene-thumbnail-card {
   gap: 0.2rem;
-  padding: 0.25rem;
+  padding: 0.18rem;
 }
 
 .timeline-scene-strip .scene-thumbnail-preview {
@@ -628,7 +628,7 @@ button,
 }
 
 .timeline-scene-strip .scene-thumbnail-caption {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
 }
 
 .timeline-scene-strip .scene-thumbnail-number {
@@ -639,29 +639,29 @@ button,
   align-items: center;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.3rem;
 }
 
 .object-timeline-header h2 {
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   margin: 0;
 }
 
 .object-timeline-playback {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.25rem;
   margin-left: auto;
-  margin-right: 1rem;
+  margin-right: 0.65rem;
 }
 
 .timeline-icon-button {
   align-items: center;
   border-radius: 0.45rem;
   display: inline-flex;
-  height: 2rem;
+  height: 1.6rem;
   justify-content: center;
   padding: 0;
-  width: 2rem;
+  width: 1.6rem;
 }
 
 .timeline-icon-button--active {
@@ -671,24 +671,25 @@ button,
 
 .timeline-icon-button svg {
   fill: currentColor;
-  height: 1rem;
-  width: 1rem;
+  height: 0.75rem;
+  width: 0.75rem;
 }
 
 .object-timeline-header span {
   color: #9fb2c7;
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
 
 .object-timeline-scroll {
-  max-height: 14rem;
+  max-height: 8.5rem;
   overflow: auto;
 }
 
 .object-timeline-grid {
   display: grid;
-  grid-template-columns: 12rem minmax(45rem, 1fr);
-  min-width: 57rem;
+  grid-template-columns: 9rem minmax(36rem, 1fr);
+  min-width: 45rem;
   position: relative;
 }
 
@@ -696,7 +697,7 @@ button,
 .object-timeline-ruler {
   background: #0a1d2e;
   border-bottom: 1px solid #29445e;
-  height: 2rem;
+  height: 1.35rem;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -719,9 +720,9 @@ button,
   border-left: 1px solid #36516d;
   bottom: 0;
   color: #8aa0b7;
-  font-size: 0.7rem;
-  height: 1.35rem;
-  padding-left: 0.25rem;
+  font-size: 0.58rem;
+  height: 0.9rem;
+  padding-left: 0.18rem;
   position: absolute;
   transform: translateX(-1px);
 }
@@ -737,11 +738,12 @@ button,
   border-bottom: 1px solid #1f3850;
   border-radius: 0;
   display: flex;
-  gap: 0.5rem;
+  font-size: 0.72rem;
+  gap: 0.35rem;
   left: 0;
   min-width: 0;
   overflow: hidden;
-  padding: 0.45rem 0.65rem;
+  padding: 0.2rem 0.45rem;
   position: sticky;
   text-align: left;
   text-overflow: ellipsis;
@@ -757,8 +759,8 @@ button,
 .object-type-dot {
   background: #a78bfa;
   border-radius: 0.2rem;
-  flex: 0 0 0.65rem;
-  height: 0.65rem;
+  flex: 0 0 0.48rem;
+  height: 0.48rem;
 }
 
 .object-type-dot--image {
@@ -780,7 +782,7 @@ button,
   background-size: 10% 100%;
   border-bottom: 1px solid #1f3850;
   cursor: pointer;
-  height: 2.7rem;
+  height: 1.65rem;
   position: relative;
 }
 
@@ -791,10 +793,11 @@ button,
   border-radius: 0.4rem;
   cursor: grab;
   display: flex;
-  inset-block: 0.35rem;
+  font-size: 0.72rem;
+  inset-block: 0.18rem;
   min-width: 1.25rem;
   overflow: hidden;
-  padding: 0 0.55rem;
+  padding: 0 0.4rem;
   position: absolute;
   touch-action: none;
   user-select: none;
@@ -836,7 +839,7 @@ button,
 
 .object-timeline-playhead-area {
   bottom: 0;
-  left: 12rem;
+  left: 9rem;
   pointer-events: none;
   position: absolute;
   right: 0;
@@ -856,18 +859,19 @@ button,
   background: #ff6464;
   border-radius: 0 0 0.3rem 0.3rem;
   content: "";
-  height: 0.5rem;
-  left: -0.25rem;
+  height: 0.35rem;
+  left: -0.175rem;
   position: absolute;
   top: 0;
-  width: 0.5rem;
+  width: 0.35rem;
 }
 
 .object-timeline-empty {
   color: #7890a8;
+  font-size: 0.72rem;
   grid-column: 1 / -1;
   margin: 0;
-  padding: 0.8rem;
+  padding: 0.4rem;
 }
 
 .panel-actions {

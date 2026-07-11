@@ -8,7 +8,7 @@ async function seekTimeline(page, timeMs) {
       element.dispatchEvent(
         new globalThis.PointerEvent("pointerdown", {
           bubbles: true,
-          clientX: bounds.left + bounds.width * (value / 10_000),
+          clientX: bounds.left + bounds.width * (value / 5_000),
         }),
       );
     }, timeMs);
@@ -111,7 +111,7 @@ test("create a project and auto-save a scene", async ({ page }) => {
   ).not.toHaveAttribute("style", /width: 100%/);
   await seekTimeline(page, 1000);
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
-  await seekTimeline(page, 9000);
+  await seekTimeline(page, 4500);
   await expect(page.locator(".editor-preview image")).toBeVisible();
   await page.getByRole("button", { name: "レイヤー" }).click();
   await expect(page.getByText("dropped.png")).toBeVisible();
@@ -136,7 +136,7 @@ test("create a project and auto-save a scene", async ({ page }) => {
     "ノベルゲームのように自動で送られるテロップです。",
   );
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
-  await seekTimeline(page, 9000);
+  await seekTimeline(page, 4500);
   await expect(page.locator(".editor-preview image")).toBeVisible();
 
   const originalScene = page.getByRole("button", {
