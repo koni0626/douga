@@ -22,6 +22,9 @@ export type ImageLayer = BaseLayer & {
   asset_id: string;
   start_ms?: number;
   end_ms?: number;
+  flip_x?: boolean;
+  flip_y?: boolean;
+  locked?: boolean;
   x: number;
   y: number;
   width: number;
@@ -35,6 +38,9 @@ export type TextLayer = BaseLayer & {
   text: string;
   start_ms?: number;
   end_ms?: number;
+  flip_x?: boolean;
+  flip_y?: boolean;
+  locked?: boolean;
   font_size: number;
   color: string;
   x: number;
@@ -51,6 +57,9 @@ export type ShapeLayer = BaseLayer & {
   fill: string;
   start_ms?: number;
   end_ms?: number;
+  flip_x?: boolean;
+  flip_y?: boolean;
+  locked?: boolean;
   x: number;
   y: number;
   width: number;
@@ -114,6 +123,9 @@ export interface BaseLayer {
   id: string;
   start_ms?: number;
   end_ms?: number;
+  flip_x?: boolean;
+  flip_y?: boolean;
+  locked?: boolean;
   x: number;
   y: number;
   width: number;

@@ -264,16 +264,25 @@ export function ObjectTimeline({
                 </button>
                 <div className="object-timeline-track" onPointerDown={seek}>
                   <div
-                    className={
+                    className={[
+                      "object-timeline-clip",
                       selectedLayerId === layer.id
-                        ? "object-timeline-clip object-timeline-clip--active"
-                        : "object-timeline-clip"
-                    }
+                        ? "object-timeline-clip--active"
+                        : "",
+                      layer.locked ? "object-timeline-clip--locked" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     style={{
                       left: `${(range.startMs * 100) / durationMs}%`,
                       width: `${((range.endMs - range.startMs) * 100) / durationMs}%`,
                     }}
                     onPointerDown={(event) => {
+                      if (layer.locked) {
+                        event.stopPropagation();
+                        onSelect(layer.id);
+                        return;
+                      }
                       const bounds =
                         event.currentTarget.getBoundingClientRect();
                       const edgeSize = 14;

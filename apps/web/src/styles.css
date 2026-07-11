@@ -556,6 +556,94 @@ button,
     outline-color 120ms ease;
 }
 
+.canvas-stage {
+  display: grid;
+  max-width: 100%;
+  position: relative;
+}
+
+.canvas-stage > svg {
+  grid-area: 1 / 1;
+  height: 100%;
+  width: 100%;
+}
+
+.canvas-stage > svg[data-render-canvas] {
+  box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+}
+
+.canvas-object-overlay {
+  overflow: visible;
+  pointer-events: none;
+  position: relative;
+  z-index: 12;
+}
+
+.canvas-object-hitbox {
+  cursor: move;
+  fill: transparent;
+  pointer-events: all;
+}
+
+.canvas-object-selection {
+  fill: none;
+  pointer-events: none;
+  stroke: #55b8ff;
+  stroke-dasharray: 10 6;
+  stroke-width: 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.canvas-object-selection--locked {
+  stroke: #fbbf24;
+}
+
+.canvas-object-handle {
+  cursor: nwse-resize;
+  fill: #f8fafc;
+  pointer-events: all;
+  stroke: #1878c8;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.canvas-object-rotate-handle {
+  cursor: grab;
+}
+
+.canvas-object-rotate-line {
+  pointer-events: none;
+  stroke: #55b8ff;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.canvas-object-toolbar {
+  align-items: center;
+  background: rgb(7 21 34 / 94%);
+  border: 1px solid #466b8b;
+  border-radius: 0.55rem;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 40%);
+  display: flex;
+  gap: 0.25rem;
+  left: 0.5rem;
+  padding: 0.25rem;
+  position: absolute;
+  top: 0.5rem;
+  z-index: 15;
+}
+
+.canvas-object-toolbar button {
+  align-items: center;
+  border-radius: 0.4rem;
+  display: inline-flex;
+  font-size: 1rem;
+  height: 2rem;
+  justify-content: center;
+  padding: 0;
+  width: 2rem;
+}
+
 .editor-preview--drop-active {
   background: rgb(24 120 200 / 18%);
   outline: 3px dashed #60a5fa;
@@ -813,6 +901,12 @@ button,
   box-shadow: 0 0 0 2px rgb(96 165 250 / 25%);
 }
 
+.object-timeline-clip--locked {
+  cursor: not-allowed;
+  filter: saturate(0.45);
+  opacity: 0.72;
+}
+
 .object-timeline-clip > span {
   overflow: hidden;
   pointer-events: none;
@@ -948,13 +1042,6 @@ button,
   border-radius: 0.55rem;
   margin-top: 0.7rem;
   padding: 0.7rem;
-}
-
-.editor-preview > svg {
-  box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
-  height: auto;
-  max-height: calc(100vh - 19rem);
-  max-width: 100%;
 }
 
 .upload-button {

@@ -68,6 +68,71 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await expect(page.locator(".editor-preview image")).toBeVisible({
     timeout: 10_000,
   });
+  const renderedImage = page.locator(".editor-preview image");
+  await expect(renderedImage).toHaveAttribute("width", "1080");
+  await expect(renderedImage).toHaveAttribute("height", "1080");
+  await expect(renderedImage).toHaveAttribute("x", "420");
+  await expect(renderedImage).toHaveAttribute("y", "0");
+
+  const objectHitbox = page.locator(".canvas-object-hitbox").first();
+  await objectHitbox.click();
+  await expect(page.getByRole("button", { name: "左右反転" })).toBeVisible();
+  const hitboxBounds = await objectHitbox.boundingBox();
+  if (!hitboxBounds) throw new Error("Canvas object is not measurable");
+  await page.mouse.move(
+    hitboxBounds.x + hitboxBounds.width / 2,
+    hitboxBounds.y + hitboxBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    hitboxBounds.x + hitboxBounds.width / 2 + 20,
+    hitboxBounds.y + hitboxBounds.height / 2 + 10,
+  );
+  await page.mouse.up();
+  await expect(renderedImage).not.toHaveAttribute("x", "420");
+
+  const resizeHandle = page.locator(".canvas-object-resize-handle");
+  const resizeBounds = await resizeHandle.boundingBox();
+  if (!resizeBounds) throw new Error("Resize handle is not measurable");
+  await page.mouse.move(
+    resizeBounds.x + resizeBounds.width / 2,
+    resizeBounds.y + resizeBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    resizeBounds.x + resizeBounds.width / 2 + 15,
+    resizeBounds.y + resizeBounds.height / 2 + 15,
+  );
+  await page.mouse.up();
+  await expect(renderedImage).not.toHaveAttribute("width", "1080");
+
+  const rotateHandle = page.locator(".canvas-object-rotate-handle");
+  const rotateBounds = await rotateHandle.boundingBox();
+  if (!rotateBounds) throw new Error("Rotate handle is not measurable");
+  await page.mouse.move(
+    rotateBounds.x + rotateBounds.width / 2,
+    rotateBounds.y + rotateBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    rotateBounds.x + rotateBounds.width / 2 + 25,
+    rotateBounds.y + rotateBounds.height / 2 + 10,
+  );
+  await page.mouse.up();
+  await expect(renderedImage).not.toHaveAttribute("transform", /rotate\(0\)/);
+
+  await page.getByRole("button", { name: "左右反転" }).click();
+  await expect(renderedImage).toHaveAttribute("transform", /scale\(-1 1\)/);
+  await page.getByRole("button", { name: "上下反転" }).click();
+  await expect(renderedImage).toHaveAttribute("transform", /scale\(-1 -1\)/);
+  await page.getByRole("button", { name: "ロック", exact: true }).click();
+  await expect(page.locator('[aria-label="ロック中"]')).toBeVisible();
+  await expect(page.locator(".object-timeline-clip--locked")).toBeVisible();
+  await expect(
+    page.locator('svg[data-render-canvas] [aria-label="ロック中"]'),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "ロック解除" }).click();
+
   await expect(page.locator(".object-timeline")).toBeVisible();
   await expect(page.locator(".preview-controls")).toHaveCount(0);
   await page.getByRole("button", { name: "再生", exact: true }).click();

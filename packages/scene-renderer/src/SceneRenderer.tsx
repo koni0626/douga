@@ -19,7 +19,9 @@ export interface SceneRendererProps {
 function layerTransform(layer: Layer): string {
   const centerX = layer.x + layer.width / 2;
   const centerY = layer.y + layer.height / 2;
-  return `rotate(${layer.rotation} ${centerX} ${centerY})`;
+  const scaleX = layer.flip_x ? -1 : 1;
+  const scaleY = layer.flip_y ? -1 : 1;
+  return `translate(${centerX} ${centerY}) rotate(${layer.rotation}) scale(${scaleX} ${scaleY}) translate(${-centerX} ${-centerY})`;
 }
 
 function renderLayer(

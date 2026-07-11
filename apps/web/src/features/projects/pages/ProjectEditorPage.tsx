@@ -17,6 +17,10 @@ import {
 } from "../../../shared/lib/api";
 import { AudioPreview, NumberField } from "../components/EditorFields";
 import {
+  CanvasObjectEditor,
+  type LayerTransformPatch,
+} from "../components/CanvasObjectEditor";
+import {
   FloatingEditorTools,
   type EditorTool,
 } from "../components/FloatingEditorTools";
@@ -28,8 +32,26 @@ type Layer = Scene["layers"][number];
 type Dialogue = Scene["dialogues"][number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
+type LayerPreview = { layerId: string; patch: LayerTransformPatch };
 
 const SCENE_DURATION_MS = 5_000;
+
+function fitImageToCanvas(asset: AssetDto, video: ProjectDocument["video"]) {
+  const sourceWidth = asset.width ?? 16;
+  const sourceHeight = asset.height ?? 9;
+  const scale = Math.min(
+    video.width / sourceWidth,
+    video.height / sourceHeight,
+  );
+  const width = Math.round(sourceWidth * scale);
+  const height = Math.round(sourceHeight * scale);
+  return {
+    x: Math.round((video.width - width) / 2),
+    y: Math.round((video.height - height) / 2),
+    width,
+    height,
+  };
+}
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   return (
@@ -52,6 +74,7 @@ export function ProjectEditorPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadErrorKey, setUploadErrorKey] = useState<string>();
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
+  const [layerPreview, setLayerPreview] = useState<LayerPreview>();
   const documentRef = useRef<ProjectDocument | undefined>(undefined);
   const pastRef = useRef<ProjectDocument[]>([]);
   const futureRef = useRef<ProjectDocument[]>([]);
@@ -302,14 +325,13 @@ export function ProjectEditorPage() {
   }
 
   function addImageLayer(asset: AssetDto) {
+    if (!detail) return;
+    const fitted = fitImageToCanvas(asset, detail.document.video);
     addLayer({
       id: crypto.randomUUID(),
       type: "image",
       asset_id: asset.id,
-      x: 240,
-      y: 120,
-      width: 960,
-      height: 540,
+      ...fitted,
       rotation: 0,
       opacity: 1,
       start_ms: 0,
@@ -321,24 +343,14 @@ export function ProjectEditorPage() {
     if (!detail) return;
     const layerId = crypto.randomUUID();
     const video = detail.document.video;
-    const sourceWidth = asset.width ?? 16;
-    const sourceHeight = asset.height ?? 9;
-    const scale = Math.min(
-      (video.width * 0.8) / sourceWidth,
-      (video.height * 0.8) / sourceHeight,
-    );
-    const width = Math.round(sourceWidth * scale);
-    const height = Math.round(sourceHeight * scale);
+    const fitted = fitImageToCanvas(asset, video);
     mutate((document) => {
       const targetScene = document.scenes.find((item) => item.id === sceneId);
       targetScene?.layers.push({
         id: layerId,
         type: "image",
         asset_id: asset.id,
-        x: Math.round((video.width - width) / 2),
-        y: Math.round((video.height - height) / 2),
-        width,
-        height,
+        ...fitted,
         rotation: 0,
         opacity: 1,
         start_ms: 0,
@@ -391,7 +403,8 @@ export function ProjectEditorPage() {
   function updateLayer(layerId: string, patch: Partial<Layer>) {
     updateScene((scene) => {
       const layer = scene.layers.find((item) => item.id === layerId);
-      if (layer) Object.assign(layer, patch);
+      if (!layer || (layer.locked && patch.locked !== false)) return;
+      Object.assign(layer, patch);
     });
   }
 
@@ -466,6 +479,24 @@ export function ProjectEditorPage() {
 
   const project = detail.document;
   const scene = project.scenes[selectedSceneIndex];
+  const previewProject = layerPreview
+    ? {
+        ...project,
+        scenes: project.scenes.map((item, sceneIndex) =>
+          sceneIndex === selectedSceneIndex
+            ? {
+                ...item,
+                layers: item.layers.map((layer) =>
+                  layer.id === layerPreview.layerId
+                    ? { ...layer, ...layerPreview.patch }
+                    : layer,
+                ),
+              }
+            : item,
+        ),
+      }
+    : project;
+  const previewScene = previewProject.scenes[selectedSceneIndex];
   const selectedLayer = scene?.layers.find(
     (layer) => layer.id === selectedLayerId,
   );
@@ -499,12 +530,36 @@ export function ProjectEditorPage() {
             onDrop={dropImage}
           >
             {scene ? (
-              <SceneRenderer
-                project={project}
-                sceneIndex={selectedSceneIndex}
-                timeMs={timeMs}
-                assetUrl={assetContentUrl}
-              />
+              <div
+                className="canvas-stage"
+                style={{
+                  aspectRatio: `${project.video.width} / ${project.video.height}`,
+                  width: `min(100%, calc((100vh - 19rem) * ${project.video.width / project.video.height}))`,
+                }}
+              >
+                <SceneRenderer
+                  project={previewProject}
+                  sceneIndex={selectedSceneIndex}
+                  timeMs={timeMs}
+                  assetUrl={assetContentUrl}
+                />
+                <CanvasObjectEditor
+                  flipHorizontalLabel={t("editor.flipHorizontal")}
+                  flipVerticalLabel={t("editor.flipVertical")}
+                  height={project.video.height}
+                  layers={previewScene?.layers ?? []}
+                  lockLabel={t("editor.lock")}
+                  lockedLabel={t("editor.locked")}
+                  onCommit={(layerId, patch) => updateLayer(layerId, patch)}
+                  onPreview={(layerId, patch) =>
+                    setLayerPreview(patch ? { layerId, patch } : undefined)
+                  }
+                  onSelect={setSelectedLayerId}
+                  selectedLayerId={selectedLayerId}
+                  unlockLabel={t("editor.unlock")}
+                  width={project.video.width}
+                />
+              </div>
             ) : (
               <p>{t("editor.noScenes")}</p>
             )}
