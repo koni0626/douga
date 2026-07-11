@@ -539,7 +539,9 @@ export function ProjectEditorPage() {
         <section className="editor-timeline-area">
           {scene ? (
             <ObjectTimeline
+              collapseLabel={t("editor.collapseTimeline")}
               durationMs={SCENE_DURATION_MS}
+              expandLabel={t("editor.expandTimeline")}
               labelFor={(layer) =>
                 layer.type === "text" && layer.text.trim()
                   ? layer.text

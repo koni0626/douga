@@ -86,6 +86,8 @@
     },
     "timeline": "再生位置",
     "objectTimeline": "オブジェクトのタイムライン",
+    "collapseTimeline": "タイムラインを閉じる",
+    "expandTimeline": "タイムラインを開く",
     "flipHorizontal": "左右反転",
     "flipVertical": "上下反転",
     "lock": "ロック",

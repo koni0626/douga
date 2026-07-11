@@ -554,6 +554,10 @@ button,
   padding: 0.4rem 0.75rem 0.55rem;
 }
 
+.object-timeline--collapsed {
+  padding-bottom: 0.4rem;
+}
+
 .editor-timeline-area {
   background: #081827;
   grid-column: 1;
@@ -571,6 +575,31 @@ button,
 .object-timeline-header h2 {
   font-size: 0.78rem;
   margin: 0;
+}
+
+.timeline-toggle-button {
+  align-items: center;
+  border: 0;
+  display: inline-flex;
+  height: 1.6rem;
+  justify-content: center;
+  margin-right: 0.25rem;
+  padding: 0;
+  width: 1.6rem;
+}
+
+.timeline-toggle-button:hover {
+  background: #173b59;
+}
+
+.timeline-toggle-button svg {
+  fill: none;
+  height: 0.9rem;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 0.9rem;
 }
 
 .object-timeline-playback {

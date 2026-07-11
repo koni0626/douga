@@ -86,6 +86,8 @@
     },
     "timeline": "Playback position",
     "objectTimeline": "Object timeline",
+    "collapseTimeline": "Collapse timeline",
+    "expandTimeline": "Expand timeline",
     "flipHorizontal": "Flip horizontally",
     "flipVertical": "Flip vertically",
     "lock": "Lock",
