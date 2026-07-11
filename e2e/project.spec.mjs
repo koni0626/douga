@@ -30,6 +30,8 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await page.getByLabel("新しいプロジェクト名").fill("自動保存テスト");
   await page.getByRole("button", { name: "作成" }).click();
   await expect(page.locator(".editor-workspace")).toBeVisible();
+  await expect(page.locator(".scene-panel")).toHaveCount(0);
+  await expect(page.locator(".timeline-scene-strip")).toBeVisible();
 
   await page.locator(".scene-thumbnail-list").click({ button: "right" });
   await page.getByRole("menuitem", { name: "新規追加" }).click();

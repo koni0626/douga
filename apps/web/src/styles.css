@@ -294,19 +294,14 @@ button,
 
 .editor-workspace {
   height: calc(100vh - 4rem);
-  grid-template-columns: 18rem minmax(20rem, 1fr);
+  grid-template-columns: minmax(20rem, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
   min-height: 0;
   overflow: hidden;
   position: relative;
 }
 
-.scene-panel {
-  grid-row: 1 / span 2;
-}
-
 .editor-body aside,
-.scene-panel,
 .property-panel {
   background: #0a1d2e;
   border-right: 1px solid #29445e;
@@ -425,16 +420,6 @@ button,
   padding: 0.8rem;
   text-align: left;
   width: 100%;
-}
-
-.scene-panel {
-  max-height: calc(100vh - 4rem);
-  overflow-y: auto;
-}
-
-.scene-panel h2 {
-  font-size: 1rem;
-  margin: 0 0 0.8rem;
 }
 
 .scene-thumbnail-list {
@@ -604,9 +589,50 @@ button,
 .object-timeline {
   background: #081827;
   border-top: 1px solid #36516d;
-  grid-column: 2;
   min-width: 0;
   padding: 0.7rem 1rem 1rem;
+}
+
+.editor-timeline-area {
+  background: #081827;
+  grid-column: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.timeline-scene-strip {
+  border-top: 1px solid #36516d;
+  padding: 0.45rem 1rem;
+}
+
+.timeline-scene-strip .scene-thumbnail-list {
+  display: flex;
+  gap: 0.55rem;
+  min-height: 0;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.timeline-scene-strip .scene-thumbnail-item {
+  flex: 0 0 8.5rem;
+  padding: 0;
+}
+
+.timeline-scene-strip .scene-thumbnail-card {
+  gap: 0.2rem;
+  padding: 0.25rem;
+}
+
+.timeline-scene-strip .scene-thumbnail-preview {
+  border-radius: 0.25rem;
+}
+
+.timeline-scene-strip .scene-thumbnail-caption {
+  font-size: 0.75rem;
+}
+
+.timeline-scene-strip .scene-thumbnail-number {
+  flex-basis: 1rem;
 }
 
 .object-timeline-header {

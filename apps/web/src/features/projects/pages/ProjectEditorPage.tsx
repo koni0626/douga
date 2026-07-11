@@ -475,27 +475,6 @@ export function ProjectEditorPage() {
   return (
     <main className="editor-shell">
       <div className="editor-workspace">
-        <aside className="scene-panel">
-          <h2>{t("editor.scenes")}</h2>
-          <SceneThumbnailList
-            addLabel={t("editor.newScene")}
-            assetUrl={assetContentUrl}
-            deleteLabel={t("editor.delete")}
-            duplicateLabel={t("editor.duplicate")}
-            onDelete={deleteScene}
-            onDuplicate={duplicateScene}
-            onAdd={addScene}
-            onReorder={reorderScene}
-            onSelect={(index) => {
-              setSelectedSceneIndex(index);
-              setSelectedLayerId(undefined);
-              setTimeMs(0);
-            }}
-            project={project}
-            selectedSceneIndex={selectedSceneIndex}
-          />
-        </aside>
-
         <section className="editor-center">
           <div
             className={`editor-preview${dropActive ? " editor-preview--drop-active" : ""}`}
@@ -567,40 +546,61 @@ export function ProjectEditorPage() {
           ) : null}
         </section>
 
-        {scene ? (
-          <ObjectTimeline
-            durationMs={SCENE_DURATION_MS}
-            labelFor={(layer) =>
-              layer.type === "text" && layer.text.trim()
-                ? layer.text
-                : t(`editor.layerType.${layer.type}`)
-            }
-            layers={scene.layers}
-            onPlay={() => setPlaying(true)}
-            onChange={(layerId, range) =>
-              updateLayer(layerId, {
-                start_ms: range.startMs,
-                end_ms: range.endMs,
-              })
-            }
-            onSeek={(value) => {
-              setPlaying(false);
-              setTimeMs(value === SCENE_DURATION_MS ? value - 1 : value);
-            }}
-            onSelect={(layerId) => setSelectedLayerId(layerId)}
-            onStop={() => {
-              setPlaying(false);
-              setTimeMs(0);
-            }}
-            playLabel={t("play")}
-            playing={playing}
-            seekLabel={t("editor.timeline")}
-            selectedLayerId={selectedLayerId}
-            stopLabel={t("stop")}
-            timeMs={timeMs}
-            title={t("editor.objectTimeline")}
-          />
-        ) : null}
+        <section className="editor-timeline-area">
+          <div className="timeline-scene-strip" aria-label={t("editor.scenes")}>
+            <SceneThumbnailList
+              addLabel={t("editor.newScene")}
+              assetUrl={assetContentUrl}
+              deleteLabel={t("editor.delete")}
+              duplicateLabel={t("editor.duplicate")}
+              onDelete={deleteScene}
+              onDuplicate={duplicateScene}
+              onAdd={addScene}
+              onReorder={reorderScene}
+              onSelect={(index) => {
+                setSelectedSceneIndex(index);
+                setSelectedLayerId(undefined);
+                setTimeMs(0);
+              }}
+              project={project}
+              selectedSceneIndex={selectedSceneIndex}
+            />
+          </div>
+          {scene ? (
+            <ObjectTimeline
+              durationMs={SCENE_DURATION_MS}
+              labelFor={(layer) =>
+                layer.type === "text" && layer.text.trim()
+                  ? layer.text
+                  : t(`editor.layerType.${layer.type}`)
+              }
+              layers={scene.layers}
+              onPlay={() => setPlaying(true)}
+              onChange={(layerId, range) =>
+                updateLayer(layerId, {
+                  start_ms: range.startMs,
+                  end_ms: range.endMs,
+                })
+              }
+              onSeek={(value) => {
+                setPlaying(false);
+                setTimeMs(value === SCENE_DURATION_MS ? value - 1 : value);
+              }}
+              onSelect={(layerId) => setSelectedLayerId(layerId)}
+              onStop={() => {
+                setPlaying(false);
+                setTimeMs(0);
+              }}
+              playLabel={t("play")}
+              playing={playing}
+              seekLabel={t("editor.timeline")}
+              selectedLayerId={selectedLayerId}
+              stopLabel={t("stop")}
+              timeMs={timeMs}
+              title={t("editor.objectTimeline")}
+            />
+          ) : null}
+        </section>
 
         {scene && activeTool ? (
           <aside
