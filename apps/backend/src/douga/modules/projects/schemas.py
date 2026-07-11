@@ -30,6 +30,7 @@ class ProjectSummaryResponse(BaseModel):
     lock_version: int
     scene_count: int
     estimated_duration_ms: int | None
+    thumbnail_asset_id: UUID | None
     updated_at: datetime
 
 

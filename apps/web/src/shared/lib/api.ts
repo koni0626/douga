@@ -24,6 +24,7 @@ export interface ProjectSummaryDto {
   lock_version: number;
   scene_count: number;
   estimated_duration_ms: number | null;
+  thumbnail_asset_id: string | null;
   updated_at: string;
 }
 

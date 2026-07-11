@@ -30,6 +30,7 @@ class ProjectSummary:
     lock_version: int
     scene_count: int
     estimated_duration_ms: int | None
+    thumbnail_asset_id: UUID | None
     updated_at: datetime
 
 
@@ -98,7 +99,18 @@ class ProjectService:
         projects, total = await self.repository.list_owned(
             user_id, search=search, status=status, limit=limit, offset=offset
         )
-        return ProjectList([self._summary(project) for project in projects], total)
+        missing = [project.id for project in projects if project.thumbnail_asset_id is None]
+        revisions = await self.repository.get_current_revisions_owned(missing, user_id)
+        summaries = [
+            self._summary(
+                project,
+                project_thumbnail_asset_id(revisions[project.id].document)
+                if project.id in revisions
+                else None,
+            )
+            for project in projects
+        ]
+        return ProjectList(summaries, total)
 
     async def create_project(
         self, user_id: UUID, name: str, content_locale: Locale | None
@@ -184,6 +196,11 @@ class ProjectService:
         )
         await self.repository.add_revision(revision)
         await self._record_asset_references(revision, document)
+        refreshed = await self.repository.set_thumbnail(
+            project_id, user_id, project_thumbnail_asset_id(document)
+        )
+        if refreshed is not None:
+            updated = refreshed
         await self.uow.commit()
         return ProjectDetail(self._summary(updated), document)
 
@@ -218,6 +235,7 @@ class ProjectService:
         revision = self._revision(new_id, user_id, 1, document, "project duplicated")
         await self.repository.add(project, revision)
         await self._record_asset_references(revision, document)
+        project.thumbnail_asset_id = project_thumbnail_asset_id(document)
         await self.uow.commit()
         return ProjectDetail(self._summary(project), document)
 
@@ -313,7 +331,7 @@ class ProjectService:
         )
 
     @staticmethod
-    def _summary(project: Project) -> ProjectSummary:
+    def _summary(project: Project, thumbnail_asset_id: UUID | None = None) -> ProjectSummary:
         return ProjectSummary(
             id=project.id,
             name=project.name,
@@ -323,5 +341,17 @@ class ProjectService:
             lock_version=project.lock_version,
             scene_count=project.scene_count,
             estimated_duration_ms=project.estimated_duration_ms,
+            thumbnail_asset_id=project.thumbnail_asset_id or thumbnail_asset_id,
             updated_at=project.updated_at,
         )
+
+
+def project_thumbnail_asset_id(document: dict[str, Any]) -> UUID | None:
+    for scene in document.get("scenes", []):
+        background = scene.get("background", {})
+        if background.get("type") == "asset" and background.get("asset_id"):
+            return UUID(background["asset_id"])
+        for layer in scene.get("layers", []):
+            if layer.get("type") == "image" and layer.get("asset_id"):
+                return UUID(layer["asset_id"])
+    return None

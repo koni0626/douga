@@ -289,4 +289,10 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
   await seekTimeline(page, 4500);
   await expect(page.locator(".editor-preview image")).toBeVisible();
+  await page.getByRole("link", { name: "プロジェクト", exact: true }).click();
+  const projectCard = page
+    .locator("article")
+    .filter({ hasText: "自動保存テスト" });
+  await expect(projectCard.locator(".project-thumbnail img")).toBeVisible();
+  await expect(projectCard.getByText("NO PREVIEW")).toHaveCount(0);
 });

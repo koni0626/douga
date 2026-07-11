@@ -5,13 +5,43 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   ApiError,
   apiRequest,
+  assetContentUrl,
+  type ExportDto,
   type ProjectDetailDto,
   type ProjectListDto,
-  type ExportDto,
+  type ProjectSummaryDto,
 } from "../../../shared/lib/api";
 
+function ProjectThumbnail({
+  project,
+  labels,
+}: {
+  project: ProjectSummaryDto;
+  labels: { noPreview: string; open: string; thumbnail: string };
+}) {
+  return (
+    <Link className="project-thumbnail" to={`/projects/${project.id}`}>
+      {project.thumbnail_asset_id ? (
+        <img
+          src={assetContentUrl(project.thumbnail_asset_id)}
+          alt={labels.thumbnail}
+        />
+      ) : (
+        <span className="project-thumbnail-fallback">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <rect x="6" y="10" width="36" height="28" rx="6" />
+            <path d="m21 18 10 6-10 6z" />
+          </svg>
+          <small>{labels.noPreview}</small>
+        </span>
+      )}
+      <span className="project-thumbnail-overlay">{labels.open}</span>
+    </Link>
+  );
+}
+
 export function ProjectListPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectListDto>();
   const [name, setName] = useState("");
@@ -72,40 +102,64 @@ export function ProjectListPage() {
     navigate("/exports");
   }
 
+  const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
   return (
-    <section className="page-card projects-page">
-      <div className="page-heading">
+    <section className="projects-page">
+      <header className="projects-page-header">
         <div>
           <p className="eyebrow">{t("projects.eyebrow")}</p>
           <h1>{t("projects.title")}</h1>
+          <p className="projects-lead">{t("projects.lead")}</p>
         </div>
-        <form className="inline-form" onSubmit={(event) => void create(event)}>
-          <label>
-            <span>{t("projects.newName")}</span>
-            <input
-              value={name}
-              maxLength={200}
-              onChange={(event) => setName(event.target.value)}
-            />
+        <form
+          className="project-create-form"
+          onSubmit={(event) => void create(event)}
+        >
+          <label className="sr-only" htmlFor="new-project-name">
+            {t("projects.newName")}
           </label>
-          <button type="submit">{t("projects.create")}</button>
+          <input
+            id="new-project-name"
+            value={name}
+            maxLength={200}
+            placeholder={t("projects.newName")}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <button type="submit">
+            <span aria-hidden="true">＋</span>
+            {t("projects.create")}
+          </button>
         </form>
+      </header>
+
+      <div className="projects-toolbar">
+        <form
+          className="project-search-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void load();
+          }}
+        >
+          <span aria-hidden="true">⌕</span>
+          <input
+            aria-label={t("projects.search")}
+            placeholder={t("projects.search")}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <button type="submit">{t("projects.searchAction")}</button>
+        </form>
+        {projects ? (
+          <span className="projects-count">
+            {t("projects.count", { count: projects.total })}
+          </span>
+        ) : null}
       </div>
-      <form
-        className="search-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void load();
-        }}
-      >
-        <input
-          aria-label={t("projects.search")}
-          placeholder={t("projects.search")}
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-        <button type="submit">{t("projects.searchAction")}</button>
-      </form>
+
       {errorKey ? (
         <p role="alert" className="form-error">
           {t(errorKey)}
@@ -119,34 +173,56 @@ export function ProjectListPage() {
         <div className="project-grid">
           {projects.items.map((project) => (
             <article className="project-card" key={project.id}>
-              <Link to={`/projects/${project.id}`}>
-                <h2>{project.name}</h2>
-              </Link>
-              <p>
-                {t("projects.revision", {
-                  count: project.current_revision_number,
-                })}
-              </p>
-              <div className="card-actions">
-                <button
-                  type="button"
-                  onClick={() => void exportProject(project.id)}
-                >
-                  {t("projects.export")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void duplicate(project.id)}
-                >
-                  {t("projects.duplicate")}
-                </button>
-                <button
-                  type="button"
-                  className="danger"
-                  onClick={() => void remove(project.id)}
-                >
-                  {t("projects.delete")}
-                </button>
+              <ProjectThumbnail
+                project={project}
+                labels={{
+                  noPreview: t("projects.noPreview"),
+                  open: t("projects.open"),
+                  thumbnail: t("projects.thumbnail", { name: project.name }),
+                }}
+              />
+              <div className="project-card-body">
+                <Link to={`/projects/${project.id}`}>
+                  <h2>{project.name}</h2>
+                </Link>
+                <p className="project-updated">
+                  {t("projects.updated", {
+                    date: dateFormatter.format(new Date(project.updated_at)),
+                  })}
+                </p>
+                <footer className="project-card-footer">
+                  <span>
+                    {t("projects.revision", {
+                      count: project.current_revision_number,
+                    })}
+                  </span>
+                  <div className="project-card-actions">
+                    <button
+                      type="button"
+                      className="project-export-button"
+                      onClick={() => void exportProject(project.id)}
+                    >
+                      {t("projects.export")}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t("projects.duplicate")}
+                      title={t("projects.duplicate")}
+                      onClick={() => void duplicate(project.id)}
+                    >
+                      ⧉
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      aria-label={t("projects.delete")}
+                      title={t("projects.delete")}
+                      onClick={() => void remove(project.id)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </footer>
               </div>
             </article>
           ))}

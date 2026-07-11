@@ -50,6 +50,28 @@ class ProjectRepository:
         )
         return (await self.session.scalars(statement)).one_or_none()
 
+    async def get_current_revisions_owned(
+        self, project_ids: list[UUID], user_id: UUID
+    ) -> dict[UUID, ProjectRevision]:
+        if not project_ids:
+            return {}
+        statement = (
+            select(ProjectRevision)
+            .join(
+                Project,
+                (Project.id == ProjectRevision.project_id)
+                & (Project.user_id == ProjectRevision.user_id),
+            )
+            .where(
+                Project.id.in_(project_ids),
+                Project.user_id == user_id,
+                Project.deleted_at.is_(None),
+                ProjectRevision.revision_number == Project.current_revision_number,
+            )
+        )
+        revisions = list(await self.session.scalars(statement))
+        return {revision.project_id: revision for revision in revisions}
+
     async def add(self, project: Project, revision: ProjectRevision) -> None:
         self.session.add_all((project, revision))
         await self.session.flush()
@@ -88,6 +110,21 @@ class ProjectRepository:
                 status="editing",
                 updated_at=datetime.now(UTC),
             )
+            .returning(Project)
+        )
+        return (await self.session.scalars(statement)).one_or_none()
+
+    async def set_thumbnail(
+        self, project_id: UUID, user_id: UUID, thumbnail_asset_id: UUID | None
+    ) -> Project | None:
+        statement = (
+            update(Project)
+            .where(
+                Project.id == project_id,
+                Project.user_id == user_id,
+                Project.deleted_at.is_(None),
+            )
+            .values(thumbnail_asset_id=thumbnail_asset_id)
             .returning(Project)
         )
         return (await self.session.scalars(statement)).one_or_none()
