@@ -7,6 +7,7 @@ import {
   apiRequest,
   type ProjectDetailDto,
   type ProjectListDto,
+  type ExportDto,
 } from "../../../shared/lib/api";
 
 export function ProjectListPage() {
@@ -61,6 +62,14 @@ export function ProjectListPage() {
   async function remove(projectId: string) {
     await apiRequest<void>(`/projects/${projectId}`, { method: "DELETE" });
     await load();
+  }
+
+  async function exportProject(projectId: string) {
+    await apiRequest<ExportDto>("/exports", {
+      method: "POST",
+      body: JSON.stringify({ project_id: projectId }),
+    });
+    navigate("/exports");
   }
 
   return (
@@ -120,6 +129,12 @@ export function ProjectListPage() {
                 })}
               </p>
               <div className="card-actions">
+                <button
+                  type="button"
+                  onClick={() => void exportProject(project.id)}
+                >
+                  {t("projects.export")}
+                </button>
                 <button
                   type="button"
                   onClick={() => void duplicate(project.id)}

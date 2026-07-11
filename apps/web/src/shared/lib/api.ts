@@ -62,6 +62,47 @@ export interface UploadTargetDto {
   upload_path: string;
 }
 
+export interface ImageGenerationDto {
+  id: string;
+  job_id: string;
+  prompt: string;
+  model: string;
+  quality: "low" | "medium" | "high";
+  size: "1024x1024" | "1024x1536" | "1536x1024";
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  progress: number;
+  output_asset_id: string | null;
+  error_code: string | null;
+  created_at: string;
+}
+
+export interface ImageGenerationListDto {
+  items: ImageGenerationDto[];
+  total: number;
+}
+
+export interface ExportDto {
+  id: string;
+  project_id: string;
+  project_revision_id: string;
+  job_id: string;
+  name: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  progress: number;
+  width: number;
+  height: number;
+  fps: number;
+  size_bytes: number | null;
+  duration_ms: number | null;
+  error_code: string | null;
+  created_at: string;
+}
+
+export interface ExportListDto {
+  items: ExportDto[];
+  total: number;
+}
+
 interface ErrorResponse {
   error?: { code?: string; message_key?: string };
 }
@@ -139,4 +180,8 @@ export async function apiUpload(path: string, file: File): Promise<AssetDto> {
 
 export function assetContentUrl(assetId: string): string {
   return `${apiBaseUrl}/assets/${assetId}/content`;
+}
+
+export function exportContentUrl(exportId: string): string {
+  return `${apiBaseUrl}/exports/${exportId}/content`;
 }

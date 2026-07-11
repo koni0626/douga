@@ -6,6 +6,9 @@ from douga.core.config import get_settings
 from douga.db.base import Base
 from douga.modules.assets import models as asset_models  # noqa: F401
 from douga.modules.auth import models as auth_models  # noqa: F401
+from douga.modules.exports import models as export_models  # noqa: F401
+from douga.modules.image_generations import models as image_generation_models  # noqa: F401
+from douga.modules.jobs import models as job_models  # noqa: F401
 from douga.modules.projects import models as project_models  # noqa: F401
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config

@@ -54,7 +54,17 @@
     "sceneCount": "シーン数: {{count}}",
     "revision": "リビジョン: {{count}}",
     "duplicate": "複製",
-    "delete": "削除"
+    "delete": "削除",
+    "export": "MP4を書き出す"
+  },
+  "exports": {
+    "nav": "完成動画",
+    "eyebrow": "レンダリング履歴",
+    "title": "完成動画",
+    "lead": "固定したプロジェクトのリビジョンから作成したMP4を管理します。",
+    "empty": "書き出した動画はまだありません。",
+    "download": "ダウンロード",
+    "cancel": "キャンセル"
   },
   "editor": {
     "back": "プロジェクトへ戻る",
@@ -113,6 +123,11 @@
     "lead": "画像・動画・音声をアップロードして、動画で再利用できます。",
     "upload": "素材をアップロード",
     "uploading": "アップロード中…",
+    "generatePrompt": "生成したい画像の説明",
+    "generatePlaceholder": "例：夕暮れの海辺、ノベルゲーム風、人物なし",
+    "generate": "AI画像を生成",
+    "generating": "生成中…",
+    "latestGeneration": "直近の画像生成: {{status}}",
     "empty": "素材はまだありません。最初の画像を追加してみましょう。",
     "delete": "削除",
     "kind": {
@@ -127,7 +142,20 @@
       "failed": "検証失敗"
     }
   },
+  "jobs": {
+    "queued": "待機中",
+    "running": "処理中",
+    "succeeded": "完了",
+    "failed": "失敗",
+    "cancelled": "キャンセル"
+  },
   "errors": {
+    "imageQuotaExceeded": "画像生成の1時間あたりの上限に達しました。",
+    "imageGenerationNotFound": "画像生成履歴が見つかりません。",
+    "exportFailed": "動画の書き出しに失敗しました。",
+    "exportNotFound": "完成動画が見つかりません。",
+    "exportNotCancellable": "この書き出しはキャンセルできません。",
+    "exportQuotaExceeded": "動画書き出しの1時間あたりの上限に達しました。",
     "authRequired": "ログインが必要です。",
     "emailAlreadyRegistered": "このメールアドレスは登録済みです。",
     "invalidCredentials": "メールアドレスまたはパスワードが違います。",

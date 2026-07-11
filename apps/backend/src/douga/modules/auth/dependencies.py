@@ -25,6 +25,9 @@ async def csrf_protected_auth(
     csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
 ) -> AuthContext:
     settings = get_settings()
+    origin = request.headers.get("Origin")
+    if origin is not None and origin not in settings.allowed_origins:
+        raise ForbiddenError("ORIGIN_NOT_ALLOWED", "errors.originNotAllowed")
     AuthService(session).verify_csrf(
         context, request.cookies.get(settings.csrf_cookie_name), csrf_header
     )

@@ -1,5 +1,10 @@
 import { defineConfig } from "@playwright/test";
 
+const apiCommand =
+  process.platform === "win32"
+    ? ".venv\\Scripts\\python.exe -m uvicorn douga.api_main:app --host 127.0.0.1 --port 8000"
+    : "uv run uvicorn douga.api_main:app --host 127.0.0.1 --port 8000";
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -13,7 +18,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "uv run uvicorn douga.api_main:app --host 127.0.0.1 --port 8000",
+      command: apiCommand,
       url: "http://127.0.0.1:8000/api/v1/health/live",
       reuseExistingServer: true,
       env: {

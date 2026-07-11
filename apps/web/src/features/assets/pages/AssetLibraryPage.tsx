@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -8,6 +8,8 @@ import {
   assetContentUrl,
   type AssetDto,
   type AssetListDto,
+  type ImageGenerationDto,
+  type ImageGenerationListDto,
   type UploadTargetDto,
 } from "../../../shared/lib/api";
 
@@ -23,10 +25,18 @@ export function AssetLibraryPage() {
   const [assets, setAssets] = useState<AssetListDto>();
   const [uploading, setUploading] = useState(false);
   const [errorKey, setErrorKey] = useState<string>();
+  const [prompt, setPrompt] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generations, setGenerations] = useState<ImageGenerationListDto>();
 
   async function load() {
     try {
-      setAssets(await apiRequest<AssetListDto>("/assets"));
+      const [nextAssets, nextGenerations] = await Promise.all([
+        apiRequest<AssetListDto>("/assets"),
+        apiRequest<ImageGenerationListDto>("/image-generations"),
+      ]);
+      setAssets(nextAssets);
+      setGenerations(nextGenerations);
     } catch (error) {
       setErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
@@ -34,8 +44,35 @@ export function AssetLibraryPage() {
     }
   }
 
+  async function generate(event: FormEvent) {
+    event.preventDefault();
+    if (!prompt.trim()) return;
+    setGenerating(true);
+    setErrorKey(undefined);
+    try {
+      await apiRequest<ImageGenerationDto>("/image-generations", {
+        method: "POST",
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          quality: "medium",
+          size: "1536x1024",
+        }),
+      });
+      setPrompt("");
+      await load();
+    } catch (error) {
+      setErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   useEffect(() => {
     void load();
+    const timer = window.setInterval(() => void load(), 3000);
+    return () => window.clearInterval(timer);
   }, []);
 
   async function upload(event: ChangeEvent<HTMLInputElement>) {
@@ -77,6 +114,8 @@ export function AssetLibraryPage() {
     await load();
   }
 
+  const latestGeneration = generations?.items.at(0);
+
   return (
     <section className="page-card assets-page">
       <div className="page-heading">
@@ -95,6 +134,31 @@ export function AssetLibraryPage() {
         </label>
       </div>
       <p>{t("assets.lead")}</p>
+      <form
+        className="image-generation-form"
+        onSubmit={(event) => void generate(event)}
+      >
+        <label>
+          <span>{t("assets.generatePrompt")}</span>
+          <textarea
+            value={prompt}
+            maxLength={4000}
+            rows={3}
+            placeholder={t("assets.generatePlaceholder")}
+            onChange={(event) => setPrompt(event.target.value)}
+          />
+        </label>
+        <button type="submit" disabled={generating || !prompt.trim()}>
+          {generating ? t("assets.generating") : t("assets.generate")}
+        </button>
+      </form>
+      {latestGeneration ? (
+        <p className="generation-history">
+          {t("assets.latestGeneration", {
+            status: t(`jobs.${latestGeneration.status}`),
+          })}
+        </p>
+      ) : null}
       {errorKey ? (
         <p role="alert" className="form-error">
           {t(errorKey)}

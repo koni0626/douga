@@ -16,7 +16,9 @@ from douga.core.logging import configure_logging
 from douga.db.engine import engine
 from douga.modules.assets.controller import router as assets_router
 from douga.modules.auth.controller import router as auth_router
+from douga.modules.exports.controller import router as exports_router
 from douga.modules.health.controller import router as health_router
+from douga.modules.image_generations.controller import router as image_generations_router
 from douga.modules.projects.controller import router as projects_router
 
 
@@ -45,6 +47,13 @@ def create_app() -> FastAPI:
         started_at = perf_counter()
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+        if settings.app_env == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         logger.info(
             "request completed",
             extra={
@@ -68,6 +77,8 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(projects_router, prefix="/api/v1")
     app.include_router(assets_router, prefix="/api/v1")
+    app.include_router(image_generations_router, prefix="/api/v1")
+    app.include_router(exports_router, prefix="/api/v1")
     return app
 
 

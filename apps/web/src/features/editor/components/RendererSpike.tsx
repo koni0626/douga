@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SceneRenderer } from "@douga/scene-renderer";
+import { buildSceneTimeline } from "@douga/scene-renderer";
+import type { ProjectDocument } from "@douga/project-schema";
 
 import { changeLocale } from "../../../i18n";
 import { sampleProject } from "../../../sample-project";
@@ -9,21 +11,41 @@ import { sampleProject } from "../../../sample-project";
 declare global {
   interface Window {
     __DOUGA_SET_RENDER_TIME__?: (timeMs: number) => void;
+    __DOUGA_SET_RENDER_SCENE__?: (sceneIndex: number) => void;
+    __DOUGA_RENDER_PROJECT__?: ProjectDocument;
+    __DOUGA_RENDER_ASSETS__?: Record<string, string>;
+    __DOUGA_RENDER_INFO__?: { sceneDurationsMs: number[] };
   }
 }
 
 export function RendererSpike({ renderMode }: { renderMode: boolean }) {
   const { t, i18n } = useTranslation();
   const [timeMs, setTimeMs] = useState(0);
+  const [sceneIndex, setSceneIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const previousFrame = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     window.__DOUGA_SET_RENDER_TIME__ = setTimeMs;
+    window.__DOUGA_SET_RENDER_SCENE__ = setSceneIndex;
     return () => {
       delete window.__DOUGA_SET_RENDER_TIME__;
+      delete window.__DOUGA_SET_RENDER_SCENE__;
     };
   }, []);
+
+  const project = window.__DOUGA_RENDER_PROJECT__ ?? sampleProject;
+  const assetMap = window.__DOUGA_RENDER_ASSETS__ ?? {};
+  window.__DOUGA_RENDER_INFO__ = {
+    sceneDurationsMs: project.scenes.map((scene) => {
+      const timeline = buildSceneTimeline(
+        scene,
+        project.caption_style,
+        project.content_locale,
+      );
+      return Math.max(1000, timeline.at(-1)?.endMs ?? 0);
+    }),
+  };
 
   useEffect(() => {
     if (!playing) {
@@ -76,7 +98,12 @@ export function RendererSpike({ renderMode }: { renderMode: boolean }) {
         </header>
       ) : null}
       <section className="canvas-shell">
-        <SceneRenderer project={sampleProject} timeMs={timeMs} />
+        <SceneRenderer
+          project={project}
+          sceneIndex={sceneIndex}
+          timeMs={timeMs}
+          assetUrl={(assetId) => assetMap[assetId]}
+        />
       </section>
       {!renderMode ? (
         <p className="time-readout">

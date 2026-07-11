@@ -54,6 +54,11 @@ test("upload and display an image asset", async ({ page }) => {
     buffer: silentWav(),
   });
   await expect(page.getByRole("heading", { name: "tone.wav" })).toBeVisible();
+  await page.getByLabel("生成したい画像の説明").fill("青い空と白い雲");
+  await page.getByRole("button", { name: "AI画像を生成" }).click();
+  await expect(
+    page.getByRole("heading", { name: "青い空と白い雲" }),
+  ).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("link", { name: "プロジェクト" }).click();
   await page.getByLabel("新しいプロジェクト名").fill("素材参照テスト");

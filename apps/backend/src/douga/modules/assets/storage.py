@@ -42,6 +42,12 @@ class LocalStorage:
             raise
         return size, digest.hexdigest()
 
+    async def write_bytes(self, storage_key: str, content: bytes) -> tuple[int, str]:
+        async def chunks() -> AsyncIterator[bytes]:
+            yield content
+
+        return await self.write(storage_key, chunks())
+
     async def delete(self, storage_key: str) -> None:
         path = self.path_for(storage_key)
         if path.exists():

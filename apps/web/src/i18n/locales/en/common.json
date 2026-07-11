@@ -54,7 +54,17 @@
     "sceneCount": "Scenes: {{count}}",
     "revision": "Revision: {{count}}",
     "duplicate": "Duplicate",
-    "delete": "Delete"
+    "delete": "Delete",
+    "export": "Export MP4"
+  },
+  "exports": {
+    "nav": "Completed videos",
+    "eyebrow": "Rendering history",
+    "title": "Completed videos",
+    "lead": "Manage MP4 files rendered from fixed project revisions.",
+    "empty": "No exported videos yet.",
+    "download": "Download",
+    "cancel": "Cancel"
   },
   "editor": {
     "back": "Back to projects",
@@ -113,6 +123,11 @@
     "lead": "Upload images, video, and audio to reuse across your videos.",
     "upload": "Upload asset",
     "uploading": "Uploading…",
+    "generatePrompt": "Describe the image",
+    "generatePlaceholder": "Example: a beach at sunset, visual-novel style, no people",
+    "generate": "Generate AI image",
+    "generating": "Generating…",
+    "latestGeneration": "Latest image generation: {{status}}",
     "empty": "No assets yet. Try adding your first image.",
     "delete": "Delete",
     "kind": {
@@ -127,7 +142,20 @@
       "failed": "Validation failed"
     }
   },
+  "jobs": {
+    "queued": "Queued",
+    "running": "Running",
+    "succeeded": "Complete",
+    "failed": "Failed",
+    "cancelled": "Cancelled"
+  },
   "errors": {
+    "imageQuotaExceeded": "You have reached the hourly image generation limit.",
+    "imageGenerationNotFound": "Image generation history was not found.",
+    "exportFailed": "Video export failed.",
+    "exportNotFound": "The exported video was not found.",
+    "exportNotCancellable": "This export cannot be cancelled.",
+    "exportQuotaExceeded": "You have reached the hourly video export limit.",
     "authRequired": "Please log in.",
     "emailAlreadyRegistered": "This email address is already registered.",
     "invalidCredentials": "The email address or password is incorrect.",

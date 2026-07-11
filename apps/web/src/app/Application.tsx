@@ -7,6 +7,7 @@ import { AssetLibraryPage } from "../features/assets/pages/AssetLibraryPage";
 import { ProjectEditorPage } from "../features/projects/pages/ProjectEditorPage";
 import { ProjectListPage } from "../features/projects/pages/ProjectListPage";
 import { SettingsPage } from "../features/settings/pages/SettingsPage";
+import { ExportListPage } from "../features/exports/pages/ExportListPage";
 import { changeLocale } from "../i18n";
 import { apiRequest, type UserDto } from "../shared/lib/api";
 
@@ -54,6 +55,7 @@ export function Application() {
             <Link to="/">{t("home.nav")}</Link>
             <Link to="/projects">{t("projects.nav")}</Link>
             <Link to="/assets">{t("assets.nav")}</Link>
+            <Link to="/exports">{t("exports.nav")}</Link>
             <Link to="/settings">{t("settings.nav")}</Link>
             <button
               type="button"
@@ -113,6 +115,10 @@ export function Application() {
           element={
             user ? <AssetLibraryPage /> : <Navigate to="/login" replace />
           }
+        />
+        <Route
+          path="/exports"
+          element={user ? <ExportListPage /> : <Navigate to="/login" replace />}
         />
         <Route
           path="*"

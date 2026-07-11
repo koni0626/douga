@@ -5,6 +5,9 @@ from douga.api_main import create_app
 from douga.db.session import session_factory
 from douga.modules.assets.models import Asset, AssetDerivative, AssetTag, Tag
 from douga.modules.auth.models import User, UserSession
+from douga.modules.exports.models import Export
+from douga.modules.image_generations.models import ImageGenerationRequest
+from douga.modules.jobs.models import Job
 from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, select
@@ -16,6 +19,9 @@ pytestmark = pytest.mark.skipif(
 
 async def clear_auth_data() -> None:
     async with session_factory() as session:
+        await session.execute(delete(ImageGenerationRequest))
+        await session.execute(delete(Export))
+        await session.execute(delete(Job))
         await session.execute(delete(ProjectAsset))
         await session.execute(delete(ProjectRevision))
         await session.execute(delete(Project))
