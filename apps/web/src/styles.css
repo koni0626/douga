@@ -324,7 +324,7 @@ button,
 }
 
 .editor-workspace {
-  grid-template-columns: 15rem minmax(20rem, 1fr);
+  grid-template-columns: 18rem minmax(20rem, 1fr);
   position: relative;
 }
 
@@ -448,6 +448,131 @@ button,
   padding: 0.8rem;
   text-align: left;
   width: 100%;
+}
+
+.scene-panel {
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.scene-panel h2 {
+  font-size: 1rem;
+  margin: 0 0 0.8rem;
+}
+
+.scene-thumbnail-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.scene-thumbnail-item {
+  cursor: grab;
+  padding: 0.2rem 0;
+  position: relative;
+}
+
+.scene-thumbnail-item:active {
+  cursor: grabbing;
+}
+
+.scene-thumbnail-item--drop-before::before,
+.scene-thumbnail-item--drop-after::after {
+  background: #60a5fa;
+  border-radius: 999px;
+  content: "";
+  height: 3px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  z-index: 2;
+}
+
+.scene-thumbnail-item--drop-before::before {
+  top: -0.3rem;
+}
+
+.scene-thumbnail-item--drop-after::after {
+  bottom: -0.3rem;
+}
+
+.scene-thumbnail-card {
+  background: transparent;
+  border-color: transparent;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.4rem;
+  text-align: left;
+  width: 100%;
+}
+
+.scene-thumbnail-card:hover {
+  background: #102d47;
+  border-color: #365b7c;
+}
+
+.scene-thumbnail-card--active {
+  background: #123552;
+  border-color: #3ea6ff;
+  box-shadow: 0 0 0 2px rgb(62 166 255 / 22%);
+}
+
+.scene-thumbnail-preview {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: #050d15;
+  border: 1px solid #29445e;
+  border-radius: 0.4rem;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.scene-thumbnail-preview svg {
+  height: 100%;
+  width: 100%;
+}
+
+.scene-thumbnail-caption {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.scene-thumbnail-caption > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-thumbnail-number {
+  color: #8fc9ff;
+  flex: 0 0 1.5rem;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.scene-context-menu {
+  background: #0a1d2e;
+  border: 1px solid #466b8b;
+  border-radius: 0.65rem;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 50%);
+  display: grid;
+  min-width: 10rem;
+  padding: 0.35rem;
+  position: fixed;
+  z-index: 100;
+}
+
+.scene-context-menu button {
+  border: 0;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.scene-context-menu button:hover {
+  background: #173b59;
 }
 
 .scene-row--active,

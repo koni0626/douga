@@ -20,6 +20,7 @@ import {
   FloatingEditorTools,
   type EditorTool,
 } from "../components/FloatingEditorTools";
+import { SceneThumbnailList } from "../components/SceneThumbnailList";
 
 type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
@@ -191,9 +192,9 @@ export function ProjectEditorPage() {
     });
   }
 
-  function duplicateScene() {
+  function duplicateScene(sceneIndex: number) {
     mutate((document) => {
-      const source = document.scenes[selectedSceneIndex];
+      const source = document.scenes[sceneIndex];
       if (!source) return;
       const copy = structuredClone(source);
       copy.id = crypto.randomUUID();
@@ -206,26 +207,36 @@ export function ProjectEditorPage() {
         ...dialogue,
         id: crypto.randomUUID(),
       }));
-      document.scenes.splice(selectedSceneIndex + 1, 0, copy);
-      setSelectedSceneIndex(selectedSceneIndex + 1);
+      document.scenes.splice(sceneIndex + 1, 0, copy);
+      setSelectedSceneIndex(sceneIndex + 1);
     });
   }
 
-  function deleteScene() {
-    mutate((document) => document.scenes.splice(selectedSceneIndex, 1));
-    setSelectedSceneIndex((index) => Math.max(0, index - 1));
+  function deleteScene(sceneIndex: number) {
+    mutate((document) => document.scenes.splice(sceneIndex, 1));
+    setSelectedSceneIndex((current) => {
+      if (current > sceneIndex) return current - 1;
+      if (current === sceneIndex) return Math.max(0, current - 1);
+      return current;
+    });
     setSelectedLayerId(undefined);
   }
 
-  function moveScene(direction: -1 | 1) {
-    const target = selectedSceneIndex + direction;
-    if (!detail || target < 0 || target >= detail.document.scenes.length)
-      return;
+  function reorderScene(
+    sourceIndex: number,
+    targetIndex: number,
+    position: "before" | "after",
+  ) {
+    let destinationIndex = targetIndex + (position === "after" ? 1 : 0);
+    if (sourceIndex < destinationIndex) destinationIndex -= 1;
+    if (sourceIndex === destinationIndex) return;
     mutate((document) => {
-      const [scene] = document.scenes.splice(selectedSceneIndex, 1);
-      if (scene) document.scenes.splice(target, 0, scene);
+      const [movedScene] = document.scenes.splice(sourceIndex, 1);
+      if (movedScene) document.scenes.splice(destinationIndex, 0, movedScene);
     });
-    setSelectedSceneIndex(target);
+    setSelectedSceneIndex(destinationIndex);
+    setSelectedLayerId(undefined);
+    setTimeMs(0);
   }
 
   function addDialogue() {
@@ -416,40 +427,21 @@ export function ProjectEditorPage() {
       <div className="editor-workspace">
         <aside className="scene-panel">
           <h2>{t("editor.scenes")}</h2>
-          {project.scenes.map((item, index) => (
-            <button
-              type="button"
-              className={
-                index === selectedSceneIndex
-                  ? "scene-row scene-row--active"
-                  : "scene-row"
-              }
-              key={item.id}
-              onClick={() => {
-                setSelectedSceneIndex(index);
-                setSelectedLayerId(undefined);
-                setTimeMs(0);
-              }}
-            >
-              {index + 1}. {item.name}
-            </button>
-          ))}
-          {scene ? (
-            <div className="panel-actions">
-              <button type="button" onClick={() => moveScene(-1)}>
-                ↑
-              </button>
-              <button type="button" onClick={() => moveScene(1)}>
-                ↓
-              </button>
-              <button type="button" onClick={duplicateScene}>
-                {t("editor.duplicate")}
-              </button>
-              <button type="button" className="danger" onClick={deleteScene}>
-                {t("editor.delete")}
-              </button>
-            </div>
-          ) : null}
+          <SceneThumbnailList
+            assetUrl={assetContentUrl}
+            deleteLabel={t("editor.delete")}
+            duplicateLabel={t("editor.duplicate")}
+            onDelete={deleteScene}
+            onDuplicate={duplicateScene}
+            onReorder={reorderScene}
+            onSelect={(index) => {
+              setSelectedSceneIndex(index);
+              setSelectedLayerId(undefined);
+              setTimeMs(0);
+            }}
+            project={project}
+            selectedSceneIndex={selectedSceneIndex}
+          />
         </aside>
 
         <section className="editor-center">

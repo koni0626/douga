@@ -62,10 +62,45 @@ test("create a project and auto-save a scene", async ({ page }) => {
     .fill("ノベルゲームのように自動で送られるテロップです。");
   await expect(page.getByText("保存済み")).toBeVisible();
   await page.reload();
-  await expect(page.getByText("1. シーン 1")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "1. シーン 1", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
   await expect(page.getByLabel("テロップ本文")).toHaveValue(
     "ノベルゲームのように自動で送られるテロップです。",
   );
   await expect(page.locator(".editor-preview image")).toBeVisible();
+
+  const originalScene = page.getByRole("button", {
+    name: "1. シーン 1",
+    exact: true,
+  });
+  await originalScene.click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "複製" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "削除" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "複製" }).click();
+
+  const copiedScene = page.getByRole("button", {
+    name: "2. シーン 1 コピー",
+    exact: true,
+  });
+  await expect(copiedScene).toBeVisible();
+  const copiedItem = page.locator(".scene-thumbnail-item").filter({
+    has: copiedScene,
+  });
+  const originalItem = page.locator(".scene-thumbnail-item").filter({
+    has: originalScene,
+  });
+  await copiedItem.dragTo(originalItem, { targetPosition: { x: 20, y: 2 } });
+  const movedCopy = page.getByRole("button", {
+    name: "1. シーン 1 コピー",
+    exact: true,
+  });
+  await expect(movedCopy).toBeVisible();
+  await movedCopy.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "削除" }).click();
+  await expect(movedCopy).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "1. シーン 1", exact: true }),
+  ).toBeVisible();
 });
