@@ -130,6 +130,23 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   ).toHaveCount(0);
   await page.getByRole("button", { name: "ロック解除" }).click();
 
+  await page.getByRole("button", { name: "レイヤー", exact: true }).click();
+  await page.getByRole("button", { name: "図形", exact: true }).click();
+  const timelineLabels = page.locator(".object-timeline-label");
+  await expect(timelineLabels).toHaveText(["画像", "図形"]);
+  await expect(page.locator("svg[data-render-canvas] > *")).toHaveCount(3);
+  await timelineLabels.nth(1).dragTo(timelineLabels.nth(0), {
+    targetPosition: { x: 30, y: 1 },
+  });
+  await expect(timelineLabels).toHaveText(["図形", "画像"]);
+  await expect(
+    page.locator("svg[data-render-canvas] > *").nth(1),
+  ).toHaveJSProperty("tagName", "rect");
+  await expect(
+    page.locator("svg[data-render-canvas] > *").nth(2),
+  ).toHaveJSProperty("tagName", "image");
+  await page.getByRole("button", { name: "設定を閉じる" }).click();
+
   await expect(page.locator(".object-timeline")).toBeVisible();
   await expect(page.locator(".preview-controls")).toHaveCount(0);
   await page.getByRole("button", { name: "再生", exact: true }).click();
@@ -139,8 +156,8 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     "aria-valuenow",
     "0",
   );
-  const timelineTrack = page.locator(".object-timeline-track").first();
-  const timelineLabel = page.locator(".object-timeline-label").first();
+  const timelineTrack = page.locator(".object-timeline-track").nth(1);
+  const timelineLabel = page.locator(".object-timeline-label").nth(1);
   const trackBounds = await timelineTrack.boundingBox();
   const labelBounds = await timelineLabel.boundingBox();
   if (!trackBounds || !labelBounds)
@@ -169,7 +186,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   );
   await page.mouse.up();
   await expect(
-    page.locator(".object-timeline-clip").first(),
+    page.locator(".object-timeline-clip").nth(1),
   ).not.toHaveAttribute("style", /width: 100%/);
   await seekTimeline(page, 1000);
   await expect(page.locator(".editor-preview image")).toHaveCount(0);

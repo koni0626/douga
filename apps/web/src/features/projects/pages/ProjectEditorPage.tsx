@@ -337,6 +337,20 @@ export function ProjectEditorPage() {
     });
   }
 
+  function reorderLayer(
+    sourceIndex: number,
+    targetIndex: number,
+    position: "before" | "after",
+  ) {
+    let destinationIndex = targetIndex + (position === "after" ? 1 : 0);
+    if (sourceIndex < destinationIndex) destinationIndex -= 1;
+    if (sourceIndex === destinationIndex) return;
+    updateScene((scene) => {
+      const [movedLayer] = scene.layers.splice(sourceIndex, 1);
+      if (movedLayer) scene.layers.splice(destinationIndex, 0, movedLayer);
+    });
+  }
+
   function addAudioTrack(asset: AssetDto) {
     mutate((document) => {
       document.audio_tracks ??= [];
@@ -533,6 +547,7 @@ export function ProjectEditorPage() {
               }
               layers={scene.layers}
               onPlay={() => setPlaying(true)}
+              onReorder={reorderLayer}
               onChange={(layerId, range) =>
                 updateLayer(layerId, {
                   start_ms: range.startMs,

@@ -1,4 +1,9 @@
-import { type PointerEvent, useEffect, useState } from "react";
+import {
+  type DragEvent as ReactDragEvent,
+  type PointerEvent,
+  useEffect,
+  useState,
+} from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
@@ -69,6 +74,11 @@ export interface ObjectTimelineProps {
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: Range) => void;
   onPlay: () => void;
+  onReorder: (
+    sourceIndex: number,
+    targetIndex: number,
+    position: "before" | "after",
+  ) => void;
   onSelect: (layerId: string) => void;
   onSeek: (timeMs: number) => void;
   onStop: () => void;
@@ -87,6 +97,7 @@ export function ObjectTimeline({
   labelFor,
   onChange,
   onPlay,
+  onReorder,
   onSelect,
   onSeek,
   onStop,
@@ -97,6 +108,11 @@ export function ObjectTimeline({
 }: ObjectTimelineProps) {
   const [draft, setDraft] = useState<{ layerId: string; range: Range }>();
   const [drag, setDrag] = useState<DragState>();
+  const [draggedLayerId, setDraggedLayerId] = useState<string>();
+  const [dropTarget, setDropTarget] = useState<{
+    layerId: string;
+    position: "before" | "after";
+  }>();
   const seconds = Array.from(
     { length: Math.floor(durationMs / 1000) + 1 },
     (_, index) => index,
@@ -166,6 +182,34 @@ export function ObjectTimeline({
         ),
       ),
     );
+  }
+
+  function orderDragOver(event: ReactDragEvent<HTMLElement>, layerId: string) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setDropTarget({
+      layerId,
+      position:
+        event.clientY < bounds.top + bounds.height / 2 ? "before" : "after",
+    });
+  }
+
+  function orderDrop(
+    event: ReactDragEvent<HTMLElement>,
+    targetLayerId: string,
+  ) {
+    event.preventDefault();
+    const sourceLayerId =
+      draggedLayerId || event.dataTransfer.getData("application/x-douga-layer");
+    const sourceIndex = layers.findIndex((layer) => layer.id === sourceLayerId);
+    const targetIndex = layers.findIndex((layer) => layer.id === targetLayerId);
+    const position = dropTarget?.position ?? "before";
+    setDraggedLayerId(undefined);
+    setDropTarget(undefined);
+    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex)
+      return;
+    onReorder(sourceIndex, targetIndex, position);
   }
 
   return (
@@ -246,15 +290,40 @@ export function ObjectTimeline({
               draft?.layerId === layer.id
                 ? draft.range
                 : layerRange(layer, durationMs);
+            const dropClass =
+              dropTarget?.layerId === layer.id
+                ? `object-timeline-drop-${dropTarget.position}`
+                : "";
             return (
               <div className="object-timeline-row" key={layer.id}>
                 <button
                   type="button"
-                  className={
+                  aria-grabbed={draggedLayerId === layer.id}
+                  className={[
+                    "object-timeline-label",
                     selectedLayerId === layer.id
-                      ? "object-timeline-label object-timeline-label--active"
-                      : "object-timeline-label"
-                  }
+                      ? "object-timeline-label--active"
+                      : "",
+                    layer.locked ? "object-timeline-label--locked" : "",
+                    dropClass,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  draggable={!layer.locked}
+                  onDragEnd={() => {
+                    setDraggedLayerId(undefined);
+                    setDropTarget(undefined);
+                  }}
+                  onDragOver={(event) => orderDragOver(event, layer.id)}
+                  onDragStart={(event) => {
+                    setDraggedLayerId(layer.id);
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData(
+                      "application/x-douga-layer",
+                      layer.id,
+                    );
+                  }}
+                  onDrop={(event) => orderDrop(event, layer.id)}
                   onClick={() => onSelect(layer.id)}
                 >
                   <span
@@ -262,7 +331,14 @@ export function ObjectTimeline({
                   />
                   {labelFor(layer)}
                 </button>
-                <div className="object-timeline-track" onPointerDown={seek}>
+                <div
+                  className={["object-timeline-track", dropClass]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onDragOver={(event) => orderDragOver(event, layer.id)}
+                  onDrop={(event) => orderDrop(event, layer.id)}
+                  onPointerDown={seek}
+                >
                   <div
                     className={[
                       "object-timeline-clip",
