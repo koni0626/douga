@@ -54,8 +54,14 @@ test("create a project and auto-save a scene", async ({ page }) => {
   });
   await expect(page.locator(".object-timeline")).toBeVisible();
   const timelineTrack = page.locator(".object-timeline-track").first();
+  const timelineLabel = page.locator(".object-timeline-label").first();
   const trackBounds = await timelineTrack.boundingBox();
-  if (!trackBounds) throw new Error("Timeline is not measurable");
+  const labelBounds = await timelineLabel.boundingBox();
+  if (!trackBounds || !labelBounds)
+    throw new Error("Timeline is not measurable");
+  expect(trackBounds.x).toBeGreaterThanOrEqual(
+    labelBounds.x + labelBounds.width - 1,
+  );
   const hitTarget = await page.evaluate(
     ({ x, y }) => globalThis.document.elementFromPoint(x, y)?.className,
     {
