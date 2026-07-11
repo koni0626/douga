@@ -19,6 +19,7 @@ export type Layer = ImageLayer | TextLayer | ShapeLayer;
 export type ImageLayer = BaseLayer & {
   id: string;
   type: "image";
+  name?: string;
   asset_id: string;
   start_ms?: number;
   end_ms?: number;
@@ -39,6 +40,7 @@ export type ImageLayer = BaseLayer & {
 export type TextLayer = BaseLayer & {
   id: string;
   type: "text";
+  name?: string;
   text: string;
   start_ms?: number;
   end_ms?: number;
@@ -61,6 +63,7 @@ export type TextLayer = BaseLayer & {
 export type ShapeLayer = BaseLayer & {
   id: string;
   type: "shape";
+  name?: string;
   shape: "rectangle" | "ellipse";
   fill: string;
   start_ms?: number;
@@ -133,6 +136,7 @@ export interface Scene {
 }
 export interface BaseLayer {
   id: string;
+  name?: string;
   start_ms?: number;
   end_ms?: number;
   flip_x?: boolean;

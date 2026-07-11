@@ -92,6 +92,7 @@
     },
     "timeline": "Playback position",
     "objectTimeline": "Object timeline",
+    "renameObject": "Rename object",
     "collapseTimeline": "Collapse timeline",
     "expandTimeline": "Expand timeline",
     "flipHorizontal": "Flip horizontally",

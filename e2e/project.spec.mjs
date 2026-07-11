@@ -267,6 +267,15 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
   await seekTimeline(page, 4500);
   await expect(page.locator(".editor-preview image")).toBeVisible();
+  await timelineLabel.dblclick();
+  const objectNameInput = page.getByRole("textbox", {
+    name: "オブジェクト名を変更",
+  });
+  await objectNameInput.fill("メイン画像");
+  await objectNameInput.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "メイン画像", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "レイヤー" }).click();
   await expect(page.getByText("dropped.png")).toBeVisible();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
@@ -282,6 +291,9 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     .fill("ノベルゲームのように自動で送られるテロップです。");
   await savedRevision;
   await page.reload();
+  await expect(
+    page.getByRole("button", { name: "メイン画像", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
   await expect(page.getByLabel("テロップ本文")).toHaveValue(
     "ノベルゲームのように自動で送られるテロップです。",

@@ -48,6 +48,7 @@ describe("validateProjectDocument", () => {
       layers: [
         {
           id: "shape-1",
+          name: "Title card",
           type: "shape",
           shape: "rectangle",
           fill: "#ffffff",

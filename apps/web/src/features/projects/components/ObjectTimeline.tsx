@@ -9,6 +9,7 @@ import type { ProjectDocument } from "@douga/project-schema";
 import type { LayerEasing } from "@douga/scene-renderer";
 
 import { KeyframePopover, type KeyframeLabels } from "./KeyframePopover";
+import { TimelineLayerLabel } from "./TimelineLayerLabel";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type Range = { startMs: number; endMs: number };
@@ -93,6 +94,7 @@ export interface ObjectTimelineProps {
     targetIndex: number,
     position: "before" | "after",
   ) => void;
+  onRename: (layerId: string, name?: string) => void;
   onSelect: (layerId: string) => void;
   onSeek: (timeMs: number) => void;
   onStop: () => void;
@@ -102,6 +104,7 @@ export interface ObjectTimelineProps {
   seekLabel: string;
   stopLabel: string;
   title: string;
+  renameLabel: string;
   keyframeLabels: KeyframeLabels;
 }
 
@@ -118,6 +121,7 @@ export function ObjectTimeline({
   onKeyframeEasingChange,
   onPlay,
   onReorder,
+  onRename,
   onSelect,
   onSeek,
   onStop,
@@ -127,6 +131,7 @@ export function ObjectTimeline({
   seekLabel,
   stopLabel,
   title,
+  renameLabel,
   keyframeLabels,
 }: ObjectTimelineProps) {
   // SVGは配列の後ろにあるレイヤーほど手前に描画する。
@@ -354,20 +359,12 @@ export function ObjectTimeline({
                   : "";
               return (
                 <div className="object-timeline-row" key={layer.id}>
-                  <button
-                    type="button"
-                    aria-grabbed={draggedLayerId === layer.id}
-                    className={[
-                      "object-timeline-label",
-                      selectedLayerId === layer.id
-                        ? "object-timeline-label--active"
-                        : "",
-                      layer.locked ? "object-timeline-label--locked" : "",
-                      dropClass,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    draggable={!layer.locked}
+                  <TimelineLayerLabel
+                    active={selectedLayerId === layer.id}
+                    dropClass={dropClass}
+                    grabbed={draggedLayerId === layer.id}
+                    label={labelFor(layer)}
+                    layer={layer}
                     onDragEnd={() => {
                       setDraggedLayerId(undefined);
                       setDropTarget(undefined);
@@ -382,13 +379,10 @@ export function ObjectTimeline({
                       );
                     }}
                     onDrop={(event) => orderDrop(event, layer.id)}
-                    onClick={() => onSelect(layer.id)}
-                  >
-                    <span
-                      className={`object-type-dot object-type-dot--${layer.type}`}
-                    />
-                    {labelFor(layer)}
-                  </button>
+                    onRename={(name) => onRename(layer.id, name)}
+                    onSelect={() => onSelect(layer.id)}
+                    renameLabel={renameLabel}
+                  />
                   <div
                     className={["object-timeline-track", dropClass]
                       .filter(Boolean)

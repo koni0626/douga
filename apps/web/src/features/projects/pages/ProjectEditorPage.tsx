@@ -683,9 +683,11 @@ export function ProjectEditorPage() {
               durationMs={SCENE_DURATION_MS}
               expandLabel={t("editor.expandTimeline")}
               labelFor={(layer) =>
-                layer.type === "text" && layer.text.trim()
-                  ? layer.text
-                  : t(`editor.layerType.${layer.type}`)
+                layer.name?.trim()
+                  ? layer.name
+                  : layer.type === "text" && layer.text.trim()
+                    ? layer.text
+                    : t(`editor.layerType.${layer.type}`)
               }
               layers={scene.layers}
               keyframeLabels={{
@@ -706,6 +708,7 @@ export function ProjectEditorPage() {
               onDuplicateKeyframe={duplicateKeyframe}
               onKeyframeEasingChange={updateKeyframeEasing}
               onPlay={() => setPlaying(true)}
+              onRename={(layerId, name) => updateLayer(layerId, { name })}
               onReorder={reorderLayer}
               onChange={(layerId, range) =>
                 updateLayer(layerId, {
@@ -724,6 +727,7 @@ export function ProjectEditorPage() {
               }}
               playLabel={t("play")}
               playing={playing}
+              renameLabel={t("editor.renameObject")}
               seekLabel={t("editor.timeline")}
               selectedLayerId={selectedLayerId}
               stopLabel={t("stop")}

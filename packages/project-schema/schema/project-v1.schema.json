@@ -156,6 +156,7 @@
       "required": ["id", "x", "y", "width", "height", "rotation", "opacity"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "maxLength": 200 },
         "start_ms": { "type": "integer", "minimum": 0 },
         "end_ms": { "type": "integer", "minimum": 1 },
         "flip_x": { "type": "boolean", "default": false },
@@ -194,6 +195,7 @@
           "properties": {
             "id": { "type": "string", "minLength": 1 },
             "type": { "const": "image" },
+            "name": { "type": "string", "maxLength": 200 },
             "asset_id": { "type": "string", "minLength": 1 },
             "start_ms": { "type": "integer", "minimum": 0 },
             "end_ms": { "type": "integer", "minimum": 1 },
@@ -237,6 +239,7 @@
           "properties": {
             "id": { "type": "string", "minLength": 1 },
             "type": { "const": "text" },
+            "name": { "type": "string", "maxLength": 200 },
             "text": { "type": "string" },
             "start_ms": { "type": "integer", "minimum": 0 },
             "end_ms": { "type": "integer", "minimum": 1 },
@@ -281,6 +284,7 @@
           "properties": {
             "id": { "type": "string", "minLength": 1 },
             "type": { "const": "shape" },
+            "name": { "type": "string", "maxLength": 200 },
             "shape": { "type": "string", "enum": ["rectangle", "ellipse"] },
             "fill": { "type": "string", "minLength": 1 },
             "start_ms": { "type": "integer", "minimum": 0 },

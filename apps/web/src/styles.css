@@ -1006,6 +1006,19 @@ button,
   opacity: 0.55;
 }
 
+.object-timeline-label:not(.object-timeline-label--editing)::after {
+  color: #8eb4d2;
+  content: "✎";
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.object-timeline-label:hover::after,
+.object-timeline-label--active::after {
+  opacity: 0.75;
+}
+
 .object-timeline-label--locked {
   cursor: not-allowed;
 }
@@ -1013,6 +1026,20 @@ button,
 .object-timeline-label--active {
   background: #123552;
   color: #fff;
+}
+
+.object-timeline-label--editing {
+  padding-block: 0.12rem;
+}
+
+.object-timeline-name-input {
+  background: #071522;
+  border: 1px solid #60a5fa;
+  border-radius: 0.3rem;
+  font-size: 0.7rem;
+  min-width: 0;
+  padding: 0.18rem 0.3rem;
+  width: 100%;
 }
 
 .object-type-dot {

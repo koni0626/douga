@@ -92,6 +92,7 @@
     },
     "timeline": "再生位置",
     "objectTimeline": "オブジェクトのタイムライン",
+    "renameObject": "オブジェクト名を変更",
     "collapseTimeline": "タイムラインを閉じる",
     "expandTimeline": "タイムラインを開く",
     "flipHorizontal": "左右反転",
