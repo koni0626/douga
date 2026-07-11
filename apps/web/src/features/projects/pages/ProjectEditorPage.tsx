@@ -89,6 +89,23 @@ function isEditableShortcutTarget(target: EventTarget | null): boolean {
   );
 }
 
+function clipboardImageFile(event: ClipboardEvent): File | undefined {
+  const file = Array.from(event.clipboardData?.items ?? [])
+    .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+    ?.getAsFile();
+  if (!file) return undefined;
+  if (file.name && file.name !== "image") return file;
+  const extension =
+    file.type === "image/jpeg"
+      ? "jpg"
+      : file.type === "image/webp"
+        ? "webp"
+        : "png";
+  return new File([file], `clipboard-${Date.now()}.${extension}`, {
+    type: file.type,
+  });
+}
+
 export function ProjectEditorPage() {
   const { t } = useTranslation();
   const { projectId } = useParams();
@@ -342,6 +359,19 @@ export function ProjectEditorPage() {
     const file = event.dataTransfer.files.item(0);
     if (file) void uploadDroppedImage(file, scene.id);
   }
+
+  useEffect(() => {
+    const pasteImage = (event: ClipboardEvent) => {
+      if (isEditableShortcutTarget(event.target) || uploadingImage) return;
+      const sceneId = documentRef.current?.scenes[0]?.id;
+      const file = clipboardImageFile(event);
+      if (!sceneId || !file) return;
+      event.preventDefault();
+      void uploadDroppedImage(file, sceneId);
+    };
+    window.addEventListener("paste", pasteImage);
+    return () => window.removeEventListener("paste", pasteImage);
+  }, [detail, uploadingImage]);
 
   function updateLayer(layerId: string, patch: Partial<Layer>) {
     updateScene((scene) => {

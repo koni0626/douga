@@ -289,6 +289,31 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
   await seekTimeline(page, 4500);
   await expect(page.locator(".editor-preview image")).toBeVisible();
+  const pastedUpload = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/api\/v1\/assets\/[^/]+\/complete$/.test(response.url()) &&
+      response.ok(),
+  );
+  await page.evaluate((base64) => {
+    const binary = globalThis.atob(base64);
+    const bytes = Uint8Array.from(binary, (character) =>
+      character.charCodeAt(0),
+    );
+    const transfer = new globalThis.DataTransfer();
+    transfer.items.add(
+      new globalThis.File([bytes], "clipboard.png", { type: "image/png" }),
+    );
+    globalThis.dispatchEvent(
+      new globalThis.ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: transfer,
+      }),
+    );
+  }, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+  await pastedUpload;
+  await expect(page.locator(".editor-preview image")).toHaveCount(2);
   await page.getByRole("link", { name: "プロジェクト", exact: true }).click();
   const projectCard = page
     .locator("article")
