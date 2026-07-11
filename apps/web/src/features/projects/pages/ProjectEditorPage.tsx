@@ -20,6 +20,7 @@ import {
   FloatingEditorTools,
   type EditorTool,
 } from "../components/FloatingEditorTools";
+import { ObjectTimeline } from "../components/ObjectTimeline";
 import { SceneThumbnailList } from "../components/SceneThumbnailList";
 
 type Scene = ProjectDocument["scenes"][number];
@@ -27,6 +28,8 @@ type Layer = Scene["layers"][number];
 type Dialogue = Scene["dialogues"][number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
+
+const SCENE_DURATION_MS = 10_000;
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   return (
@@ -84,7 +87,7 @@ export function ProjectEditorPage() {
     const tick = (timestamp: number) => {
       const elapsed = previous === undefined ? 0 : timestamp - previous;
       previous = timestamp;
-      setTimeMs((current) => (current + elapsed) % 30_000);
+      setTimeMs((current) => (current + elapsed) % SCENE_DURATION_MS);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -309,6 +312,8 @@ export function ProjectEditorPage() {
       height: 540,
       rotation: 0,
       opacity: 1,
+      start_ms: 0,
+      end_ms: SCENE_DURATION_MS,
     });
   }
 
@@ -336,6 +341,8 @@ export function ProjectEditorPage() {
         height,
         rotation: 0,
         opacity: 1,
+        start_ms: 0,
+        end_ms: SCENE_DURATION_MS,
       });
     });
     setSelectedLayerId(layerId);
@@ -564,7 +571,7 @@ export function ProjectEditorPage() {
                 aria-label={t("editor.timeline")}
                 type="range"
                 min={0}
-                max={30_000}
+                max={SCENE_DURATION_MS}
                 step={50}
                 value={timeMs}
                 onChange={(event) => setTimeMs(Number(event.target.value))}
@@ -587,6 +594,32 @@ export function ProjectEditorPage() {
             />
           ) : null}
         </section>
+
+        {scene ? (
+          <ObjectTimeline
+            durationMs={SCENE_DURATION_MS}
+            labelFor={(layer) =>
+              layer.type === "text" && layer.text.trim()
+                ? layer.text
+                : t(`editor.layerType.${layer.type}`)
+            }
+            layers={scene.layers}
+            onChange={(layerId, range) =>
+              updateLayer(layerId, {
+                start_ms: range.startMs,
+                end_ms: range.endMs,
+              })
+            }
+            onSeek={(value) => {
+              setPlaying(false);
+              setTimeMs(value === SCENE_DURATION_MS ? value - 1 : value);
+            }}
+            onSelect={(layerId) => setSelectedLayerId(layerId)}
+            selectedLayerId={selectedLayerId}
+            timeMs={timeMs}
+            title={t("editor.objectTimeline")}
+          />
+        ) : null}
 
         {scene && activeTool ? (
           <aside
@@ -736,6 +769,8 @@ export function ProjectEditorPage() {
                         height: 120,
                         rotation: 0,
                         opacity: 1,
+                        start_ms: 0,
+                        end_ms: SCENE_DURATION_MS,
                       })
                     }
                   >
@@ -755,6 +790,8 @@ export function ProjectEditorPage() {
                         height: 240,
                         rotation: 0,
                         opacity: 1,
+                        start_ms: 0,
+                        end_ms: SCENE_DURATION_MS,
                       })
                     }
                   >

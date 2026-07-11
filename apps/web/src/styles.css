@@ -324,8 +324,16 @@ button,
 }
 
 .editor-workspace {
+  height: calc(100vh - 4rem);
   grid-template-columns: 18rem minmax(20rem, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
   position: relative;
+}
+
+.scene-panel {
+  grid-row: 1 / span 2;
 }
 
 .editor-body aside,
@@ -621,6 +629,7 @@ button,
 
 .editor-center {
   min-width: 0;
+  overflow: auto;
 }
 
 .preview-controls {
@@ -632,6 +641,221 @@ button,
 
 .preview-controls input[type="range"] {
   flex: 1;
+}
+
+.object-timeline {
+  background: #081827;
+  border-top: 1px solid #36516d;
+  grid-column: 2;
+  min-width: 0;
+  padding: 0.7rem 1rem 1rem;
+}
+
+.object-timeline-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+}
+
+.object-timeline-header h2 {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.object-timeline-header span {
+  color: #9fb2c7;
+  font-variant-numeric: tabular-nums;
+}
+
+.object-timeline-scroll {
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.object-timeline-grid {
+  display: grid;
+  grid-template-columns: 12rem minmax(45rem, 1fr);
+  min-width: 57rem;
+  position: relative;
+}
+
+.object-timeline-corner,
+.object-timeline-ruler {
+  background: #0a1d2e;
+  border-bottom: 1px solid #29445e;
+  height: 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.object-timeline-corner {
+  grid-column: 1;
+  grid-row: 1;
+  left: 0;
+}
+
+.object-timeline-ruler {
+  cursor: pointer;
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+}
+
+.object-timeline-ruler span {
+  border-left: 1px solid #36516d;
+  bottom: 0;
+  color: #8aa0b7;
+  font-size: 0.7rem;
+  height: 1.35rem;
+  padding-left: 0.25rem;
+  position: absolute;
+  transform: translateX(-1px);
+}
+
+.object-timeline-row {
+  display: contents;
+}
+
+.object-timeline-label {
+  align-items: center;
+  background: #0a1d2e;
+  border: 0;
+  border-bottom: 1px solid #1f3850;
+  border-radius: 0;
+  display: flex;
+  gap: 0.5rem;
+  left: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.45rem 0.65rem;
+  position: sticky;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  z-index: 4;
+}
+
+.object-timeline-label--active {
+  background: #123552;
+  color: #fff;
+}
+
+.object-type-dot {
+  background: #a78bfa;
+  border-radius: 0.2rem;
+  flex: 0 0 0.65rem;
+  height: 0.65rem;
+}
+
+.object-type-dot--image {
+  background: #34d399;
+}
+
+.object-type-dot--shape {
+  background: #60a5fa;
+}
+
+.object-timeline-track {
+  background-image: linear-gradient(
+    to right,
+    transparent calc(10% - 1px),
+    rgb(54 81 109 / 45%) calc(10% - 1px),
+    rgb(54 81 109 / 45%) 10%,
+    transparent 10%
+  );
+  background-size: 10% 100%;
+  border-bottom: 1px solid #1f3850;
+  cursor: pointer;
+  height: 2.7rem;
+  position: relative;
+}
+
+.object-timeline-clip {
+  align-items: center;
+  background: #285f89;
+  border: 1px solid #55a7e5;
+  border-radius: 0.4rem;
+  cursor: grab;
+  display: flex;
+  inset-block: 0.35rem;
+  min-width: 1.25rem;
+  overflow: hidden;
+  padding: 0 0.55rem;
+  position: absolute;
+  touch-action: none;
+  user-select: none;
+}
+
+.object-timeline-clip:active {
+  cursor: grabbing;
+}
+
+.object-timeline-clip--active {
+  background: #1878c8;
+  border-color: #a9ddff;
+  box-shadow: 0 0 0 2px rgb(96 165 250 / 25%);
+}
+
+.object-timeline-clip > span {
+  overflow: hidden;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.object-timeline-handle {
+  bottom: 0;
+  cursor: ew-resize;
+  position: absolute;
+  top: 0;
+  width: 0.65rem;
+  z-index: 2;
+}
+
+.object-timeline-handle--start {
+  left: 0;
+}
+
+.object-timeline-handle--end {
+  right: 0;
+}
+
+.object-timeline-playhead-area {
+  bottom: 0;
+  grid-column: 2;
+  grid-row: 1 / span 1000;
+  pointer-events: none;
+  position: relative;
+  top: 0;
+  z-index: 6;
+}
+
+.object-timeline-playhead {
+  background: #ff6464;
+  bottom: 0;
+  position: absolute;
+  top: 0;
+  width: 2px;
+}
+
+.object-timeline-playhead::before {
+  background: #ff6464;
+  border-radius: 0 0 0.3rem 0.3rem;
+  content: "";
+  height: 0.5rem;
+  left: -0.25rem;
+  position: absolute;
+  top: 0;
+  width: 0.5rem;
+}
+
+.object-timeline-empty {
+  color: #7890a8;
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.8rem;
 }
 
 .panel-actions {
@@ -713,7 +937,7 @@ button,
 .editor-preview > svg {
   box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
   height: auto;
-  max-height: calc(100vh - 9rem);
+  max-height: calc(100vh - 23rem);
   max-width: 100%;
 }
 

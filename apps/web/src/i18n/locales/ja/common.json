@@ -91,6 +91,7 @@
       "caption": "テロップ枠"
     },
     "timeline": "再生位置",
+    "objectTimeline": "オブジェクトのタイムライン",
     "sceneSettings": "シーン設定",
     "sceneName": "シーン名",
     "backgroundColor": "背景色",

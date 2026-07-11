@@ -91,6 +91,7 @@
       "caption": "Caption frame"
     },
     "timeline": "Playback position",
+    "objectTimeline": "Object timeline",
     "sceneSettings": "Scene settings",
     "sceneName": "Scene name",
     "backgroundColor": "Background color",

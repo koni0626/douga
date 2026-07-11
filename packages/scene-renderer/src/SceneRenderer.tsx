@@ -145,7 +145,12 @@ export function SceneRenderer({
           preserveAspectRatio="xMidYMid slice"
         />
       ) : null}
-      {scene.layers.map((layer) => renderLayer(layer, assetUrl))}
+      {scene.layers.map((layer) =>
+        timeMs >= (layer.start_ms ?? 0) &&
+        timeMs < (layer.end_ms ?? Number.POSITIVE_INFINITY)
+          ? renderLayer(layer, assetUrl)
+          : null,
+      )}
       {resolved.page ? (
         <g opacity={resolved.opacity}>
           <rect

@@ -54,6 +54,37 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await expect(page.locator(".editor-preview image")).toBeVisible({
     timeout: 10_000,
   });
+  await expect(page.locator(".object-timeline")).toBeVisible();
+  const timelineTrack = page.locator(".object-timeline-track").first();
+  const trackBounds = await timelineTrack.boundingBox();
+  if (!trackBounds) throw new Error("Timeline is not measurable");
+  const hitTarget = await page.evaluate(
+    ({ x, y }) => globalThis.document.elementFromPoint(x, y)?.className,
+    {
+      x: trackBounds.x + 5,
+      y: trackBounds.y + trackBounds.height / 2,
+    },
+  );
+  if (!String(hitTarget).includes("object-timeline-")) {
+    throw new Error(`Unexpected timeline hit target: ${String(hitTarget)}`);
+  }
+  await page.mouse.move(
+    trackBounds.x + 5,
+    trackBounds.y + trackBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    trackBounds.x + trackBounds.width / 2,
+    trackBounds.y + trackBounds.height / 2,
+  );
+  await page.mouse.up();
+  await expect(
+    page.locator(".object-timeline-clip").first(),
+  ).not.toHaveAttribute("style", /width: 100%/);
+  await page.getByLabel("再生位置").fill("1000");
+  await expect(page.locator(".editor-preview image")).toHaveCount(0);
+  await page.getByLabel("再生位置").fill("9000");
+  await expect(page.locator(".editor-preview image")).toBeVisible();
   await page.getByRole("button", { name: "レイヤー" }).click();
   await expect(page.getByText("dropped.png")).toBeVisible();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
@@ -70,6 +101,8 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await expect(page.getByLabel("テロップ本文")).toHaveValue(
     "ノベルゲームのように自動で送られるテロップです。",
   );
+  await expect(page.locator(".editor-preview image")).toHaveCount(0);
+  await page.getByLabel("再生位置").fill("9000");
   await expect(page.locator(".editor-preview image")).toBeVisible();
 
   const originalScene = page.getByRole("button", {

@@ -15,9 +15,11 @@ test("render a project and show the completed MP4", async ({ page }) => {
   await page.getByRole("button", { name: "登録する" }).click();
 
   await page.getByRole("link", { name: "設定" }).click();
+  await expect(page.getByLabel("幅")).toHaveValue("1920");
   await page.getByLabel("幅").fill("320");
-  await page.getByLabel("高さ").fill("180");
+  await page.getByLabel("高さ").fill("240");
   await page.getByLabel("FPS").fill("10");
+  await expect(page.getByLabel("幅")).toHaveValue("320");
   await page.getByRole("button", { name: "保存" }).click();
   await expect(page.getByText("設定を保存しました。")).toBeVisible();
 
