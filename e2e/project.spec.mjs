@@ -19,7 +19,8 @@ test("create a project and auto-save a scene", async ({ page }) => {
     page.getByRole("heading", { name: "自動保存テスト" }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "シーンを追加" }).click();
+  await page.locator(".scene-thumbnail-list").click({ button: "right" });
+  await page.getByRole("menuitem", { name: "新規追加" }).click();
   const dropZone = page.getByLabel("シーン画像のドロップ領域");
   await dropZone.evaluate((element) => {
     element.dispatchEvent(
@@ -76,9 +77,12 @@ test("create a project and auto-save a scene", async ({ page }) => {
     exact: true,
   });
   await originalScene.click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "新規追加" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "複製" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "削除" })).toBeVisible();
-  await page.getByRole("menuitem", { name: "複製" }).click();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Control+C");
+  await page.keyboard.press("Control+V");
 
   const copiedScene = page.getByRole("button", {
     name: "2. シーン 1 コピー",
@@ -96,6 +100,15 @@ test("create a project and auto-save a scene", async ({ page }) => {
     name: "1. シーン 1 コピー",
     exact: true,
   });
+  await expect(movedCopy).toBeVisible();
+  await page.keyboard.press("Control+Z");
+  await expect(
+    page.getByRole("button", {
+      name: "2. シーン 1 コピー",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.keyboard.press("Control+Y");
   await expect(movedCopy).toBeVisible();
   await movedCopy.click({ button: "right" });
   await page.getByRole("menuitem", { name: "削除" }).click();

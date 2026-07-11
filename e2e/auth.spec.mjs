@@ -22,6 +22,7 @@ test("register, change settings, and log out", async ({ page }) => {
   ).toBeVisible();
 
   await page.getByLabel("画面の言語").selectOption("en");
+  await expect(page.getByLabel("画面の言語")).toHaveValue("en");
   const settingsResponse = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/v1/settings") &&

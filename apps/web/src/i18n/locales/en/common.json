@@ -69,6 +69,7 @@
   "editor": {
     "back": "Back to projects",
     "addScene": "Add scene",
+    "newScene": "New scene",
     "scenes": "Scenes",
     "defaultSceneName": "Scene {{count}}",
     "copySuffix": "copy",

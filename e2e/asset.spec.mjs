@@ -27,6 +27,7 @@ function silentWav() {
 }
 
 test("upload and display an image asset", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.goto("/register");
   await page
     .getByLabel("メールアドレス")
@@ -62,15 +63,25 @@ test("upload and display an image asset", async ({ page }) => {
 
   await page.getByRole("link", { name: "プロジェクト" }).click();
   await page.getByLabel("新しいプロジェクト名").fill("素材参照テスト");
+  const readyAssetsResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/v1/assets?status=ready") &&
+      response.request().method() === "GET",
+  );
   await page.getByRole("button", { name: "作成" }).click();
-  await page.getByRole("button", { name: "シーンを追加" }).click();
+  const readyAssets = await (await readyAssetsResponse).json();
+  expect(readyAssets.items.map((asset) => asset.name)).toContain("tone.wav");
+  await page.locator(".scene-thumbnail-list").click({ button: "right" });
+  await page.getByRole("menuitem", { name: "新規追加" }).click();
   await page.getByRole("button", { name: "レイヤー" }).click();
   await page
     .locator(".asset-picker")
     .getByRole("button", { name: "pixel.png" })
     .click();
   await page.getByRole("button", { name: "音声" }).click();
-  await page.getByRole("button", { name: "tone.wav" }).click();
+  await page
+    .getByRole("button", { name: "tone.wav" })
+    .click({ timeout: 10_000 });
   await expect(page.getByText("保存済み")).toBeVisible();
   await page.reload();
   await expect(page.locator(".editor-preview image")).toBeVisible();

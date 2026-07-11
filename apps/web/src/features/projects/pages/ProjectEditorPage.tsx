@@ -28,6 +28,13 @@ type Dialogue = Scene["dialogues"][number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
 
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || target.matches("input, textarea, select"))
+  );
+}
+
 export function ProjectEditorPage() {
   const { t } = useTranslation();
   const { projectId } = useParams();
@@ -47,6 +54,7 @@ export function ProjectEditorPage() {
   const futureRef = useRef<ProjectDocument[]>([]);
   const changeSequenceRef = useRef(0);
   const saveInFlightRef = useRef(false);
+  const copiedSceneRef = useRef<Scene | undefined>(undefined);
 
   useEffect(() => {
     if (!projectId) return;
@@ -192,24 +200,49 @@ export function ProjectEditorPage() {
     });
   }
 
+  function cloneScene(source: Scene): Scene {
+    const copy = structuredClone(source);
+    copy.id = crypto.randomUUID();
+    copy.name = `${source.name} ${t("editor.copySuffix")}`;
+    copy.layers = copy.layers.map((layer) => ({
+      ...layer,
+      id: crypto.randomUUID(),
+    }));
+    copy.dialogues = copy.dialogues.map((dialogue) => ({
+      ...dialogue,
+      id: crypto.randomUUID(),
+    }));
+    return copy;
+  }
+
   function duplicateScene(sceneIndex: number) {
     mutate((document) => {
       const source = document.scenes[sceneIndex];
       if (!source) return;
-      const copy = structuredClone(source);
-      copy.id = crypto.randomUUID();
-      copy.name = `${source.name} ${t("editor.copySuffix")}`;
-      copy.layers = copy.layers.map((layer) => ({
-        ...layer,
-        id: crypto.randomUUID(),
-      }));
-      copy.dialogues = copy.dialogues.map((dialogue) => ({
-        ...dialogue,
-        id: crypto.randomUUID(),
-      }));
+      const copy = cloneScene(source);
       document.scenes.splice(sceneIndex + 1, 0, copy);
       setSelectedSceneIndex(sceneIndex + 1);
     });
+  }
+
+  function copySelectedScene(): boolean {
+    const source = documentRef.current?.scenes[selectedSceneIndex];
+    if (!source) return false;
+    copiedSceneRef.current = structuredClone(source);
+    return true;
+  }
+
+  function pasteCopiedScene(): boolean {
+    const source = copiedSceneRef.current;
+    if (!source) return false;
+    const insertIndex = selectedSceneIndex + 1;
+    mutate((document) => {
+      document.scenes.splice(insertIndex, 0, cloneScene(source));
+    });
+    setSelectedSceneIndex(insertIndex);
+    setSelectedLayerId(undefined);
+    setTimeMs(0);
+    return true;
   }
 
   function deleteScene(sceneIndex: number) {
@@ -382,6 +415,40 @@ export function ProjectEditorPage() {
     });
   }
 
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        event.altKey ||
+        isEditableShortcutTarget(event.target)
+      )
+        return;
+
+      const key = event.key.toLowerCase();
+      if (key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (key === "y") {
+        event.preventDefault();
+        redo();
+        return;
+      }
+      if (key === "c") {
+        if (window.getSelection()?.toString()) return;
+        if (copySelectedScene()) event.preventDefault();
+        return;
+      }
+      if (key === "v" && pasteCopiedScene()) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [detail, selectedSceneIndex]);
+
   if (!detail) {
     return (
       <main className="loading-screen">
@@ -406,33 +473,18 @@ export function ProjectEditorPage() {
         <span className={`save-state save-state--${saveState}`}>
           {t(`editor.saveState.${saveState}`)}
         </span>
-        <button
-          type="button"
-          onClick={undo}
-          disabled={pastRef.current.length === 0}
-        >
-          {t("editor.undo")}
-        </button>
-        <button
-          type="button"
-          onClick={redo}
-          disabled={futureRef.current.length === 0}
-        >
-          {t("editor.redo")}
-        </button>
-        <button type="button" onClick={addScene}>
-          {t("editor.addScene")}
-        </button>
       </header>
       <div className="editor-workspace">
         <aside className="scene-panel">
           <h2>{t("editor.scenes")}</h2>
           <SceneThumbnailList
+            addLabel={t("editor.newScene")}
             assetUrl={assetContentUrl}
             deleteLabel={t("editor.delete")}
             duplicateLabel={t("editor.duplicate")}
             onDelete={deleteScene}
             onDuplicate={duplicateScene}
+            onAdd={addScene}
             onReorder={reorderScene}
             onSelect={(index) => {
               setSelectedSceneIndex(index);

@@ -6,27 +6,31 @@ import { SceneRenderer } from "@douga/scene-renderer";
 type DropPosition = "before" | "after";
 
 type ContextMenuState = {
-  sceneIndex: number;
+  sceneIndex?: number;
   x: number;
   y: number;
 };
 
 export function SceneThumbnailList({
   assetUrl,
+  addLabel,
   deleteLabel,
   duplicateLabel,
   onDelete,
   onDuplicate,
+  onAdd,
   onReorder,
   onSelect,
   project,
   selectedSceneIndex,
 }: {
   assetUrl: (assetId: string) => string | undefined;
+  addLabel: string;
   deleteLabel: string;
   duplicateLabel: string;
   onDelete: (sceneIndex: number) => void;
   onDuplicate: (sceneIndex: number) => void;
+  onAdd: () => void;
   onReorder: (
     sourceIndex: number,
     targetIndex: number,
@@ -62,18 +66,29 @@ export function SceneThumbnailList({
     };
   }, [contextMenu]);
 
-  function openContextMenu(sceneIndex: number, x: number, y: number) {
-    onSelect(sceneIndex);
+  function openContextMenu(
+    sceneIndex: number | undefined,
+    x: number,
+    y: number,
+  ) {
+    if (sceneIndex !== undefined) onSelect(sceneIndex);
     setContextMenu({
       sceneIndex,
       x: Math.min(x, window.innerWidth - 180),
-      y: Math.min(y, window.innerHeight - 120),
+      y: Math.min(y, window.innerHeight - 170),
     });
   }
 
   return (
     <>
-      <div className="scene-thumbnail-list" role="list">
+      <div
+        className="scene-thumbnail-list"
+        role="list"
+        onContextMenu={(event) => {
+          event.preventDefault();
+          openContextMenu(undefined, event.clientX, event.clientY);
+        }}
+      >
         {project.scenes.map((scene, index) => {
           const dropClass =
             dropTarget?.index === index
@@ -131,6 +146,7 @@ export function SceneThumbnailList({
                 onClick={() => onSelect(index)}
                 onContextMenu={(event) => {
                   event.preventDefault();
+                  event.stopPropagation();
                   openContextMenu(index, event.clientX, event.clientY);
                 }}
                 onKeyDown={(event) => {
@@ -172,23 +188,39 @@ export function SceneThumbnailList({
             type="button"
             role="menuitem"
             onClick={() => {
-              onDuplicate(contextMenu.sceneIndex);
+              onAdd();
               setContextMenu(undefined);
             }}
           >
-            {duplicateLabel}
+            {addLabel}
           </button>
-          <button
-            type="button"
-            className="danger"
-            role="menuitem"
-            onClick={() => {
-              onDelete(contextMenu.sceneIndex);
-              setContextMenu(undefined);
-            }}
-          >
-            {deleteLabel}
-          </button>
+          {contextMenu.sceneIndex !== undefined ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const sceneIndex = contextMenu.sceneIndex;
+                  if (sceneIndex !== undefined) onDuplicate(sceneIndex);
+                  setContextMenu(undefined);
+                }}
+              >
+                {duplicateLabel}
+              </button>
+              <button
+                type="button"
+                className="danger"
+                role="menuitem"
+                onClick={() => {
+                  const sceneIndex = contextMenu.sceneIndex;
+                  if (sceneIndex !== undefined) onDelete(sceneIndex);
+                  setContextMenu(undefined);
+                }}
+              >
+                {deleteLabel}
+              </button>
+            </>
+          ) : null}
         </div>
       ) : null}
     </>

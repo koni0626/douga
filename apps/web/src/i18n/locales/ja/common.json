@@ -69,6 +69,7 @@
   "editor": {
     "back": "プロジェクトへ戻る",
     "addScene": "シーンを追加",
+    "newScene": "新規追加",
     "scenes": "シーン",
     "defaultSceneName": "シーン {{count}}",
     "copySuffix": "コピー",
