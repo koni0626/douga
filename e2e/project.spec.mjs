@@ -147,12 +147,13 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await page.getByRole("button", { name: "レイヤー", exact: true }).click();
   await page.getByRole("button", { name: "図形", exact: true }).click();
   const timelineLabels = page.locator(".object-timeline-label");
-  await expect(timelineLabels).toHaveText(["画像", "図形"]);
+  // タイムライン上段がプレビューの最前面になる。
+  await expect(timelineLabels).toHaveText(["図形", "画像"]);
   await expect(page.locator("svg[data-render-canvas] > *")).toHaveCount(3);
   await timelineLabels.nth(1).dragTo(timelineLabels.nth(0), {
     targetPosition: { x: 30, y: 1 },
   });
-  await expect(timelineLabels).toHaveText(["図形", "画像"]);
+  await expect(timelineLabels).toHaveText(["画像", "図形"]);
   await expect(
     page.locator("svg[data-render-canvas] > *").nth(1),
   ).toHaveJSProperty("tagName", "rect");
@@ -174,8 +175,11 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     "aria-valuenow",
     "0",
   );
-  const timelineTrack = page.locator(".object-timeline-track").nth(1);
-  const timelineLabel = page.locator(".object-timeline-label").nth(1);
+  const imageTimelineRow = page
+    .locator(".object-timeline-row")
+    .filter({ hasText: "画像" });
+  const timelineTrack = imageTimelineRow.locator(".object-timeline-track");
+  const timelineLabel = imageTimelineRow.locator(".object-timeline-label");
   const trackBounds = await timelineTrack.boundingBox();
   const labelBounds = await timelineLabel.boundingBox();
   if (!trackBounds || !labelBounds)
@@ -204,7 +208,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   );
   await page.mouse.up();
   await expect(
-    page.locator(".object-timeline-clip").nth(1),
+    imageTimelineRow.locator(".object-timeline-clip"),
   ).not.toHaveAttribute("style", /width: 100%/);
   await seekTimeline(page, 1000);
   await expect(page.locator(".editor-preview image")).toHaveCount(0);

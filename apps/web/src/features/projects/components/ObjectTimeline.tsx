@@ -110,6 +110,9 @@ export function ObjectTimeline({
   stopLabel,
   title,
 }: ObjectTimelineProps) {
+  // SVGは配列の後ろにあるレイヤーほど手前に描画する。
+  // タイムラインでは一般的なレイヤーパネルと同様、最前面を上に表示する。
+  const displayLayers = [...layers].reverse();
   const [draft, setDraft] = useState<{ layerId: string; range: Range }>();
   const [drag, setDrag] = useState<DragState>();
   const [expanded, setExpanded] = useState(true);
@@ -214,7 +217,12 @@ export function ObjectTimeline({
     setDropTarget(undefined);
     if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex)
       return;
-    onReorder(sourceIndex, targetIndex, position);
+    // 表示順は描画配列と逆なので、画面上の before/after も反転させる。
+    onReorder(
+      sourceIndex,
+      targetIndex,
+      position === "before" ? "after" : "before",
+    );
   }
 
   return (
@@ -310,7 +318,7 @@ export function ObjectTimeline({
             {layers.length === 0 ? (
               <p className="object-timeline-empty">—</p>
             ) : null}
-            {layers.map((layer) => {
+            {displayLayers.map((layer) => {
               const range =
                 draft?.layerId === layer.id
                   ? draft.range
