@@ -379,6 +379,35 @@ button,
   justify-content: center;
   overflow: hidden;
   padding: 2rem;
+  position: relative;
+  transition:
+    background 120ms ease,
+    outline-color 120ms ease;
+}
+
+.editor-preview--drop-active {
+  background: rgb(24 120 200 / 18%);
+  outline: 3px dashed #60a5fa;
+  outline-offset: -0.75rem;
+}
+
+.image-drop-overlay {
+  align-items: center;
+  backdrop-filter: blur(3px);
+  background: rgb(7 17 31 / 82%);
+  border: 2px dashed #60a5fa;
+  border-radius: 0.9rem;
+  color: #f8fafc;
+  display: flex;
+  font-size: 1.1rem;
+  font-weight: 700;
+  inset: 1rem;
+  justify-content: center;
+  padding: 2rem;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  z-index: 10;
 }
 
 .editor-center {

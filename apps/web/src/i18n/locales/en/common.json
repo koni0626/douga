@@ -77,6 +77,9 @@
     "undo": "Undo",
     "redo": "Redo",
     "noScenes": "Add a scene to show a preview here.",
+    "imageDropZone": "Scene image drop zone",
+    "imageDropHere": "Drop an image here to add it to the scene",
+    "imageUploading": "Uploading image…",
     "timeline": "Playback position",
     "sceneSettings": "Scene settings",
     "sceneName": "Scene name",
@@ -167,6 +170,7 @@
     "projectConflict": "This project was updated elsewhere. Please reload.",
     "projectDocumentInvalid": "The project data is invalid.",
     "uploadInvalid": "The file format could not be validated.",
+    "imageUploadOnly": "Drop a PNG, JPEG, or WebP image.",
     "uploadTooLarge": "The file exceeds the upload size limit.",
     "assetNotFound": "The asset was not found."
   }

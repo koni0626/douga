@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type DragEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
@@ -8,10 +8,12 @@ import { SceneRenderer } from "@douga/scene-renderer";
 import {
   ApiError,
   apiRequest,
+  apiUpload,
   assetContentUrl,
   type AssetDto,
   type AssetListDto,
   type ProjectDetailDto,
+  type UploadTargetDto,
 } from "../../../shared/lib/api";
 import { AudioPreview, NumberField } from "../components/EditorFields";
 
@@ -31,6 +33,9 @@ export function ProjectEditorPage() {
   const [assets, setAssets] = useState<AssetDto[]>([]);
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadErrorKey, setUploadErrorKey] = useState<string>();
   const documentRef = useRef<ProjectDocument | undefined>(undefined);
   const pastRef = useRef<ProjectDocument[]>([]);
   const futureRef = useRef<ProjectDocument[]>([]);
@@ -235,6 +240,75 @@ export function ProjectEditorPage() {
     });
   }
 
+  function addUploadedImageLayer(asset: AssetDto, sceneId: string) {
+    if (!detail) return;
+    const layerId = crypto.randomUUID();
+    const video = detail.document.video;
+    const sourceWidth = asset.width ?? 16;
+    const sourceHeight = asset.height ?? 9;
+    const scale = Math.min(
+      (video.width * 0.8) / sourceWidth,
+      (video.height * 0.8) / sourceHeight,
+    );
+    const width = Math.round(sourceWidth * scale);
+    const height = Math.round(sourceHeight * scale);
+    mutate((document) => {
+      const targetScene = document.scenes.find((item) => item.id === sceneId);
+      targetScene?.layers.push({
+        id: layerId,
+        type: "image",
+        asset_id: asset.id,
+        x: Math.round((video.width - width) / 2),
+        y: Math.round((video.height - height) / 2),
+        width,
+        height,
+        rotation: 0,
+        opacity: 1,
+      });
+    });
+    setSelectedLayerId(layerId);
+  }
+
+  async function uploadDroppedImage(file: File, sceneId: string) {
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setUploadErrorKey("errors.imageUploadOnly");
+      return;
+    }
+    setUploadingImage(true);
+    setUploadErrorKey(undefined);
+    try {
+      const target = await apiRequest<UploadTargetDto>("/assets/uploads", {
+        method: "POST",
+        body: JSON.stringify({
+          name: file.name,
+          original_filename: file.name,
+          kind: "image",
+        }),
+      });
+      await apiUpload(target.upload_path, file);
+      const completed = await apiRequest<AssetDto>(
+        `/assets/${target.asset.id}/complete`,
+        { method: "POST" },
+      );
+      setAssets((current) => [completed, ...current]);
+      addUploadedImageLayer(completed, sceneId);
+    } catch (error) {
+      setUploadErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  function dropImage(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDropActive(false);
+    if (!scene || uploadingImage) return;
+    const file = event.dataTransfer.files.item(0);
+    if (file) void uploadDroppedImage(file, scene.id);
+  }
+
   function updateLayer(layerId: string, patch: Partial<Layer>) {
     updateScene((scene) => {
       const layer = scene.layers.find((item) => item.id === layerId);
@@ -351,7 +425,28 @@ export function ProjectEditorPage() {
         </aside>
 
         <section className="editor-center">
-          <div className="editor-preview">
+          <div
+            className={`editor-preview${dropActive ? " editor-preview--drop-active" : ""}`}
+            aria-label={scene ? t("editor.imageDropZone") : undefined}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              if (scene && !uploadingImage) setDropActive(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "copy";
+            }}
+            onDragLeave={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null,
+                )
+              ) {
+                setDropActive(false);
+              }
+            }}
+            onDrop={dropImage}
+          >
             {scene ? (
               <SceneRenderer
                 project={project}
@@ -362,7 +457,21 @@ export function ProjectEditorPage() {
             ) : (
               <p>{t("editor.noScenes")}</p>
             )}
+            {scene && (dropActive || uploadingImage) ? (
+              <div className="image-drop-overlay" role="status">
+                {t(
+                  uploadingImage
+                    ? "editor.imageUploading"
+                    : "editor.imageDropHere",
+                )}
+              </div>
+            ) : null}
           </div>
+          {uploadErrorKey ? (
+            <p className="form-error" role="alert">
+              {t(uploadErrorKey)}
+            </p>
+          ) : null}
           {scene ? (
             <div className="preview-controls">
               <AudioPreview

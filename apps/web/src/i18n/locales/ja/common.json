@@ -77,6 +77,9 @@
     "undo": "元に戻す",
     "redo": "やり直す",
     "noScenes": "シーンを追加すると、ここにプレビューが表示されます。",
+    "imageDropZone": "シーン画像のドロップ領域",
+    "imageDropHere": "ここに画像をドロップしてシーンへ追加",
+    "imageUploading": "画像をアップロード中…",
     "timeline": "再生位置",
     "sceneSettings": "シーン設定",
     "sceneName": "シーン名",
@@ -167,6 +170,7 @@
     "projectConflict": "別の画面で更新されています。再読み込みしてください。",
     "projectDocumentInvalid": "プロジェクトデータの形式が正しくありません。",
     "uploadInvalid": "ファイルの形式を確認できませんでした。",
+    "imageUploadOnly": "PNG、JPEG、WebP画像をドロップしてください。",
     "uploadTooLarge": "ファイルサイズが上限を超えています。",
     "assetNotFound": "素材が見つかりません。"
   }

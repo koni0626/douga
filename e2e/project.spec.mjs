@@ -20,6 +20,25 @@ test("create a project and auto-save a scene", async ({ page }) => {
   ).toBeVisible();
 
   await page.getByRole("button", { name: "シーンを追加" }).click();
+  const dataTransfer = await page.evaluateHandle((base64) => {
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (character) =>
+      character.charCodeAt(0),
+    );
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File([bytes], "dropped.png", { type: "image/png" }),
+    );
+    return transfer;
+  }, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+  const dropZone = page.getByLabel("シーン画像のドロップ領域");
+  await dropZone.dispatchEvent("dragenter", { dataTransfer });
+  await expect(
+    page.getByText("ここに画像をドロップしてシーンへ追加"),
+  ).toBeVisible();
+  await dropZone.dispatchEvent("drop", { dataTransfer });
+  await expect(page.getByText("dropped.png")).toBeVisible();
+  await expect(page.locator(".editor-preview image")).toBeVisible();
   await page.getByRole("button", { name: "テロップを追加" }).click();
   await page
     .getByLabel("テロップ本文")
@@ -30,4 +49,5 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await expect(page.getByLabel("テロップ本文")).toHaveValue(
     "ノベルゲームのように自動で送られるテロップです。",
   );
+  await expect(page.locator(".editor-preview image")).toBeVisible();
 });
