@@ -347,6 +347,59 @@ button,
   max-width: 100%;
 }
 
+.upload-button {
+  background: #1878c8;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  padding: 0.8rem 1rem;
+}
+
+.upload-button input {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+.asset-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  margin-top: 2rem;
+}
+
+.asset-card {
+  background: #0a1d2e;
+  border: 1px solid #29445e;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.asset-card h2 {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.asset-preview {
+  align-items: center;
+  aspect-ratio: 16 / 9;
+  background: #06121e;
+  border-radius: 0.55rem;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.asset-preview img {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
 @media (max-width: 800px) {
   .app {
     padding: 1rem;

@@ -71,6 +71,27 @@
       "error": "Could not save"
     }
   },
+  "assets": {
+    "nav": "Assets",
+    "eyebrow": "Your private library",
+    "title": "Assets",
+    "lead": "Upload images, video, and audio to reuse across your videos.",
+    "upload": "Upload asset",
+    "uploading": "Uploading…",
+    "empty": "No assets yet. Try adding your first image.",
+    "delete": "Delete",
+    "kind": {
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio"
+    },
+    "status": {
+      "pending": "Waiting for upload",
+      "processing": "Validating",
+      "ready": "Ready",
+      "failed": "Validation failed"
+    }
+  },
   "errors": {
     "authRequired": "Please log in.",
     "emailAlreadyRegistered": "This email address is already registered.",
@@ -81,6 +102,9 @@
     "unknown": "Something went wrong. Please try again.",
     "projectNotFound": "The project was not found.",
     "projectConflict": "This project was updated elsewhere. Please reload.",
-    "projectDocumentInvalid": "The project data is invalid."
+    "projectDocumentInvalid": "The project data is invalid.",
+    "uploadInvalid": "The file format could not be validated.",
+    "uploadTooLarge": "The file exceeds the upload size limit.",
+    "assetNotFound": "The asset was not found."
   }
 }

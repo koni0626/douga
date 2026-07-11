@@ -37,6 +37,31 @@ export interface ProjectListDto {
   total: number;
 }
 
+export interface AssetDto {
+  id: string;
+  kind: "image" | "video" | "audio";
+  source: "upload" | "generated" | "system";
+  status: "pending" | "processing" | "ready" | "failed";
+  name: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  width: number | null;
+  height: number | null;
+  duration_ms: number | null;
+  tags: string[];
+}
+
+export interface AssetListDto {
+  items: AssetDto[];
+  total: number;
+}
+
+export interface UploadTargetDto {
+  asset: AssetDto;
+  upload_path: string;
+}
+
 interface ErrorResponse {
   error?: { code?: string; message_key?: string };
 }
@@ -53,6 +78,7 @@ export class ApiError extends Error {
 
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
+const apiOrigin = new URL(apiBaseUrl).origin;
 
 function cookieValue(name: string): string | undefined {
   const prefix = `${encodeURIComponent(name)}=`;
@@ -90,4 +116,27 @@ export async function apiRequest<T>(
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+export async function apiUpload(path: string, file: File): Promise<AssetDto> {
+  const csrf = cookieValue("douga_csrf");
+  const response = await fetch(`${apiOrigin}${path}`, {
+    method: "PUT",
+    body: file,
+    credentials: "include",
+    headers: csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : undefined,
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as ErrorResponse;
+    throw new ApiError(
+      response.status,
+      payload.error?.code ?? "UNKNOWN_ERROR",
+      payload.error?.message_key ?? "errors.unknown",
+    );
+  }
+  return (await response.json()) as AssetDto;
+}
+
+export function assetContentUrl(assetId: string): string {
+  return `${apiBaseUrl}/assets/${assetId}/content`;
 }

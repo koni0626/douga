@@ -71,6 +71,27 @@
       "error": "保存できませんでした"
     }
   },
+  "assets": {
+    "nav": "素材",
+    "eyebrow": "アカウント専用ライブラリ",
+    "title": "素材",
+    "lead": "画像・動画・音声をアップロードして、動画で再利用できます。",
+    "upload": "素材をアップロード",
+    "uploading": "アップロード中…",
+    "empty": "素材はまだありません。最初の画像を追加してみましょう。",
+    "delete": "削除",
+    "kind": {
+      "image": "画像",
+      "video": "動画",
+      "audio": "音声"
+    },
+    "status": {
+      "pending": "アップロード待ち",
+      "processing": "検証中",
+      "ready": "利用可能",
+      "failed": "検証失敗"
+    }
+  },
   "errors": {
     "authRequired": "ログインが必要です。",
     "emailAlreadyRegistered": "このメールアドレスは登録済みです。",
@@ -81,6 +102,9 @@
     "unknown": "処理に失敗しました。もう一度お試しください。",
     "projectNotFound": "プロジェクトが見つかりません。",
     "projectConflict": "別の画面で更新されています。再読み込みしてください。",
-    "projectDocumentInvalid": "プロジェクトデータの形式が正しくありません。"
+    "projectDocumentInvalid": "プロジェクトデータの形式が正しくありません。",
+    "uploadInvalid": "ファイルの形式を確認できませんでした。",
+    "uploadTooLarge": "ファイルサイズが上限を超えています。",
+    "assetNotFound": "素材が見つかりません。"
   }
 }

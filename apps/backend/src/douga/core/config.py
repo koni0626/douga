@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -20,6 +21,9 @@ class Settings(BaseSettings):
     csrf_cookie_name: str = "douga_csrf"
     session_lifetime_hours: int = Field(default=336, ge=1, le=24 * 90)
     auth_rate_limit_per_minute: int = Field(default=10, ge=1, le=1000)
+    local_storage_path: Path = Path(".local-data/storage")
+    max_upload_bytes: int = Field(default=200 * 1024 * 1024, ge=1024)
+    ffprobe_path: str = "ffprobe"
 
     @property
     def secure_cookies(self) -> bool:

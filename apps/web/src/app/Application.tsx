@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 
 import { AuthPage } from "../features/auth/pages/AuthPage";
+import { AssetLibraryPage } from "../features/assets/pages/AssetLibraryPage";
 import { ProjectEditorPage } from "../features/projects/pages/ProjectEditorPage";
 import { ProjectListPage } from "../features/projects/pages/ProjectListPage";
 import { SettingsPage } from "../features/settings/pages/SettingsPage";
@@ -52,6 +53,7 @@ export function Application() {
           <nav aria-label={t("navigation")}>
             <Link to="/">{t("home.nav")}</Link>
             <Link to="/projects">{t("projects.nav")}</Link>
+            <Link to="/assets">{t("assets.nav")}</Link>
             <Link to="/settings">{t("settings.nav")}</Link>
             <button
               type="button"
@@ -104,6 +106,12 @@ export function Application() {
           path="/projects/:projectId"
           element={
             user ? <ProjectEditorPage /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/assets"
+          element={
+            user ? <AssetLibraryPage /> : <Navigate to="/login" replace />
           }
         />
         <Route

@@ -4,6 +4,7 @@ from logging.config import fileConfig
 from alembic import context
 from douga.core.config import get_settings
 from douga.db.base import Base
+from douga.modules.assets import models as asset_models  # noqa: F401
 from douga.modules.auth import models as auth_models  # noqa: F401
 from douga.modules.projects import models as project_models  # noqa: F401
 from sqlalchemy import pool

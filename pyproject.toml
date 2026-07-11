@@ -12,6 +12,7 @@ dev = [
     "pytest-cov>=7.0.0,<8",
     "ruff>=0.15.21,<0.16",
     "types-jsonschema>=4.26.0.20260518,<5",
+    "types-aiofiles>=25.1.0.20260518,<26",
 ]
 
 [tool.uv.workspace]

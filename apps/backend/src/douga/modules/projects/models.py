@@ -51,7 +51,9 @@ class Project(UuidPrimaryKeyMixin, TimestampMixin, Base):
     lock_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     estimated_duration_ms: Mapped[int | None] = mapped_column(BigInteger)
     scene_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    thumbnail_asset_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    thumbnail_asset_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("assets.id", ondelete="SET NULL"), nullable=True
+    )
     last_exported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

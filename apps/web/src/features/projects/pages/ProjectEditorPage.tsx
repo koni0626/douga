@@ -22,23 +22,32 @@ export function ProjectEditorPage() {
 
   useEffect(() => {
     if (!projectId) return;
+    let active = true;
     void apiRequest<ProjectDetailDto>(`/projects/${projectId}`)
       .then((result) => {
+        if (!active) return;
         setDetail(result);
         documentRef.current = result.document;
       })
-      .catch(() => setSaveState("error"));
+      .catch(() => {
+        if (active) setSaveState("error");
+      });
+    return () => {
+      active = false;
+    };
   }, [projectId]);
 
   useEffect(() => {
     if (saveState !== "dirty" || !detail || !projectId) return;
     const timer = globalThis.setTimeout(() => {
+      const documentToSave = documentRef.current;
+      if (!documentToSave) return;
       setSaveState("saving");
       void apiRequest<ProjectDetailDto>(`/projects/${projectId}/revisions`, {
         method: "POST",
         body: JSON.stringify({
           lock_version: detail.project.lock_version,
-          document: documentRef.current,
+          document: documentToSave,
           change_summary: "auto save",
         }),
       })
