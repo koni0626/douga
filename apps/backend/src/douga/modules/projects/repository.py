@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from douga.modules.projects.models import Project, ProjectRevision
+from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
 
 
 class ProjectRepository:
@@ -56,6 +56,10 @@ class ProjectRepository:
 
     async def add_revision(self, revision: ProjectRevision) -> None:
         self.session.add(revision)
+        await self.session.flush()
+
+    async def add_asset_references(self, references: list[ProjectAsset]) -> None:
+        self.session.add_all(references)
         await self.session.flush()
 
     async def advance_if_version(

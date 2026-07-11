@@ -97,3 +97,39 @@ class ProjectRevision(UuidPrimaryKeyMixin, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class ProjectAsset(UuidPrimaryKeyMixin, Base):
+    __tablename__ = "project_assets"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["project_id", "user_id"],
+            ["projects.id", "projects.user_id"],
+            ondelete="CASCADE",
+            name="fk_project_assets_project_user_projects",
+        ),
+        ForeignKeyConstraint(
+            ["project_revision_id", "project_id", "user_id"],
+            ["project_revisions.id", "project_revisions.project_id", "project_revisions.user_id"],
+            ondelete="CASCADE",
+            name="fk_project_assets_revision_project_user_revisions",
+        ),
+        UniqueConstraint(
+            "project_revision_id", "reference_path", name="uq_project_assets_revision_path"
+        ),
+        Index("ix_project_assets_user_id_project_id", "user_id", "project_id"),
+        Index("ix_project_assets_asset_id", "asset_id"),
+        Index("ix_project_assets_project_revision_id", "project_revision_id"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(nullable=False)
+    project_id: Mapped[UUID] = mapped_column(nullable=False)
+    project_revision_id: Mapped[UUID] = mapped_column(nullable=False)
+    asset_id: Mapped[UUID] = mapped_column(
+        ForeignKey("assets.id", ondelete="RESTRICT"), nullable=False
+    )
+    role: Mapped[str] = mapped_column(String(30), nullable=False)
+    reference_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

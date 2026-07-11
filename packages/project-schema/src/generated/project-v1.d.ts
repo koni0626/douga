@@ -64,6 +64,10 @@ export interface ProjectDocument {
    * @maxItems 1000
    */
   scenes: Scene[];
+  /**
+   * @maxItems 1000
+   */
+  audio_tracks?: AudioTrack[];
 }
 export interface VideoSettings {
   width: number;
@@ -118,4 +122,18 @@ export interface Dialogue {
   duration_mode: "auto" | "manual" | "narration";
   duration_ms?: number | null;
   manual_page_breaks: number[];
+}
+export interface AudioTrack {
+  id: string;
+  asset_id: string;
+  role: "narration" | "bgm" | "effect";
+  scene_id?: string | null;
+  dialogue_id?: string | null;
+  start_ms: number;
+  trim_start_ms: number;
+  volume: number;
+  loop: boolean;
+  fade_in_ms: number;
+  fade_out_ms: number;
+  ducking: boolean;
 }

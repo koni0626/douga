@@ -313,16 +313,50 @@ button,
   color: #ff9d9d;
 }
 
-.editor-body {
+.editor-body,
+.editor-workspace {
   display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr);
   min-height: calc(100vh - 4rem);
 }
 
-.editor-body aside {
+.editor-body {
+  grid-template-columns: 18rem minmax(0, 1fr);
+}
+
+.editor-workspace {
+  grid-template-columns: 15rem minmax(20rem, 1fr) 24rem;
+}
+
+.editor-body aside,
+.scene-panel,
+.property-panel {
   background: #0a1d2e;
   border-right: 1px solid #29445e;
   padding: 1rem;
+}
+
+.property-panel {
+  border-left: 1px solid #29445e;
+  border-right: 0;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+.property-panel details {
+  border-bottom: 1px solid #29445e;
+  padding: 0.8rem 0;
+}
+
+.property-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+}
+
+.property-panel label {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
 }
 
 .scene-row {
@@ -330,6 +364,13 @@ button,
   border-radius: 0.55rem;
   margin-bottom: 0.6rem;
   padding: 0.8rem;
+  text-align: left;
+  width: 100%;
+}
+
+.scene-row--active,
+.layer-row--active {
+  outline: 2px solid #3ea6ff;
 }
 
 .editor-preview {
@@ -338,6 +379,97 @@ button,
   justify-content: center;
   overflow: hidden;
   padding: 2rem;
+}
+
+.editor-center {
+  min-width: 0;
+}
+
+.preview-controls {
+  align-items: center;
+  display: flex;
+  gap: 0.8rem;
+  padding: 0 2rem 1rem;
+}
+
+.preview-controls input[type="range"] {
+  flex: 1;
+}
+
+.panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.7rem 0;
+}
+
+.dialogue-editor {
+  background: #071522;
+  border-radius: 0.55rem;
+  margin: 0.7rem 0;
+  padding: 0.7rem;
+}
+
+.dialogue-editor textarea {
+  background: #06121e;
+  border: 1px solid #3b5874;
+  border-radius: 0.45rem;
+  color: #f5f8fb;
+  font: inherit;
+  min-height: 6rem;
+  padding: 0.6rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.asset-picker {
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0.7rem 0;
+}
+
+.asset-picker button {
+  min-width: 0;
+  padding: 0.25rem;
+}
+
+.asset-picker img {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  width: 100%;
+}
+
+.asset-picker span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-row {
+  margin-bottom: 0.35rem;
+  text-align: left;
+  width: 100%;
+}
+
+.property-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.audio-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.audio-track {
+  background: #071522;
+  border-radius: 0.55rem;
+  margin-top: 0.7rem;
+  padding: 0.7rem;
 }
 
 .editor-preview > svg {
@@ -423,5 +555,13 @@ button,
 
   .editor-body {
     grid-template-columns: 1fr;
+  }
+
+  .editor-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .property-panel {
+    max-height: none;
   }
 }

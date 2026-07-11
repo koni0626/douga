@@ -153,6 +153,11 @@ class AssetService:
             asset.storage_key
         ), asset.mime_type or "application/octet-stream"
 
+    async def assert_references_available(self, user_id: UUID, asset_ids: set[UUID]) -> None:
+        available = await self.repository.ready_owned_ids(user_id, asset_ids)
+        if available != asset_ids:
+            raise NotFoundError("ASSET_NOT_FOUND", "errors.assetNotFound")
+
     async def _owned(self, asset_id: UUID, user_id: UUID) -> Asset:
         asset = await self.repository.get_owned(asset_id, user_id)
         if asset is None:
@@ -222,8 +227,12 @@ class AssetService:
         asset.duration_ms = round(float(duration) * 1000) if duration is not None else None
         asset.width = int(stream["width"]) if stream.get("width") else None
         asset.height = int(stream["height"]) if stream.get("height") else None
-        asset.mime_type = "video/mp4" if asset.kind == "video" else "audio/mpeg"
+        format_name = str(probe.get("format", {}).get("format_name", ""))
+        if asset.kind == "video":
+            asset.mime_type = "video/webm" if "webm" in format_name else "video/mp4"
+        else:
+            asset.mime_type = "audio/wav" if "wav" in format_name else "audio/mpeg"
         asset.asset_metadata = {
             "codec_name": stream.get("codec_name"),
-            "format_name": probe.get("format", {}).get("format_name"),
+            "format_name": format_name,
         }

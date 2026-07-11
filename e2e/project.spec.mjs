@@ -20,7 +20,14 @@ test("create a project and auto-save a scene", async ({ page }) => {
   ).toBeVisible();
 
   await page.getByRole("button", { name: "シーンを追加" }).click();
+  await page.getByRole("button", { name: "テロップを追加" }).click();
+  await page
+    .getByLabel("テロップ本文")
+    .fill("ノベルゲームのように自動で送られるテロップです。");
   await expect(page.getByText("保存済み")).toBeVisible();
   await page.reload();
   await expect(page.getByText("1. シーン 1")).toBeVisible();
+  await expect(page.getByLabel("テロップ本文")).toHaveValue(
+    "ノベルゲームのように自動で送られるテロップです。",
+  );
 });

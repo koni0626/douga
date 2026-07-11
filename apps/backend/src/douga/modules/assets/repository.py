@@ -90,3 +90,17 @@ class AssetRepository:
     async def soft_delete(self, asset: Asset) -> None:
         asset.deleted_at = datetime.now(UTC)
         await self.session.flush()
+
+    async def ready_owned_ids(self, user_id: UUID, asset_ids: set[UUID]) -> set[UUID]:
+        if not asset_ids:
+            return set()
+        result = await self.session.scalars(
+            select(Asset.id).where(
+                Asset.id.in_(asset_ids),
+                Asset.user_id == user_id,
+                Asset.scope == "private",
+                Asset.status == "ready",
+                Asset.deleted_at.is_(None),
+            )
+        )
+        return set(result)

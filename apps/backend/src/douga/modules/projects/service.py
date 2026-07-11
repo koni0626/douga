@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from douga.core.errors import ConflictError, NotFoundError
 from douga.db.unit_of_work import UnitOfWork
+from douga.modules.assets.service import AssetService
 from douga.modules.auth.service import AuthService
-from douga.modules.projects.models import Project, ProjectRevision
+from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
 from douga.modules.projects.repository import ProjectRepository
 
 Locale = Literal["ja", "en"]
@@ -81,6 +82,7 @@ class ProjectService:
     def __init__(self, session: AsyncSession) -> None:
         self.repository = ProjectRepository(session)
         self.auth_service = AuthService(session)
+        self.asset_service = AssetService(session)
         self.uow = UnitOfWork(session)
         self.validator = load_project_validator()
 
@@ -116,6 +118,7 @@ class ProjectService:
             },
             "caption_style": {**default_caption_style(), **settings.default_caption_settings},
             "scenes": [],
+            "audio_tracks": [],
         }
         self._validate_document(document, project_id)
         project = Project(
@@ -128,6 +131,7 @@ class ProjectService:
         )
         revision = self._revision(project_id, user_id, 1, document, "project created")
         await self.repository.add(project, revision)
+        await self._record_asset_references(revision, document)
         await self.uow.commit()
         return ProjectDetail(self._summary(project), document)
 
@@ -164,11 +168,11 @@ class ProjectService:
         if updated is None:
             await self.uow.rollback()
             raise ConflictError("PROJECT_CONFLICT", "errors.projectConflict")
-        await self.repository.add_revision(
-            self._revision(
-                project_id, user_id, next_revision, document, change_summary or "auto save"
-            )
+        revision = self._revision(
+            project_id, user_id, next_revision, document, change_summary or "auto save"
         )
+        await self.repository.add_revision(revision)
+        await self._record_asset_references(revision, document)
         await self.uow.commit()
         return ProjectDetail(self._summary(updated), document)
 
@@ -200,9 +204,9 @@ class ProjectService:
             scene_count=len(document["scenes"]),
             estimated_duration_ms=self._estimated_duration(document),
         )
-        await self.repository.add(
-            project, self._revision(new_id, user_id, 1, document, "project duplicated")
-        )
+        revision = self._revision(new_id, user_id, 1, document, "project duplicated")
+        await self.repository.add(project, revision)
+        await self._record_asset_references(revision, document)
         await self.uow.commit()
         return ProjectDetail(self._summary(project), document)
 
@@ -221,6 +225,54 @@ class ProjectService:
         errors = sorted(self.validator.iter_errors(document), key=lambda error: list(error.path))
         if errors or document.get("project_id") != str(project_id):
             raise ConflictError("PROJECT_DOCUMENT_INVALID", "errors.projectDocumentInvalid")
+
+    async def _record_asset_references(
+        self, revision: ProjectRevision, document: dict[str, Any]
+    ) -> None:
+        extracted: list[tuple[UUID, str, str]] = []
+        for scene_index, scene in enumerate(document["scenes"]):
+            background = scene["background"]
+            if background["type"] == "asset":
+                extracted.append(
+                    (
+                        UUID(background["asset_id"]),
+                        "background",
+                        f"/scenes/{scene_index}/background/asset_id",
+                    )
+                )
+            for layer_index, layer in enumerate(scene["layers"]):
+                if layer["type"] == "image":
+                    extracted.append(
+                        (
+                            UUID(layer["asset_id"]),
+                            "layer",
+                            f"/scenes/{scene_index}/layers/{layer_index}/asset_id",
+                        )
+                    )
+        for track_index, track in enumerate(document.get("audio_tracks", [])):
+            extracted.append(
+                (
+                    UUID(track["asset_id"]),
+                    track["role"],
+                    f"/audio_tracks/{track_index}/asset_id",
+                )
+            )
+        asset_ids = {asset_id for asset_id, _, _ in extracted}
+        await self.asset_service.assert_references_available(revision.user_id, asset_ids)
+        await self.repository.add_asset_references(
+            [
+                ProjectAsset(
+                    id=uuid4(),
+                    user_id=revision.user_id,
+                    project_id=revision.project_id,
+                    project_revision_id=revision.id,
+                    asset_id=asset_id,
+                    role=role,
+                    reference_path=path,
+                )
+                for asset_id, role, path in extracted
+            ]
+        )
 
     @staticmethod
     def _estimated_duration(document: dict[str, Any]) -> int:
