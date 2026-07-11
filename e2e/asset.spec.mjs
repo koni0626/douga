@@ -64,11 +64,12 @@ test("upload and display an image asset", async ({ page }) => {
   await page.getByLabel("新しいプロジェクト名").fill("素材参照テスト");
   await page.getByRole("button", { name: "作成" }).click();
   await page.getByRole("button", { name: "シーンを追加" }).click();
+  await page.getByRole("button", { name: "レイヤー" }).click();
   await page
     .locator(".asset-picker")
     .getByRole("button", { name: "pixel.png" })
     .click();
-  await page.getByText("ナレーション・BGM・効果音").click();
+  await page.getByRole("button", { name: "音声" }).click();
   await page.getByRole("button", { name: "tone.wav" }).click();
   await expect(page.getByText("保存済み")).toBeVisible();
   await page.reload();

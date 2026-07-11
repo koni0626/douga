@@ -80,6 +80,15 @@
     "imageDropZone": "Scene image drop zone",
     "imageDropHere": "Drop an image here to add it to the scene",
     "imageUploading": "Uploading image…",
+    "toolbarLabel": "Editor tools",
+    "closeTools": "Close settings",
+    "tool": {
+      "scene": "Scene settings",
+      "dialogues": "Script and captions",
+      "layers": "Layers",
+      "audio": "Audio",
+      "caption": "Caption frame"
+    },
     "timeline": "Playback position",
     "sceneSettings": "Scene settings",
     "sceneName": "Scene name",

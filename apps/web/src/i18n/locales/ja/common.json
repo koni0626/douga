@@ -80,6 +80,15 @@
     "imageDropZone": "シーン画像のドロップ領域",
     "imageDropHere": "ここに画像をドロップしてシーンへ追加",
     "imageUploading": "画像をアップロード中…",
+    "toolbarLabel": "編集ツール",
+    "closeTools": "設定を閉じる",
+    "tool": {
+      "scene": "シーン設定",
+      "dialogues": "台本・テロップ",
+      "layers": "レイヤー",
+      "audio": "音声",
+      "caption": "テロップ枠"
+    },
     "timeline": "再生位置",
     "sceneSettings": "シーン設定",
     "sceneName": "シーン名",

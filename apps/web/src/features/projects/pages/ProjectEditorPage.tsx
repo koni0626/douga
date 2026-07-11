@@ -16,6 +16,10 @@ import {
   type UploadTargetDto,
 } from "../../../shared/lib/api";
 import { AudioPreview, NumberField } from "../components/EditorFields";
+import {
+  FloatingEditorTools,
+  type EditorTool,
+} from "../components/FloatingEditorTools";
 
 type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
@@ -36,9 +40,12 @@ export function ProjectEditorPage() {
   const [dropActive, setDropActive] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadErrorKey, setUploadErrorKey] = useState<string>();
+  const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
   const documentRef = useRef<ProjectDocument | undefined>(undefined);
   const pastRef = useRef<ProjectDocument[]>([]);
   const futureRef = useRef<ProjectDocument[]>([]);
+  const changeSequenceRef = useRef(0);
+  const saveInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -76,10 +83,18 @@ export function ProjectEditorPage() {
   }, [playing]);
 
   useEffect(() => {
-    if (saveState !== "dirty" || !detail || !projectId) return;
+    if (
+      saveState !== "dirty" ||
+      !detail ||
+      !projectId ||
+      saveInFlightRef.current
+    )
+      return;
     const timer = globalThis.setTimeout(() => {
       const documentToSave = documentRef.current;
       if (!documentToSave) return;
+      const savingSequence = changeSequenceRef.current;
+      saveInFlightRef.current = true;
       setSaveState("saving");
       void apiRequest<ProjectDetailDto>(`/projects/${projectId}/revisions`, {
         method: "POST",
@@ -90,35 +105,48 @@ export function ProjectEditorPage() {
         }),
       })
         .then((saved) => {
-          setDetail(saved);
-          documentRef.current = saved.document;
-          setSaveState("saved");
+          saveInFlightRef.current = false;
+          if (changeSequenceRef.current === savingSequence) {
+            setDetail(saved);
+            documentRef.current = saved.document;
+            setSaveState("saved");
+            return;
+          }
+          const currentDocument = documentRef.current;
+          setDetail(
+            currentDocument ? { ...saved, document: currentDocument } : saved,
+          );
+          setSaveState("dirty");
         })
-        .catch((error: unknown) =>
+        .catch((error: unknown) => {
+          saveInFlightRef.current = false;
           setSaveState(
             error instanceof ApiError && error.status === 409
               ? "conflict"
               : "error",
-          ),
-        );
+          );
+        });
     }, 800);
     return () => globalThis.clearTimeout(timer);
   }, [detail, projectId, saveState]);
 
   function applyDocument(document: ProjectDocument, recordHistory = true) {
-    if (!detail) return;
+    const previousDocument = documentRef.current;
+    if (!previousDocument) return;
     if (recordHistory) {
-      pastRef.current = [...pastRef.current.slice(-49), detail.document];
+      pastRef.current = [...pastRef.current.slice(-49), previousDocument];
       futureRef.current = [];
     }
+    changeSequenceRef.current += 1;
     documentRef.current = document;
-    setDetail({ ...detail, document });
+    setDetail((current) => (current ? { ...current, document } : current));
     setSaveState("dirty");
   }
 
   function mutate(mutator: (document: ProjectDocument) => void) {
-    if (!detail) return;
-    const document = structuredClone(detail.document);
+    const currentDocument = documentRef.current;
+    if (!currentDocument) return;
+    const document = structuredClone(currentDocument);
     mutator(document);
     applyDocument(document);
   }
@@ -500,12 +528,40 @@ export function ProjectEditorPage() {
               <span>{(timeMs / 1000).toFixed(1)}s</span>
             </div>
           ) : null}
+          {scene ? (
+            <FloatingEditorTools
+              activeTool={activeTool}
+              labels={{
+                scene: t("editor.tool.scene"),
+                dialogues: t("editor.tool.dialogues"),
+                layers: t("editor.tool.layers"),
+                audio: t("editor.tool.audio"),
+                caption: t("editor.tool.caption"),
+              }}
+              onSelect={setActiveTool}
+              toolbarLabel={t("editor.toolbarLabel")}
+            />
+          ) : null}
         </section>
 
-        <aside className="property-panel">
-          {!scene ? null : (
+        {scene && activeTool ? (
+          <aside
+            className="property-panel"
+            aria-label={t(`editor.tool.${activeTool}`)}
+          >
+            <div className="floating-panel-header">
+              <h2>{t(`editor.tool.${activeTool}`)}</h2>
+              <button
+                type="button"
+                aria-label={t("editor.closeTools")}
+                title={t("editor.closeTools")}
+                onClick={() => setActiveTool(null)}
+              >
+                ×
+              </button>
+            </div>
             <>
-              <details open>
+              <details open hidden={activeTool !== "scene"}>
                 <summary>{t("editor.sceneSettings")}</summary>
                 <label>
                   <span>{t("editor.sceneName")}</span>
@@ -539,7 +595,7 @@ export function ProjectEditorPage() {
                 </label>
               </details>
 
-              <details open>
+              <details open hidden={activeTool !== "dialogues"}>
                 <summary>{t("editor.dialogues")}</summary>
                 <button type="button" onClick={addDialogue}>
                   {t("editor.addDialogue")}
@@ -618,7 +674,7 @@ export function ProjectEditorPage() {
                 ))}
               </details>
 
-              <details open>
+              <details open hidden={activeTool !== "layers"}>
                 <summary>{t("editor.layers")}</summary>
                 <div className="panel-actions">
                   <button
@@ -690,7 +746,7 @@ export function ProjectEditorPage() {
               </details>
 
               {selectedLayer ? (
-                <details open>
+                <details open hidden={activeTool !== "layers"}>
                   <summary>{t("editor.layerSettings")}</summary>
                   {selectedLayer.type === "text" ? (
                     <label>
@@ -760,7 +816,7 @@ export function ProjectEditorPage() {
                 </details>
               ) : null}
 
-              <details>
+              <details open hidden={activeTool !== "audio"}>
                 <summary>{t("editor.audio")}</summary>
                 <div className="audio-picker">
                   {audioAssets.map((asset) => (
@@ -817,7 +873,7 @@ export function ProjectEditorPage() {
                 ))}
               </details>
 
-              <details>
+              <details open hidden={activeTool !== "caption"}>
                 <summary>{t("editor.captionStyle")}</summary>
                 <div className="property-grid">
                   {(["x", "y", "width", "height"] as const).map((key) => (
@@ -870,8 +926,8 @@ export function ProjectEditorPage() {
                 </div>
               </details>
             </>
-          )}
-        </aside>
+          </aside>
+        ) : null}
       </div>
     </main>
   );
