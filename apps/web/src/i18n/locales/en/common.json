@@ -90,6 +90,7 @@
     "expandTimeline": "Expand timeline",
     "flipHorizontal": "Flip horizontally",
     "flipVertical": "Flip vertically",
+    "fillCanvas": "Fill canvas",
     "lock": "Lock",
     "unlock": "Unlock",
     "locked": "Locked",

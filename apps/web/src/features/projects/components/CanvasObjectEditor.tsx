@@ -1,4 +1,10 @@
-import { type PointerEvent, useEffect, useRef } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
@@ -10,17 +16,20 @@ export type LayerTransformPatch = Partial<
   >
 >;
 type Operation = "move" | "resize" | "rotate";
+type ResizeAnchor = "nw" | "ne" | "sw" | "se";
 type Point = { x: number; y: number };
 type Interaction = {
   layer: Layer;
   operation: Operation;
   start: Point;
   startAngle: number;
+  resizeAnchor?: ResizeAnchor;
 };
 
 export interface CanvasObjectEditorProps {
   flipHorizontalLabel: string;
   flipVerticalLabel: string;
+  fillCanvasLabel: string;
   height: number;
   layers: Layer[];
   lockLabel: string;
@@ -68,6 +77,7 @@ function LockGlyph({ x, y, size }: { x: number; y: number; size: number }) {
 export function CanvasObjectEditor({
   flipHorizontalLabel,
   flipVerticalLabel,
+  fillCanvasLabel,
   height,
   layers,
   lockLabel,
@@ -82,7 +92,12 @@ export function CanvasObjectEditor({
   const svgRef = useRef<SVGSVGElement>(null);
   const interactionRef = useRef<Interaction | undefined>(undefined);
   const patchRef = useRef<LayerTransformPatch | undefined>(undefined);
-  const selectedLayer = layers.find((layer) => layer.id === selectedLayerId);
+  const [contextMenu, setContextMenu] = useState<{
+    layerId: string;
+    x: number;
+    y: number;
+  }>();
+  const menuLayer = layers.find((layer) => layer.id === contextMenu?.layerId);
 
   function clientPoint(clientX: number, clientY: number): Point {
     const bounds = svgRef.current?.getBoundingClientRect();
@@ -108,14 +123,29 @@ export function CanvasObjectEditor({
         const radians = (-layer.rotation * Math.PI) / 180;
         const localX = deltaX * Math.cos(radians) - deltaY * Math.sin(radians);
         const localY = deltaX * Math.sin(radians) + deltaY * Math.cos(radians);
+        const anchor = interaction.resizeAnchor ?? "se";
+        const horizontalDelta = anchor.includes("e") ? localX : -localX;
+        const verticalDelta = anchor.includes("s") ? localY : -localY;
         const scale = Math.max(
           40 / layer.width,
           40 / layer.height,
-          1 + Math.max(localX / layer.width, localY / layer.height),
+          1 +
+            Math.max(
+              horizontalDelta / layer.width,
+              verticalDelta / layer.height,
+            ),
         );
+        const nextWidth = Math.round(layer.width * scale);
+        const nextHeight = Math.round(layer.height * scale);
         patch = {
-          width: Math.round(layer.width * scale),
-          height: Math.round(layer.height * scale),
+          width: nextWidth,
+          height: nextHeight,
+          ...(anchor.includes("w")
+            ? { x: layer.x + layer.width - nextWidth }
+            : {}),
+          ...(anchor.includes("n")
+            ? { y: layer.y + layer.height - nextHeight }
+            : {}),
         };
       } else {
         const centerX = layer.x + layer.width / 2;
@@ -146,10 +176,32 @@ export function CanvasObjectEditor({
     };
   }, [height, onCommit, onPreview, width]);
 
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = (event: globalThis.PointerEvent) => {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".canvas-object-context-menu")
+      )
+        return;
+      setContextMenu(undefined);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setContextMenu(undefined);
+    };
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [contextMenu]);
+
   function begin(
     event: PointerEvent<SVGElement>,
     layer: Layer,
     operation: Operation,
+    resizeAnchor?: ResizeAnchor,
   ) {
     event.preventDefault();
     event.stopPropagation();
@@ -164,8 +216,43 @@ export function CanvasObjectEditor({
       start,
       startAngle:
         (Math.atan2(start.y - centerY, start.x - centerX) * 180) / Math.PI,
+      resizeAnchor,
     };
     patchRef.current = undefined;
+  }
+
+  function openContextMenu(
+    event: ReactMouseEvent<SVGRectElement>,
+    layer: Layer,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect(layer.id);
+    setContextMenu({
+      layerId: layer.id,
+      x: Math.min(event.clientX, window.innerWidth - 220),
+      y: Math.min(event.clientY, window.innerHeight - 210),
+    });
+  }
+
+  function commitFromMenu(patch: LayerTransformPatch) {
+    if (!menuLayer) return;
+    onCommit(menuLayer.id, patch);
+    setContextMenu(undefined);
+  }
+
+  function fillCanvas() {
+    if (!menuLayer || menuLayer.type !== "image") return;
+    const scale = Math.max(width / menuLayer.width, height / menuLayer.height);
+    const nextWidth = Math.round(menuLayer.width * scale);
+    const nextHeight = Math.round(menuLayer.height * scale);
+    commitFromMenu({
+      x: Math.round((width - nextWidth) / 2),
+      y: Math.round((height - nextHeight) / 2),
+      width: nextWidth,
+      height: nextHeight,
+      rotation: 0,
+    });
   }
 
   const handleSize = Math.max(14, Math.min(width, height) * 0.018);
@@ -173,42 +260,6 @@ export function CanvasObjectEditor({
 
   return (
     <>
-      {selectedLayer ? (
-        <div className="canvas-object-toolbar" role="toolbar">
-          <button
-            type="button"
-            aria-label={flipHorizontalLabel}
-            title={flipHorizontalLabel}
-            disabled={selectedLayer.locked}
-            onClick={() =>
-              onCommit(selectedLayer.id, { flip_x: !selectedLayer.flip_x })
-            }
-          >
-            ↔
-          </button>
-          <button
-            type="button"
-            aria-label={flipVerticalLabel}
-            title={flipVerticalLabel}
-            disabled={selectedLayer.locked}
-            onClick={() =>
-              onCommit(selectedLayer.id, { flip_y: !selectedLayer.flip_y })
-            }
-          >
-            ↕
-          </button>
-          <button
-            type="button"
-            aria-label={selectedLayer.locked ? unlockLabel : lockLabel}
-            title={selectedLayer.locked ? unlockLabel : lockLabel}
-            onClick={() =>
-              onCommit(selectedLayer.id, { locked: !selectedLayer.locked })
-            }
-          >
-            {selectedLayer.locked ? "🔓" : "🔒"}
-          </button>
-        </div>
-      ) : null}
       <svg
         ref={svgRef}
         className="canvas-object-overlay"
@@ -230,6 +281,7 @@ export function CanvasObjectEditor({
                 width={layer.width}
                 height={layer.height}
                 aria-label={layer.type}
+                onContextMenu={(event) => openContextMenu(event, layer)}
                 onPointerDown={(event) => begin(event, layer, "move")}
               />
               {selected ? (
@@ -269,15 +321,27 @@ export function CanvasObjectEditor({
                         r={handleSize * 0.7}
                         onPointerDown={(event) => begin(event, layer, "rotate")}
                       />
-                      <rect
-                        className="canvas-object-handle canvas-object-resize-handle"
-                        x={layer.x + layer.width - handleSize / 2}
-                        y={layer.y + layer.height - handleSize / 2}
-                        width={handleSize}
-                        height={handleSize}
-                        rx={handleSize * 0.18}
-                        onPointerDown={(event) => begin(event, layer, "resize")}
-                      />
+                      {(
+                        [
+                          ["nw", layer.x, layer.y],
+                          ["ne", layer.x + layer.width, layer.y],
+                          ["sw", layer.x, layer.y + layer.height],
+                          ["se", layer.x + layer.width, layer.y + layer.height],
+                        ] as const
+                      ).map(([anchor, x, y]) => (
+                        <rect
+                          key={anchor}
+                          className={`canvas-object-handle canvas-object-resize-handle canvas-object-resize-handle--${anchor}`}
+                          x={x - handleSize / 2}
+                          y={y - handleSize / 2}
+                          width={handleSize}
+                          height={handleSize}
+                          rx={handleSize * 0.18}
+                          onPointerDown={(event) =>
+                            begin(event, layer, "resize", anchor)
+                          }
+                        />
+                      ))}
                     </>
                   )}
                 </>
@@ -286,6 +350,48 @@ export function CanvasObjectEditor({
           );
         })}
       </svg>
+      {contextMenu && menuLayer ? (
+        <div
+          className="canvas-object-context-menu"
+          role="menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            disabled={menuLayer.locked}
+            onClick={() => commitFromMenu({ flip_x: !menuLayer.flip_x })}
+          >
+            {flipHorizontalLabel}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={menuLayer.locked}
+            onClick={() => commitFromMenu({ flip_y: !menuLayer.flip_y })}
+          >
+            {flipVerticalLabel}
+          </button>
+          {menuLayer.type === "image" ? (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={menuLayer.locked}
+              onClick={fillCanvas}
+            >
+              {fillCanvasLabel}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => commitFromMenu({ locked: !menuLayer.locked })}
+          >
+            {menuLayer.locked ? unlockLabel : lockLabel}
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }

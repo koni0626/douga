@@ -73,7 +73,8 @@ test("create a project and auto-save its canvas", async ({ page }) => {
 
   const objectHitbox = page.locator(".canvas-object-hitbox").first();
   await objectHitbox.click();
-  await expect(page.getByRole("button", { name: "左右反転" })).toBeVisible();
+  await expect(page.locator(".canvas-object-toolbar")).toHaveCount(0);
+  await expect(page.locator(".canvas-object-resize-handle")).toHaveCount(4);
   const hitboxBounds = await objectHitbox.boundingBox();
   if (!hitboxBounds) throw new Error("Canvas object is not measurable");
   await page.mouse.move(
@@ -88,7 +89,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await page.mouse.up();
   await expect(renderedImage).not.toHaveAttribute("x", "420");
 
-  const resizeHandle = page.locator(".canvas-object-resize-handle");
+  const resizeHandle = page.locator(".canvas-object-resize-handle--nw");
   const resizeBounds = await resizeHandle.boundingBox();
   if (!resizeBounds) throw new Error("Resize handle is not measurable");
   await page.mouse.move(
@@ -97,8 +98,8 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   );
   await page.mouse.down();
   await page.mouse.move(
-    resizeBounds.x + resizeBounds.width / 2 + 15,
-    resizeBounds.y + resizeBounds.height / 2 + 15,
+    resizeBounds.x + resizeBounds.width / 2 - 15,
+    resizeBounds.y + resizeBounds.height / 2 - 15,
   );
   await page.mouse.up();
   await expect(renderedImage).not.toHaveAttribute("width", "1080");
@@ -118,17 +119,30 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await page.mouse.up();
   await expect(renderedImage).not.toHaveAttribute("transform", /rotate\(0\)/);
 
-  await page.getByRole("button", { name: "左右反転" }).click();
+  await objectHitbox.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "左右反転" }).click();
   await expect(renderedImage).toHaveAttribute("transform", /scale\(-1 1\)/);
-  await page.getByRole("button", { name: "上下反転" }).click();
+  await objectHitbox.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "上下反転" }).click();
   await expect(renderedImage).toHaveAttribute("transform", /scale\(-1 -1\)/);
-  await page.getByRole("button", { name: "ロック", exact: true }).click();
+  await objectHitbox.click({ button: "right" });
+  await page
+    .getByRole("menuitem", { name: "キャンバスいっぱいに表示" })
+    .click();
+  await expect(renderedImage).toHaveAttribute("width", "1920");
+  await expect(renderedImage).toHaveAttribute("height", "1920");
+  await expect(renderedImage).toHaveAttribute("x", "0");
+  await expect(renderedImage).toHaveAttribute("y", "-420");
+  await expect(renderedImage).toHaveAttribute("transform", /rotate\(0\)/);
+  await objectHitbox.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "ロック", exact: true }).click();
   await expect(page.locator('[aria-label="ロック中"]')).toBeVisible();
   await expect(page.locator(".object-timeline-clip--locked")).toBeVisible();
   await expect(
     page.locator('svg[data-render-canvas] [aria-label="ロック中"]'),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "ロック解除" }).click();
+  await objectHitbox.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "ロック解除" }).click();
 
   await page.getByRole("button", { name: "レイヤー", exact: true }).click();
   await page.getByRole("button", { name: "図形", exact: true }).click();

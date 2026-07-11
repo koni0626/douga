@@ -90,6 +90,7 @@
     "expandTimeline": "タイムラインを開く",
     "flipHorizontal": "左右反転",
     "flipVertical": "上下反転",
+    "fillCanvas": "キャンバスいっぱいに表示",
     "lock": "ロック",
     "unlock": "ロック解除",
     "locked": "ロック中",

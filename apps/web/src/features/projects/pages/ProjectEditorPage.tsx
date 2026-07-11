@@ -479,6 +479,7 @@ export function ProjectEditorPage() {
                   assetUrl={assetContentUrl}
                 />
                 <CanvasObjectEditor
+                  fillCanvasLabel={t("editor.fillCanvas")}
                   flipHorizontalLabel={t("editor.flipHorizontal")}
                   flipVerticalLabel={t("editor.flipVertical")}
                   height={project.video.height}
