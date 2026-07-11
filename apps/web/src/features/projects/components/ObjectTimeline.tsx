@@ -88,7 +88,6 @@ export interface ObjectTimelineProps {
     keyframeId: string,
     easing: LayerEasing,
   ) => void;
-  onRecordKeyframe: (layerId: string, timeMs: number) => void;
   onReorder: (
     sourceIndex: number,
     targetIndex: number,
@@ -103,7 +102,7 @@ export interface ObjectTimelineProps {
   seekLabel: string;
   stopLabel: string;
   title: string;
-  keyframeLabels: KeyframeLabels & { record: string };
+  keyframeLabels: KeyframeLabels;
 }
 
 export function ObjectTimeline({
@@ -118,7 +117,6 @@ export function ObjectTimeline({
   onDuplicateKeyframe,
   onKeyframeEasingChange,
   onPlay,
-  onRecordKeyframe,
   onReorder,
   onSelect,
   onSeek,
@@ -275,22 +273,6 @@ export function ObjectTimeline({
           </svg>
         </button>
         <h2>{title}</h2>
-        <button
-          type="button"
-          aria-label={keyframeLabels.record}
-          className="keyframe-record-button"
-          disabled={
-            !selectedLayerId ||
-            layers.find((layer) => layer.id === selectedLayerId)?.locked
-          }
-          onClick={() =>
-            selectedLayerId && onRecordKeyframe(selectedLayerId, timeMs)
-          }
-          title={keyframeLabels.record}
-        >
-          <span aria-hidden="true">◆</span>
-          {keyframeLabels.record}
-        </button>
         <div className="object-timeline-playback">
           <button
             type="button"

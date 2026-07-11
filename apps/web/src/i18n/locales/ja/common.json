@@ -91,8 +91,31 @@
     "flipHorizontal": "左右反転",
     "flipVertical": "上下反転",
     "fillCanvas": "キャンバスいっぱいに表示",
+    "animation": {
+      "title": "アニメーション",
+      "effect": "エフェクト",
+      "back": "戻る",
+      "duration": "長さ",
+      "remove": "アニメーションを削除",
+      "presets": {
+        "slideLeft": "左からスライド",
+        "slideRight": "右からスライド",
+        "slideUp": "上からスライド",
+        "slideDown": "下からスライド",
+        "zoomIn": "ズームイン",
+        "pop": "ポップ",
+        "bounce": "バウンド",
+        "shake": "シェイク",
+        "spin": "回転",
+        "pulse": "パルス",
+        "float": "浮遊",
+        "fadeIn": "フェードイン",
+        "fadeOut": "フェードアウト",
+        "blink": "点滅",
+        "flash": "フラッシュ"
+      }
+    },
     "keyframe": {
-      "record": "動きを記録",
       "label": "キーフレーム",
       "easing": "動き方",
       "duplicate": "現在位置に複製",

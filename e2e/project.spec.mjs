@@ -160,19 +160,27 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(
     page.locator("svg[data-render-canvas] > *").nth(2),
   ).toHaveJSProperty("tagName", "image");
+  await timelineLabels.nth(1).dragTo(timelineLabels.nth(0), {
+    targetPosition: { x: 30, y: 1 },
+  });
+  await expect(timelineLabels).toHaveText(["図形", "画像"]);
 
   const shapeTimelineRow = page
     .locator(".object-timeline-row")
     .filter({ hasText: "図形" });
   await seekTimeline(page, 1000);
-  await page.getByRole("button", { name: "動きを記録" }).click();
+  await expect(page.getByRole("button", { name: "動きを記録" })).toHaveCount(0);
+  const shapeHitbox = page.locator(".canvas-object-hitbox").last();
+  await shapeHitbox.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "エフェクト ›" }).click();
+  await page.getByRole("menuitem", { name: "フェードイン" }).click();
   await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
-    1,
+    2,
   );
   await seekTimeline(page, 4000);
   await page.getByRole("spinbutton", { name: "x" }).fill("600");
   await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
-    2,
+    3,
   );
   await seekTimeline(page, 2500);
   const animatedShape = page.locator("svg[data-render-canvas] > rect").nth(1);
@@ -189,7 +197,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   ).toHaveValue("linear");
   await keyframeDialog.getByRole("button", { name: "現在位置に複製" }).click();
   await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
-    3,
+    4,
   );
   await page.getByRole("button", { name: "キーフレーム 2.5s" }).click();
   await page
@@ -197,7 +205,13 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     .getByRole("button", { name: "削除" })
     .click();
   await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
-    2,
+    3,
+  );
+  await shapeHitbox.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "アニメーション ›" }).click();
+  await page.getByRole("menuitem", { name: "左からスライド" }).click();
+  await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
+    5,
   );
   await page.getByRole("button", { name: "設定を閉じる" }).click();
 

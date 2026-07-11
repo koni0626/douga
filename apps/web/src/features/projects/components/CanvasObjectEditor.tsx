@@ -8,6 +8,10 @@ import {
 
 import type { ProjectDocument } from "@douga/project-schema";
 
+import type { LayerAnimationPreset } from "../lib/layerKeyframes";
+import type { AnimationPresetLabels } from "./AnimationPresetMenu";
+import { CanvasObjectContextMenu } from "./CanvasObjectContextMenu";
+
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 export type LayerTransformPatch = Partial<
   Pick<
@@ -27,6 +31,7 @@ type Interaction = {
 };
 
 export interface CanvasObjectEditorProps {
+  animationLabels: AnimationPresetLabels;
   flipHorizontalLabel: string;
   flipVerticalLabel: string;
   fillCanvasLabel: string;
@@ -35,6 +40,12 @@ export interface CanvasObjectEditorProps {
   lockLabel: string;
   lockedLabel: string;
   onCommit: (layerId: string, patch: LayerTransformPatch) => void;
+  onApplyAnimation: (
+    layerId: string,
+    preset: LayerAnimationPreset,
+    durationMs: number,
+  ) => void;
+  onClearAnimation: (layerId: string) => void;
   onPreview: (layerId: string, patch?: LayerTransformPatch) => void;
   onSelect: (layerId: string) => void;
   selectedLayerId?: string;
@@ -75,6 +86,7 @@ function LockGlyph({ x, y, size }: { x: number; y: number; size: number }) {
 }
 
 export function CanvasObjectEditor({
+  animationLabels,
   flipHorizontalLabel,
   flipVerticalLabel,
   fillCanvasLabel,
@@ -83,6 +95,8 @@ export function CanvasObjectEditor({
   lockLabel,
   lockedLabel,
   onCommit,
+  onApplyAnimation,
+  onClearAnimation,
   onPreview,
   onSelect,
   selectedLayerId,
@@ -230,8 +244,8 @@ export function CanvasObjectEditor({
     onSelect(layer.id);
     setContextMenu({
       layerId: layer.id,
-      x: Math.min(event.clientX, window.innerWidth - 220),
-      y: Math.min(event.clientY, window.innerHeight - 210),
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - 370)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - 390)),
     });
   }
 
@@ -351,46 +365,24 @@ export function CanvasObjectEditor({
         })}
       </svg>
       {contextMenu && menuLayer ? (
-        <div
-          className="canvas-object-context-menu"
-          role="menu"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onContextMenu={(event) => event.preventDefault()}
-        >
-          <button
-            type="button"
-            role="menuitem"
-            disabled={menuLayer.locked}
-            onClick={() => commitFromMenu({ flip_x: !menuLayer.flip_x })}
-          >
-            {flipHorizontalLabel}
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={menuLayer.locked}
-            onClick={() => commitFromMenu({ flip_y: !menuLayer.flip_y })}
-          >
-            {flipVerticalLabel}
-          </button>
-          {menuLayer.type === "image" ? (
-            <button
-              type="button"
-              role="menuitem"
-              disabled={menuLayer.locked}
-              onClick={fillCanvas}
-            >
-              {fillCanvasLabel}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => commitFromMenu({ locked: !menuLayer.locked })}
-          >
-            {menuLayer.locked ? unlockLabel : lockLabel}
-          </button>
-        </div>
+        <CanvasObjectContextMenu
+          animationLabels={animationLabels}
+          fillCanvasLabel={fillCanvasLabel}
+          flipHorizontalLabel={flipHorizontalLabel}
+          flipVerticalLabel={flipVerticalLabel}
+          layer={menuLayer}
+          lockLabel={lockLabel}
+          onApplyAnimation={(preset, durationMs) =>
+            onApplyAnimation(menuLayer.id, preset, durationMs)
+          }
+          onClearAnimation={() => onClearAnimation(menuLayer.id)}
+          onClose={() => setContextMenu(undefined)}
+          onFillCanvas={fillCanvas}
+          onPatch={commitFromMenu}
+          unlockLabel={unlockLabel}
+          x={contextMenu.x}
+          y={contextMenu.y}
+        />
       ) : null}
     </>
   );

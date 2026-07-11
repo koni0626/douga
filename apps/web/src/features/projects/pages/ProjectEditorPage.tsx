@@ -30,11 +30,13 @@ import {
 } from "../components/FloatingEditorTools";
 import { ObjectTimeline } from "../components/ObjectTimeline";
 import {
+  applyLayerAnimationPreset,
   applyLayerPatchAtTime,
   changeLayerKeyframeEasing,
+  clearLayerAnimation,
   deleteLayerKeyframe,
   duplicateLayerKeyframe,
-  recordLayerKeyframe,
+  type LayerAnimationPreset,
   snapKeyframeTime,
 } from "../lib/layerKeyframes";
 
@@ -354,15 +356,33 @@ export function ProjectEditorPage() {
     });
   }
 
-  function recordKeyframe(layerId: string, requestedTimeMs: number) {
+  function applyAnimationPreset(
+    layerId: string,
+    preset: LayerAnimationPreset,
+    durationMs: number,
+  ) {
     updateScene((scene) => {
       const layer = scene.layers.find((item) => item.id === layerId);
       if (layer)
-        recordLayerKeyframe(
+        applyLayerAnimationPreset(
           layer,
-          snapKeyframeTime(requestedTimeMs, SCENE_DURATION_MS),
+          preset,
+          snapKeyframeTime(timeMs, SCENE_DURATION_MS),
+          durationMs,
+          {
+            width: detail?.document.video.width ?? 1920,
+            height: detail?.document.video.height ?? 1080,
+            durationMs: SCENE_DURATION_MS,
+          },
           () => crypto.randomUUID(),
         );
+    });
+  }
+
+  function clearAnimation(layerId: string) {
+    updateScene((scene) => {
+      const layer = scene.layers.find((item) => item.id === layerId);
+      if (layer) clearLayerAnimation(layer);
     });
   }
 
@@ -542,6 +562,30 @@ export function ProjectEditorPage() {
                   assetUrl={assetContentUrl}
                 />
                 <CanvasObjectEditor
+                  animationLabels={{
+                    animation: t("editor.animation.title"),
+                    back: t("editor.animation.back"),
+                    duration: t("editor.animation.duration"),
+                    effect: t("editor.animation.effect"),
+                    remove: t("editor.animation.remove"),
+                    presets: {
+                      slide_left: t("editor.animation.presets.slideLeft"),
+                      slide_right: t("editor.animation.presets.slideRight"),
+                      slide_up: t("editor.animation.presets.slideUp"),
+                      slide_down: t("editor.animation.presets.slideDown"),
+                      zoom_in: t("editor.animation.presets.zoomIn"),
+                      pop: t("editor.animation.presets.pop"),
+                      bounce: t("editor.animation.presets.bounce"),
+                      shake: t("editor.animation.presets.shake"),
+                      spin: t("editor.animation.presets.spin"),
+                      pulse: t("editor.animation.presets.pulse"),
+                      float: t("editor.animation.presets.float"),
+                      fade_in: t("editor.animation.presets.fadeIn"),
+                      fade_out: t("editor.animation.presets.fadeOut"),
+                      blink: t("editor.animation.presets.blink"),
+                      flash: t("editor.animation.presets.flash"),
+                    },
+                  }}
                   fillCanvasLabel={t("editor.fillCanvas")}
                   flipHorizontalLabel={t("editor.flipHorizontal")}
                   flipVerticalLabel={t("editor.flipVertical")}
@@ -549,6 +593,8 @@ export function ProjectEditorPage() {
                   layers={previewScene?.layers ?? []}
                   lockLabel={t("editor.lock")}
                   lockedLabel={t("editor.locked")}
+                  onApplyAnimation={applyAnimationPreset}
+                  onClearAnimation={clearAnimation}
                   onCommit={(layerId, patch) => updateLayer(layerId, patch)}
                   onPreview={(layerId, patch) =>
                     setLayerPreview(patch ? { layerId, patch } : undefined)
@@ -625,13 +671,11 @@ export function ProjectEditorPage() {
                   step: t("editor.keyframe.easingOptions.step"),
                 },
                 keyframe: t("editor.keyframe.label"),
-                record: t("editor.keyframe.record"),
               }}
               onDeleteKeyframe={deleteKeyframe}
               onDuplicateKeyframe={duplicateKeyframe}
               onKeyframeEasingChange={updateKeyframeEasing}
               onPlay={() => setPlaying(true)}
-              onRecordKeyframe={recordKeyframe}
               onReorder={reorderLayer}
               onChange={(layerId, range) =>
                 updateLayer(layerId, {
