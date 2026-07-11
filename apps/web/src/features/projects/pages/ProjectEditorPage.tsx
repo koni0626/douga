@@ -545,32 +545,11 @@ export function ProjectEditorPage() {
             </p>
           ) : null}
           {scene ? (
-            <div className="preview-controls">
-              <AudioPreview
-                tracks={project.audio_tracks ?? []}
-                playing={playing}
-                timeMs={timeMs}
-              />
-              <button
-                type="button"
-                onClick={() => setPlaying((value) => !value)}
-              >
-                {t(playing ? "pause" : "play")}
-              </button>
-              <button type="button" onClick={() => setTimeMs(0)}>
-                {t("reset")}
-              </button>
-              <input
-                aria-label={t("editor.timeline")}
-                type="range"
-                min={0}
-                max={SCENE_DURATION_MS}
-                step={50}
-                value={timeMs}
-                onChange={(event) => setTimeMs(Number(event.target.value))}
-              />
-              <span>{(timeMs / 1000).toFixed(1)}s</span>
-            </div>
+            <AudioPreview
+              tracks={project.audio_tracks ?? []}
+              playing={playing}
+              timeMs={timeMs}
+            />
           ) : null}
           {scene ? (
             <FloatingEditorTools
@@ -597,6 +576,7 @@ export function ProjectEditorPage() {
                 : t(`editor.layerType.${layer.type}`)
             }
             layers={scene.layers}
+            onPlay={() => setPlaying(true)}
             onChange={(layerId, range) =>
               updateLayer(layerId, {
                 start_ms: range.startMs,
@@ -608,7 +588,15 @@ export function ProjectEditorPage() {
               setTimeMs(value === SCENE_DURATION_MS ? value - 1 : value);
             }}
             onSelect={(layerId) => setSelectedLayerId(layerId)}
+            onStop={() => {
+              setPlaying(false);
+              setTimeMs(0);
+            }}
+            playLabel={t("play")}
+            playing={playing}
+            seekLabel={t("editor.timeline")}
             selectedLayerId={selectedLayerId}
+            stopLabel={t("stop")}
             timeMs={timeMs}
             title={t("editor.objectTimeline")}
           />

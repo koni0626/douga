@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+async function seekTimeline(page, timeMs) {
+  await page
+    .getByRole("slider", { name: "再生位置" })
+    .evaluate((element, value) => {
+      const bounds = element.getBoundingClientRect();
+      element.dispatchEvent(
+        new globalThis.PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: bounds.left + bounds.width * (value / 10_000),
+        }),
+      );
+    }, timeMs);
+}
+
 test("create a project and auto-save a scene", async ({ page }) => {
   const email = `project-e2e-${Date.now()}@example.com`;
   await page.goto("/register");
@@ -53,6 +67,14 @@ test("create a project and auto-save a scene", async ({ page }) => {
     timeout: 10_000,
   });
   await expect(page.locator(".object-timeline")).toBeVisible();
+  await expect(page.locator(".preview-controls")).toHaveCount(0);
+  await page.getByRole("button", { name: "再生", exact: true }).click();
+  await expect(page.locator(".timeline-icon-button--active")).toBeVisible();
+  await page.getByRole("button", { name: "停止", exact: true }).click();
+  await expect(page.getByRole("slider", { name: "再生位置" })).toHaveAttribute(
+    "aria-valuenow",
+    "0",
+  );
   const timelineTrack = page.locator(".object-timeline-track").first();
   const timelineLabel = page.locator(".object-timeline-label").first();
   const trackBounds = await timelineTrack.boundingBox();
@@ -85,9 +107,9 @@ test("create a project and auto-save a scene", async ({ page }) => {
   await expect(
     page.locator(".object-timeline-clip").first(),
   ).not.toHaveAttribute("style", /width: 100%/);
-  await page.getByLabel("再生位置").fill("1000");
+  await seekTimeline(page, 1000);
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
-  await page.getByLabel("再生位置").fill("9000");
+  await seekTimeline(page, 9000);
   await expect(page.locator(".editor-preview image")).toBeVisible();
   await page.getByRole("button", { name: "レイヤー" }).click();
   await expect(page.getByText("dropped.png")).toBeVisible();
@@ -112,7 +134,7 @@ test("create a project and auto-save a scene", async ({ page }) => {
     "ノベルゲームのように自動で送られるテロップです。",
   );
   await expect(page.locator(".editor-preview image")).toHaveCount(0);
-  await page.getByLabel("再生位置").fill("9000");
+  await seekTimeline(page, 9000);
   await expect(page.locator(".editor-preview image")).toBeVisible();
 
   const originalScene = page.getByRole("button", {

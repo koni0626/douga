@@ -63,24 +63,36 @@ function movedRange(
 export interface ObjectTimelineProps {
   durationMs: number;
   layers: Layer[];
+  playing: boolean;
   selectedLayerId?: string;
   timeMs: number;
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: Range) => void;
+  onPlay: () => void;
   onSelect: (layerId: string) => void;
   onSeek: (timeMs: number) => void;
+  onStop: () => void;
+  playLabel: string;
+  seekLabel: string;
+  stopLabel: string;
   title: string;
 }
 
 export function ObjectTimeline({
   durationMs,
   layers,
+  playing,
   selectedLayerId,
   timeMs,
   labelFor,
   onChange,
+  onPlay,
   onSelect,
   onSeek,
+  onStop,
+  playLabel,
+  seekLabel,
+  stopLabel,
   title,
 }: ObjectTimelineProps) {
   const [draft, setDraft] = useState<{ layerId: string; range: Range }>();
@@ -160,12 +172,63 @@ export function ObjectTimeline({
     <section className="object-timeline" aria-label={title}>
       <header className="object-timeline-header">
         <h2>{title}</h2>
+        <div className="object-timeline-playback">
+          <button
+            type="button"
+            aria-label={playLabel}
+            className={
+              playing
+                ? "timeline-icon-button timeline-icon-button--active"
+                : "timeline-icon-button"
+            }
+            onClick={onPlay}
+            title={playLabel}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label={stopLabel}
+            className="timeline-icon-button"
+            onClick={onStop}
+            title={stopLabel}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="1" />
+            </svg>
+          </button>
+        </div>
         <span>{(timeMs / 1000).toFixed(1)}s</span>
       </header>
       <div className="object-timeline-scroll">
         <div className="object-timeline-grid">
           <div className="object-timeline-corner" />
-          <div className="object-timeline-ruler" onPointerDown={seek}>
+          <div
+            aria-label={seekLabel}
+            aria-valuemax={durationMs}
+            aria-valuemin={0}
+            aria-valuenow={Math.round(timeMs)}
+            className="object-timeline-ruler"
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+                return;
+              event.preventDefault();
+              onSeek(
+                Math.max(
+                  0,
+                  Math.min(
+                    durationMs - 1,
+                    timeMs + (event.key === "ArrowRight" ? 50 : -50),
+                  ),
+                ),
+              );
+            }}
+            onPointerDown={seek}
+            role="slider"
+            tabIndex={0}
+          >
             {seconds.map((second) => (
               <span
                 key={second}
