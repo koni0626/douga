@@ -220,6 +220,133 @@ button,
   flex: 1;
 }
 
+.page-heading,
+.inline-form,
+.search-form,
+.card-actions,
+.editor-toolbar {
+  align-items: end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.inline-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.search-form {
+  justify-content: flex-start;
+  margin: 2rem 0;
+}
+
+.search-form input {
+  min-width: 18rem;
+}
+
+.project-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
+
+.project-card {
+  background: #0a1d2e;
+  border: 1px solid #29445e;
+  border-radius: 0.9rem;
+  padding: 1.25rem;
+}
+
+.project-card a {
+  color: #f5f8fb;
+}
+
+.card-actions {
+  justify-content: flex-start;
+  margin-top: 1rem;
+}
+
+.danger {
+  border-color: #a84444;
+  color: #ffc2c2;
+}
+
+.empty-state {
+  border: 1px dashed #3b5874;
+  border-radius: 0.9rem;
+  padding: 3rem;
+  text-align: center;
+}
+
+.editor-shell {
+  min-height: 100vh;
+}
+
+.editor-toolbar {
+  align-items: center;
+  background: #0b1b2a;
+  border-bottom: 1px solid #29445e;
+  padding: 0.8rem 1.25rem;
+}
+
+.editor-toolbar h1 {
+  flex: 1;
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.editor-toolbar a {
+  color: #8fc9ff;
+}
+
+.save-state {
+  color: #9fb2c7;
+}
+
+.save-state--saved {
+  color: #89e8bd;
+}
+
+.save-state--conflict,
+.save-state--error {
+  color: #ff9d9d;
+}
+
+.editor-body {
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr);
+  min-height: calc(100vh - 4rem);
+}
+
+.editor-body aside {
+  background: #0a1d2e;
+  border-right: 1px solid #29445e;
+  padding: 1rem;
+}
+
+.scene-row {
+  background: #102d47;
+  border-radius: 0.55rem;
+  margin-bottom: 0.6rem;
+  padding: 0.8rem;
+}
+
+.editor-preview {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  padding: 2rem;
+}
+
+.editor-preview > svg {
+  box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
+  height: auto;
+  max-height: calc(100vh - 9rem);
+  max-width: 100%;
+}
+
 @media (max-width: 800px) {
   .app {
     padding: 1rem;
@@ -232,9 +359,16 @@ button,
   }
 
   .field-row,
+  .page-heading,
+  .inline-form,
+  .editor-toolbar,
   .site-header,
   .site-header nav {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .editor-body {
+    grid-template-columns: 1fr;
   }
 }

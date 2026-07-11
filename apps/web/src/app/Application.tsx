@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 
 import { AuthPage } from "../features/auth/pages/AuthPage";
+import { ProjectEditorPage } from "../features/projects/pages/ProjectEditorPage";
+import { ProjectListPage } from "../features/projects/pages/ProjectListPage";
 import { SettingsPage } from "../features/settings/pages/SettingsPage";
 import { changeLocale } from "../i18n";
 import { apiRequest, type UserDto } from "../shared/lib/api";
@@ -49,6 +51,7 @@ export function Application() {
           </Link>
           <nav aria-label={t("navigation")}>
             <Link to="/">{t("home.nav")}</Link>
+            <Link to="/projects">{t("projects.nav")}</Link>
             <Link to="/settings">{t("settings.nav")}</Link>
             <button
               type="button"
@@ -90,6 +93,18 @@ export function Application() {
         <Route
           path="/settings"
           element={user ? <SettingsPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/projects"
+          element={
+            user ? <ProjectListPage /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/projects/:projectId"
+          element={
+            user ? <ProjectEditorPage /> : <Navigate to="/login" replace />
+          }
         />
         <Route
           path="*"

@@ -42,6 +42,35 @@
     "fps": "FPS",
     "saved": "Settings saved."
   },
+  "projects": {
+    "nav": "Projects",
+    "eyebrow": "Video data",
+    "title": "Projects",
+    "newName": "New project name",
+    "create": "Create",
+    "search": "Search by name",
+    "searchAction": "Search",
+    "empty": "No projects yet. Name your first video to get started.",
+    "sceneCount": "Scenes: {{count}}",
+    "revision": "Revision: {{count}}",
+    "duplicate": "Duplicate",
+    "delete": "Delete"
+  },
+  "editor": {
+    "back": "Back to projects",
+    "addScene": "Add scene",
+    "scenes": "Scenes",
+    "defaultSceneName": "Scene {{count}}",
+    "noScenes": "Add a scene to show a preview here.",
+    "saveState": {
+      "idle": "Unchanged",
+      "dirty": "Unsaved",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "conflict": "Updated in another window",
+      "error": "Could not save"
+    }
+  },
   "errors": {
     "authRequired": "Please log in.",
     "emailAlreadyRegistered": "This email address is already registered.",
@@ -49,6 +78,9 @@
     "csrfInvalid": "This page has expired. Please reload it.",
     "originNotAllowed": "Requests from this origin are not allowed.",
     "rateLimited": "Too many attempts. Please try again later.",
-    "unknown": "Something went wrong. Please try again."
+    "unknown": "Something went wrong. Please try again.",
+    "projectNotFound": "The project was not found.",
+    "projectConflict": "This project was updated elsewhere. Please reload.",
+    "projectDocumentInvalid": "The project data is invalid."
   }
 }

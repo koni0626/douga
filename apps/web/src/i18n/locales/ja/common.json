@@ -42,6 +42,35 @@
     "fps": "FPS",
     "saved": "設定を保存しました。"
   },
+  "projects": {
+    "nav": "プロジェクト",
+    "eyebrow": "動画データ",
+    "title": "プロジェクト",
+    "newName": "新しいプロジェクト名",
+    "create": "作成",
+    "search": "名前で検索",
+    "searchAction": "検索",
+    "empty": "まだプロジェクトがありません。名前を付けて最初の動画を作りましょう。",
+    "sceneCount": "シーン数: {{count}}",
+    "revision": "リビジョン: {{count}}",
+    "duplicate": "複製",
+    "delete": "削除"
+  },
+  "editor": {
+    "back": "プロジェクトへ戻る",
+    "addScene": "シーンを追加",
+    "scenes": "シーン",
+    "defaultSceneName": "シーン {{count}}",
+    "noScenes": "シーンを追加すると、ここにプレビューが表示されます。",
+    "saveState": {
+      "idle": "未変更",
+      "dirty": "未保存",
+      "saving": "保存中…",
+      "saved": "保存済み",
+      "conflict": "他の画面で更新されています",
+      "error": "保存できませんでした"
+    }
+  },
   "errors": {
     "authRequired": "ログインが必要です。",
     "emailAlreadyRegistered": "このメールアドレスは登録済みです。",
@@ -49,6 +78,9 @@
     "csrfInvalid": "画面の有効期限が切れました。再読み込みしてください。",
     "originNotAllowed": "この送信元からの操作は許可されていません。",
     "rateLimited": "試行回数が多すぎます。しばらく待ってからお試しください。",
-    "unknown": "処理に失敗しました。もう一度お試しください。"
+    "unknown": "処理に失敗しました。もう一度お試しください。",
+    "projectNotFound": "プロジェクトが見つかりません。",
+    "projectConflict": "別の画面で更新されています。再読み込みしてください。",
+    "projectDocumentInvalid": "プロジェクトデータの形式が正しくありません。"
   }
 }

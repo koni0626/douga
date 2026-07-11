@@ -16,6 +16,7 @@ from douga.core.logging import configure_logging
 from douga.db.engine import engine
 from douga.modules.auth.controller import router as auth_router
 from douga.modules.health.controller import router as health_router
+from douga.modules.projects.controller import router as projects_router
 
 
 @asynccontextmanager
@@ -64,6 +65,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(projects_router, prefix="/api/v1")
     return app
 
 

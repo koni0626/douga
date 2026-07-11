@@ -1,3 +1,5 @@
+import type { ProjectDocument } from "@douga/project-schema";
+
 export interface UserDto {
   id: string;
   email: string;
@@ -11,6 +13,28 @@ export interface SettingsDto {
   default_video_height: number;
   default_video_fps: string;
   default_caption_settings: Record<string, unknown>;
+}
+
+export interface ProjectSummaryDto {
+  id: string;
+  name: string;
+  status: "draft" | "editing" | "rendered" | "archived";
+  content_locale: "ja" | "en";
+  current_revision_number: number;
+  lock_version: number;
+  scene_count: number;
+  estimated_duration_ms: number | null;
+  updated_at: string;
+}
+
+export interface ProjectDetailDto {
+  project: ProjectSummaryDto;
+  document: ProjectDocument;
+}
+
+export interface ProjectListDto {
+  items: ProjectSummaryDto[];
+  total: number;
 }
 
 interface ErrorResponse {

@@ -4,6 +4,7 @@ import pytest
 from douga.api_main import create_app
 from douga.db.session import session_factory
 from douga.modules.auth.models import User, UserSession
+from douga.modules.projects.models import Project, ProjectRevision
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, select
 
@@ -14,6 +15,8 @@ pytestmark = pytest.mark.skipif(
 
 async def clear_auth_data() -> None:
     async with session_factory() as session:
+        await session.execute(delete(ProjectRevision))
+        await session.execute(delete(Project))
         await session.execute(delete(UserSession))
         await session.execute(delete(User))
         await session.commit()
