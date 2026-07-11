@@ -25,6 +25,10 @@ export type ImageLayer = BaseLayer & {
   flip_x?: boolean;
   flip_y?: boolean;
   locked?: boolean;
+  /**
+   * @maxItems 1000
+   */
+  keyframes?: LayerKeyframe[];
   x: number;
   y: number;
   width: number;
@@ -41,6 +45,10 @@ export type TextLayer = BaseLayer & {
   flip_x?: boolean;
   flip_y?: boolean;
   locked?: boolean;
+  /**
+   * @maxItems 1000
+   */
+  keyframes?: LayerKeyframe[];
   font_size: number;
   color: string;
   x: number;
@@ -60,6 +68,10 @@ export type ShapeLayer = BaseLayer & {
   flip_x?: boolean;
   flip_y?: boolean;
   locked?: boolean;
+  /**
+   * @maxItems 1000
+   */
+  keyframes?: LayerKeyframe[];
   x: number;
   y: number;
   width: number;
@@ -126,6 +138,10 @@ export interface BaseLayer {
   flip_x?: boolean;
   flip_y?: boolean;
   locked?: boolean;
+  /**
+   * @maxItems 1000
+   */
+  keyframes?: LayerKeyframe[];
   x: number;
   y: number;
   width: number;
@@ -133,6 +149,22 @@ export interface BaseLayer {
   rotation: number;
   opacity: number;
   [k: string]: unknown;
+}
+export interface LayerKeyframe {
+  id: string;
+  time_ms: number;
+  easing: "linear" | "ease_in" | "ease_out" | "ease_in_out" | "bounce" | "step";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  opacity: number;
+  flip_x: boolean;
+  flip_y: boolean;
+  fill?: string;
+  color?: string;
+  font_size?: number;
 }
 export interface Dialogue {
   id: string;

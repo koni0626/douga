@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
+import { resolveLayerAtTime } from "./animation";
 import { buildSceneTimeline, resolveCaptionAtTime } from "./layout";
 
 type Scene = ProjectDocument["scenes"][number];
@@ -150,7 +151,7 @@ export function SceneRenderer({
       {scene.layers.map((layer) =>
         timeMs >= (layer.start_ms ?? 0) &&
         timeMs < (layer.end_ms ?? Number.POSITIVE_INFINITY)
-          ? renderLayer(layer, assetUrl)
+          ? renderLayer(resolveLayerAtTime(layer, timeMs), assetUrl)
           : null,
       )}
       {resolved.page ? (

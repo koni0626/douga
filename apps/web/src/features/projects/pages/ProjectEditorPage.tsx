@@ -3,7 +3,11 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import type { ProjectDocument } from "@douga/project-schema";
-import { SceneRenderer } from "@douga/scene-renderer";
+import {
+  resolveLayerAtTime,
+  SceneRenderer,
+  type LayerEasing,
+} from "@douga/scene-renderer";
 
 import {
   ApiError,
@@ -25,6 +29,14 @@ import {
   type EditorTool,
 } from "../components/FloatingEditorTools";
 import { ObjectTimeline } from "../components/ObjectTimeline";
+import {
+  applyLayerPatchAtTime,
+  changeLayerKeyframeEasing,
+  deleteLayerKeyframe,
+  duplicateLayerKeyframe,
+  recordLayerKeyframe,
+  snapKeyframeTime,
+} from "../lib/layerKeyframes";
 
 type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
@@ -332,8 +344,60 @@ export function ProjectEditorPage() {
   function updateLayer(layerId: string, patch: Partial<Layer>) {
     updateScene((scene) => {
       const layer = scene.layers.find((item) => item.id === layerId);
-      if (!layer || (layer.locked && patch.locked !== false)) return;
-      Object.assign(layer, patch);
+      if (layer)
+        applyLayerPatchAtTime(
+          layer,
+          patch,
+          snapKeyframeTime(timeMs, SCENE_DURATION_MS),
+          () => crypto.randomUUID(),
+        );
+    });
+  }
+
+  function recordKeyframe(layerId: string, requestedTimeMs: number) {
+    updateScene((scene) => {
+      const layer = scene.layers.find((item) => item.id === layerId);
+      if (layer)
+        recordLayerKeyframe(
+          layer,
+          snapKeyframeTime(requestedTimeMs, SCENE_DURATION_MS),
+          () => crypto.randomUUID(),
+        );
+    });
+  }
+
+  function deleteKeyframe(layerId: string, keyframeId: string) {
+    updateScene((scene) => {
+      const layer = scene.layers.find((item) => item.id === layerId);
+      if (layer) deleteLayerKeyframe(layer, keyframeId);
+    });
+  }
+
+  function duplicateKeyframe(
+    layerId: string,
+    keyframeId: string,
+    requestedTimeMs: number,
+  ) {
+    updateScene((scene) => {
+      const layer = scene.layers.find((item) => item.id === layerId);
+      if (layer)
+        duplicateLayerKeyframe(
+          layer,
+          keyframeId,
+          snapKeyframeTime(requestedTimeMs, SCENE_DURATION_MS),
+          () => crypto.randomUUID(),
+        );
+    });
+  }
+
+  function updateKeyframeEasing(
+    layerId: string,
+    keyframeId: string,
+    easing: LayerEasing,
+  ) {
+    updateScene((scene) => {
+      const layer = scene.layers.find((item) => item.id === layerId);
+      if (layer) changeLayerKeyframeEasing(layer, keyframeId, easing);
     });
   }
 
@@ -414,25 +478,24 @@ export function ProjectEditorPage() {
 
   const project = detail.document;
   const scene = project.scenes[selectedSceneIndex];
-  const previewProject = layerPreview
-    ? {
-        ...project,
-        scenes: project.scenes.map((item, sceneIndex) =>
-          sceneIndex === selectedSceneIndex
-            ? {
-                ...item,
-                layers: item.layers.map((layer) =>
-                  layer.id === layerPreview.layerId
-                    ? { ...layer, ...layerPreview.patch }
-                    : layer,
-                ),
-              }
-            : item,
-        ),
-      }
-    : project;
+  const previewProject = {
+    ...project,
+    scenes: project.scenes.map((item, sceneIndex) =>
+      sceneIndex === selectedSceneIndex
+        ? {
+            ...item,
+            layers: item.layers.map((layer) => {
+              const resolved = resolveLayerAtTime(layer, timeMs);
+              return layer.id === layerPreview?.layerId
+                ? { ...resolved, ...layerPreview.patch, keyframes: undefined }
+                : resolved;
+            }),
+          }
+        : item,
+    ),
+  };
   const previewScene = previewProject.scenes[selectedSceneIndex];
-  const selectedLayer = scene?.layers.find(
+  const selectedLayer = previewScene?.layers.find(
     (layer) => layer.id === selectedLayerId,
   );
   const imageAssets = assets.filter((asset) => asset.kind === "image");
@@ -549,7 +612,26 @@ export function ProjectEditorPage() {
                   : t(`editor.layerType.${layer.type}`)
               }
               layers={scene.layers}
+              keyframeLabels={{
+                delete: t("editor.keyframe.delete"),
+                duplicate: t("editor.keyframe.duplicate"),
+                easing: t("editor.keyframe.easing"),
+                easingOptions: {
+                  linear: t("editor.keyframe.easingOptions.linear"),
+                  ease_in: t("editor.keyframe.easingOptions.easeIn"),
+                  ease_out: t("editor.keyframe.easingOptions.easeOut"),
+                  ease_in_out: t("editor.keyframe.easingOptions.easeInOut"),
+                  bounce: t("editor.keyframe.easingOptions.bounce"),
+                  step: t("editor.keyframe.easingOptions.step"),
+                },
+                keyframe: t("editor.keyframe.label"),
+                record: t("editor.keyframe.record"),
+              }}
+              onDeleteKeyframe={deleteKeyframe}
+              onDuplicateKeyframe={duplicateKeyframe}
+              onKeyframeEasingChange={updateKeyframeEasing}
               onPlay={() => setPlaying(true)}
+              onRecordKeyframe={recordKeyframe}
               onReorder={reorderLayer}
               onChange={(layerId, range) =>
                 updateLayer(layerId, {

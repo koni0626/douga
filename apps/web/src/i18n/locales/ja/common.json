@@ -91,6 +91,21 @@
     "flipHorizontal": "左右反転",
     "flipVertical": "上下反転",
     "fillCanvas": "キャンバスいっぱいに表示",
+    "keyframe": {
+      "record": "動きを記録",
+      "label": "キーフレーム",
+      "easing": "動き方",
+      "duplicate": "現在位置に複製",
+      "delete": "削除",
+      "easingOptions": {
+        "linear": "一定速度",
+        "easeInOut": "なめらか",
+        "easeIn": "ゆっくり開始",
+        "easeOut": "ゆっくり停止",
+        "bounce": "弾む",
+        "step": "瞬時に切り替え"
+      }
+    },
     "lock": "ロック",
     "unlock": "ロック解除",
     "locked": "ロック中",

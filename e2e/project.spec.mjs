@@ -160,6 +160,45 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(
     page.locator("svg[data-render-canvas] > *").nth(2),
   ).toHaveJSProperty("tagName", "image");
+
+  const shapeTimelineRow = page
+    .locator(".object-timeline-row")
+    .filter({ hasText: "図形" });
+  await seekTimeline(page, 1000);
+  await page.getByRole("button", { name: "動きを記録" }).click();
+  await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
+    1,
+  );
+  await seekTimeline(page, 4000);
+  await page.getByRole("spinbutton", { name: "x" }).fill("600");
+  await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
+    2,
+  );
+  await seekTimeline(page, 2500);
+  const animatedShape = page.locator("svg[data-render-canvas] > rect").nth(1);
+  await expect(animatedShape).not.toHaveAttribute("x", "160");
+  await expect(animatedShape).not.toHaveAttribute("x", "600");
+
+  await page.getByRole("button", { name: "キーフレーム 4.0s" }).click();
+  const keyframeDialog = page.getByRole("dialog", { name: "キーフレーム" });
+  await keyframeDialog
+    .getByRole("combobox", { name: "動き方" })
+    .selectOption("linear");
+  await expect(
+    keyframeDialog.getByRole("combobox", { name: "動き方" }),
+  ).toHaveValue("linear");
+  await keyframeDialog.getByRole("button", { name: "現在位置に複製" }).click();
+  await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
+    3,
+  );
+  await page.getByRole("button", { name: "キーフレーム 2.5s" }).click();
+  await page
+    .getByRole("dialog", { name: "キーフレーム" })
+    .getByRole("button", { name: "削除" })
+    .click();
+  await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
+    2,
+  );
   await page.getByRole("button", { name: "設定を閉じる" }).click();
 
   await expect(page.locator(".object-timeline")).toBeVisible();

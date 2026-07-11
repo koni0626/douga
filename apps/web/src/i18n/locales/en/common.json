@@ -91,6 +91,21 @@
     "flipHorizontal": "Flip horizontally",
     "flipVertical": "Flip vertically",
     "fillCanvas": "Fill canvas",
+    "keyframe": {
+      "record": "Record motion",
+      "label": "Keyframe",
+      "easing": "Motion",
+      "duplicate": "Duplicate at playhead",
+      "delete": "Delete",
+      "easingOptions": {
+        "linear": "Constant speed",
+        "easeInOut": "Smooth",
+        "easeIn": "Slow start",
+        "easeOut": "Slow stop",
+        "bounce": "Bounce",
+        "step": "Instant switch"
+      }
+    },
     "lock": "Lock",
     "unlock": "Unlock",
     "locked": "Locked",

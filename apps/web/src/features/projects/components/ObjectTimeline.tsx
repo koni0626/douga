@@ -6,6 +6,9 @@ import {
 } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
+import type { LayerEasing } from "@douga/scene-renderer";
+
+import { KeyframePopover, type KeyframeLabels } from "./KeyframePopover";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type Range = { startMs: number; endMs: number };
@@ -74,6 +77,18 @@ export interface ObjectTimelineProps {
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: Range) => void;
   onPlay: () => void;
+  onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
+  onDuplicateKeyframe: (
+    layerId: string,
+    keyframeId: string,
+    timeMs: number,
+  ) => void;
+  onKeyframeEasingChange: (
+    layerId: string,
+    keyframeId: string,
+    easing: LayerEasing,
+  ) => void;
+  onRecordKeyframe: (layerId: string, timeMs: number) => void;
   onReorder: (
     sourceIndex: number,
     targetIndex: number,
@@ -88,6 +103,7 @@ export interface ObjectTimelineProps {
   seekLabel: string;
   stopLabel: string;
   title: string;
+  keyframeLabels: KeyframeLabels & { record: string };
 }
 
 export function ObjectTimeline({
@@ -98,7 +114,11 @@ export function ObjectTimeline({
   timeMs,
   labelFor,
   onChange,
+  onDeleteKeyframe,
+  onDuplicateKeyframe,
+  onKeyframeEasingChange,
   onPlay,
+  onRecordKeyframe,
   onReorder,
   onSelect,
   onSeek,
@@ -109,6 +129,7 @@ export function ObjectTimeline({
   seekLabel,
   stopLabel,
   title,
+  keyframeLabels,
 }: ObjectTimelineProps) {
   // SVGは配列の後ろにあるレイヤーほど手前に描画する。
   // タイムラインでは一般的なレイヤーパネルと同様、最前面を上に表示する。
@@ -120,6 +141,12 @@ export function ObjectTimeline({
   const [dropTarget, setDropTarget] = useState<{
     layerId: string;
     position: "before" | "after";
+  }>();
+  const [selectedKeyframe, setSelectedKeyframe] = useState<{
+    keyframeId: string;
+    layerId: string;
+    x: number;
+    y: number;
   }>();
   const seconds = Array.from(
     { length: Math.floor(durationMs / 1000) + 1 },
@@ -248,6 +275,22 @@ export function ObjectTimeline({
           </svg>
         </button>
         <h2>{title}</h2>
+        <button
+          type="button"
+          aria-label={keyframeLabels.record}
+          className="keyframe-record-button"
+          disabled={
+            !selectedLayerId ||
+            layers.find((layer) => layer.id === selectedLayerId)?.locked
+          }
+          onClick={() =>
+            selectedLayerId && onRecordKeyframe(selectedLayerId, timeMs)
+          }
+          title={keyframeLabels.record}
+        >
+          <span aria-hidden="true">◆</span>
+          {keyframeLabels.record}
+        </button>
         <div className="object-timeline-playback">
           <button
             type="button"
@@ -414,6 +457,28 @@ export function ObjectTimeline({
                         className="object-timeline-handle object-timeline-handle--end"
                       />
                     </div>
+                    {(layer.keyframes ?? []).map((keyframe) => (
+                      <button
+                        type="button"
+                        aria-label={`${keyframeLabels.keyframe} ${(keyframe.time_ms / 1000).toFixed(1)}s`}
+                        className="object-keyframe-marker"
+                        key={keyframe.id}
+                        style={{
+                          left: `${(keyframe.time_ms * 100) / durationMs}%`,
+                        }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelect(layer.id);
+                          setSelectedKeyframe({
+                            keyframeId: keyframe.id,
+                            layerId: layer.id,
+                            x: event.clientX + 8,
+                            y: event.clientY + 8,
+                          });
+                        }}
+                      />
+                    ))}
                   </div>
                 </div>
               );
@@ -427,6 +492,36 @@ export function ObjectTimeline({
           </div>
         </div>
       ) : null}
+      {selectedKeyframe
+        ? (() => {
+            const layer = layers.find(
+              (item) => item.id === selectedKeyframe.layerId,
+            );
+            const keyframe = layer?.keyframes?.find(
+              (item) => item.id === selectedKeyframe.keyframeId,
+            );
+            return layer && keyframe ? (
+              <KeyframePopover
+                keyframe={keyframe}
+                labels={keyframeLabels}
+                onClose={() => setSelectedKeyframe(undefined)}
+                onDelete={() => {
+                  onDeleteKeyframe(layer.id, keyframe.id);
+                  setSelectedKeyframe(undefined);
+                }}
+                onDuplicate={() => {
+                  onDuplicateKeyframe(layer.id, keyframe.id, timeMs);
+                  setSelectedKeyframe(undefined);
+                }}
+                onEasingChange={(easing) =>
+                  onKeyframeEasingChange(layer.id, keyframe.id, easing)
+                }
+                x={selectedKeyframe.x}
+                y={selectedKeyframe.y}
+              />
+            ) : null;
+          })()
+        : null}
     </section>
   );
 }
