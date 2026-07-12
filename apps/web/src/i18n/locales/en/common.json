@@ -91,11 +91,12 @@
       "caption": "Caption frame"
     },
     "timeline": "Playback position",
-    "objectTimeline": "Object timeline",
+    "objectTimeline": "Timeline",
     "renameObject": "Rename object",
     "collapseTimeline": "Collapse timeline",
     "expandTimeline": "Expand timeline",
     "extendTimeline": "Extend by 5 seconds",
+    "resizeTimeline": "Resize timeline height",
     "flipHorizontal": "Flip horizontally",
     "flipVertical": "Flip vertically",
     "fillCanvas": "Fill canvas",

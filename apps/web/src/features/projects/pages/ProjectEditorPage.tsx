@@ -785,6 +785,7 @@ export function ProjectEditorPage() {
               playLabel={t("play")}
               playing={playing}
               renameLabel={t("editor.renameObject")}
+              resizeLabel={t("editor.resizeTimeline")}
               seekLabel={t("editor.timeline")}
               selectedLayerId={selectedLayerId}
               stopLabel={t("stop")}

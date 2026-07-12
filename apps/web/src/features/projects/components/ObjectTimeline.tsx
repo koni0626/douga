@@ -21,8 +21,25 @@ type DragState = {
   originX: number;
   trackWidth: number;
 };
+type ResizeState = { originHeight: number; originY: number };
 
 const MIN_DURATION_MS = 250;
+const DEFAULT_TIMELINE_HEIGHT_PX = 180;
+const MIN_TIMELINE_HEIGHT_PX = 96;
+const TIMELINE_VIEWPORT_RESERVE_PX = 360;
+
+function clampTimelineHeight(height: number): number {
+  return Math.max(
+    MIN_TIMELINE_HEIGHT_PX,
+    Math.min(
+      height,
+      Math.max(
+        MIN_TIMELINE_HEIGHT_PX,
+        globalThis.innerHeight - TIMELINE_VIEWPORT_RESERVE_PX,
+      ),
+    ),
+  );
+}
 
 function layerRange(layer: Layer, durationMs: number): Range {
   return {
@@ -102,6 +119,7 @@ export interface ObjectTimelineProps {
   collapseLabel: string;
   expandLabel: string;
   extendLabel: string;
+  resizeLabel: string;
   playLabel: string;
   seekLabel: string;
   stopLabel: string;
@@ -131,6 +149,7 @@ export function ObjectTimeline({
   collapseLabel,
   expandLabel,
   extendLabel,
+  resizeLabel,
   playLabel,
   seekLabel,
   stopLabel,
@@ -144,6 +163,8 @@ export function ObjectTimeline({
   const [draft, setDraft] = useState<{ layerId: string; range: Range }>();
   const [drag, setDrag] = useState<DragState>();
   const [expanded, setExpanded] = useState(true);
+  const [height, setHeight] = useState(DEFAULT_TIMELINE_HEIGHT_PX);
+  const [resize, setResize] = useState<ResizeState>();
   const [draggedLayerId, setDraggedLayerId] = useState<string>();
   const [dropTarget, setDropTarget] = useState<{
     layerId: string;
@@ -267,7 +288,53 @@ export function ObjectTimeline({
           : "object-timeline object-timeline--collapsed"
       }
       aria-label={title}
+      style={expanded ? { height } : undefined}
     >
+      {expanded ? (
+        <div
+          aria-label={resizeLabel}
+          aria-orientation="horizontal"
+          aria-valuemax={Math.max(
+            MIN_TIMELINE_HEIGHT_PX,
+            globalThis.innerHeight - TIMELINE_VIEWPORT_RESERVE_PX,
+          )}
+          aria-valuemin={MIN_TIMELINE_HEIGHT_PX}
+          aria-valuenow={height}
+          className="timeline-resize-handle"
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            event.preventDefault();
+            setHeight((current) =>
+              clampTimelineHeight(
+                current + (event.key === "ArrowUp" ? 20 : -20),
+              ),
+            );
+          }}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            setResize({ originHeight: height, originY: event.clientY });
+          }}
+          onPointerMove={(event) => {
+            if (!resize) return;
+            setHeight(
+              clampTimelineHeight(
+                resize.originHeight + resize.originY - event.clientY,
+              ),
+            );
+          }}
+          onPointerUp={(event) => {
+            if (!resize) return;
+            event.currentTarget.releasePointerCapture(event.pointerId);
+            setResize(undefined);
+          }}
+          role="separator"
+          tabIndex={0}
+          title={resizeLabel}
+        >
+          <span />
+        </div>
+      ) : null}
       <header className="object-timeline-header">
         <button
           type="button"

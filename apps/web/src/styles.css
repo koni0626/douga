@@ -572,7 +572,7 @@ button,
   flex-direction: column;
   gap: 0.45rem;
   padding: 0.5rem;
-  position: fixed;
+  position: absolute;
   right: 1.25rem;
   top: 50%;
   transform: translateY(-50%);
@@ -835,13 +835,18 @@ button,
 .editor-center {
   min-width: 0;
   overflow: auto;
+  position: relative;
 }
 
 .object-timeline {
   background: #081827;
   border-top: 1px solid #36516d;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   padding: 0.4rem 0.75rem 0.55rem;
+  position: relative;
 }
 
 .object-timeline--collapsed {
@@ -853,6 +858,37 @@ button,
   grid-column: 1;
   min-width: 0;
   overflow: hidden;
+}
+
+.timeline-resize-handle {
+  align-items: center;
+  cursor: ns-resize;
+  display: flex;
+  height: 0.65rem;
+  justify-content: center;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: -0.35rem;
+  touch-action: none;
+  z-index: 20;
+}
+
+.timeline-resize-handle span {
+  background: #52718d;
+  border-radius: 999px;
+  height: 0.15rem;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    width 120ms ease;
+  width: 3rem;
+}
+
+.timeline-resize-handle:hover span,
+.timeline-resize-handle:focus-visible span {
+  opacity: 1;
+  width: 5rem;
 }
 
 .object-timeline-header {
@@ -936,7 +972,8 @@ button,
 }
 
 .object-timeline-scroll {
-  max-height: 8.5rem;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 

@@ -217,6 +217,31 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await page.getByRole("button", { name: "設定を閉じる" }).click();
 
   await expect(page.locator(".object-timeline")).toBeVisible();
+  const timelineBeforeResize = await page
+    .locator(".object-timeline")
+    .boundingBox();
+  const timelineResizeHandle = page.getByRole("separator", {
+    name: "タイムラインの高さを変更",
+  });
+  const resizeHandleBounds = await timelineResizeHandle.boundingBox();
+  if (!timelineBeforeResize || !resizeHandleBounds)
+    throw new Error("Timeline resize handle is not measurable");
+  await page.mouse.move(
+    resizeHandleBounds.x + resizeHandleBounds.width / 2,
+    resizeHandleBounds.y + resizeHandleBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    resizeHandleBounds.x + resizeHandleBounds.width / 2,
+    resizeHandleBounds.y - 80,
+  );
+  await page.mouse.up();
+  const timelineAfterResize = await page
+    .locator(".object-timeline")
+    .boundingBox();
+  expect(timelineAfterResize?.height).toBeGreaterThan(
+    timelineBeforeResize.height + 60,
+  );
   await page.getByRole("button", { name: "タイムラインを閉じる" }).click();
   await expect(page.locator(".object-timeline-scroll")).toHaveCount(0);
   await page.getByRole("button", { name: "タイムラインを開く" }).click();

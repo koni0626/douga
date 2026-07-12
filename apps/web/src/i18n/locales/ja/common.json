@@ -91,11 +91,12 @@
       "caption": "テロップ枠"
     },
     "timeline": "再生位置",
-    "objectTimeline": "オブジェクトのタイムライン",
+    "objectTimeline": "タイムライン",
     "renameObject": "オブジェクト名を変更",
     "collapseTimeline": "タイムラインを閉じる",
     "expandTimeline": "タイムラインを開く",
     "extendTimeline": "5秒延長",
+    "resizeTimeline": "タイムラインの高さを変更",
     "flipHorizontal": "左右反転",
     "flipVertical": "上下反転",
     "fillCanvas": "キャンバスいっぱいに表示",
