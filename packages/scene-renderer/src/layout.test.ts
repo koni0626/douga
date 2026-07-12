@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CaptionStyle, Dialogue } from "./layout";
 import {
+  buildSceneTimeline,
   calculateAutoDurationMs,
   layoutDialogue,
   resolveCaptionAtTime,
@@ -81,6 +82,26 @@ describe("layoutDialogue", () => {
 });
 
 describe("timing", () => {
+  it("starts a dialogue at its requested timeline position", () => {
+    const value = dialogue("later caption");
+    value.start_ms = 5000;
+
+    const timeline = buildSceneTimeline(
+      {
+        id: "scene-1",
+        name: "Scene",
+        background: { type: "color", color: "#000000" },
+        layers: [],
+        dialogues: [value],
+      },
+      style,
+      "en",
+      measure,
+    );
+
+    expect(timeline[0]?.startMs).toBe(5000);
+  });
+
   it("uses a two second minimum", () => {
     expect(calculateAutoDurationMs("短い", "ja")).toBe(2000);
   });

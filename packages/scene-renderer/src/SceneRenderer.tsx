@@ -16,6 +16,7 @@ export interface SceneRendererProps {
   assetUrl?: (assetId: string) => string | undefined;
   className?: string;
   style?: CSSProperties;
+  hideCaption?: boolean;
 }
 
 function layerTransform(layer: Layer): string {
@@ -95,6 +96,7 @@ export function SceneRenderer({
   assetUrl,
   className,
   style,
+  hideCaption = false,
 }: SceneRendererProps) {
   const scene = project.scenes[sceneIndex];
   if (!scene) {
@@ -167,7 +169,7 @@ export function SceneRenderer({
             ? renderLayer(resolveLayerAtTime(layer, timeMs), assetUrl)
             : null,
         )}
-        {resolved.page ? (
+        {!hideCaption && resolved.page ? (
           <g opacity={resolved.opacity}>
             <rect
               x={caption.x}

@@ -94,6 +94,19 @@
       "caption": "テロップ枠"
     },
     "timeline": "再生位置",
+    "inlineCaptionArea": "テロップ直接入力エリア",
+    "inlineCaptionInput": "テロップ本文を直接入力",
+    "inlineCaptionPlaceholder": "ここにテロップを入力…（Ctrl+Enterで確定）",
+    "timelineMenu": {
+      "addCamera": "カメラを追加",
+      "addCaption": "テロップを追加",
+      "addText": "テキストを追加",
+      "addShape": "図形を追加",
+      "addImage": "画像素材を追加",
+      "addAudio": "音声素材を追加",
+      "settings": "設定",
+      "captionSettings": "テロップ枠設定"
+    },
     "camera": "カメラワーク",
     "cameraTrack": "カメラ",
     "startSeconds": "開始（秒）",

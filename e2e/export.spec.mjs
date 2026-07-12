@@ -26,14 +26,15 @@ test("render a project and show the completed MP4", async ({ page }) => {
   await page.getByRole("link", { name: "プロジェクト" }).click();
   await page.getByLabel("新しいプロジェクト名").fill("E2E完成動画");
   await page.getByRole("button", { name: "作成" }).click();
-  await page.getByRole("button", { name: "台本・テロップ" }).click();
   const savedRevision = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       /\/api\/v1\/projects\/[^/]+\/revisions$/.test(response.url()) &&
       response.ok(),
   );
-  await page.getByRole("button", { name: "テロップを追加" }).click();
+  const captionInput = page.getByLabel("テロップ本文を直接入力");
+  await captionInput.fill("書き出しテスト");
+  await captionInput.press("Control+Enter");
   await savedRevision;
   await page.getByRole("link", { name: "プロジェクト", exact: true }).click();
   await page.getByRole("button", { name: "MP4を書き出す" }).click();

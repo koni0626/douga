@@ -1,18 +1,18 @@
 import { expect, test } from "@playwright/test";
 
 async function seekTimeline(page, timeMs) {
-  await page
-    .getByRole("slider", { name: "再生位置" })
-    .evaluate((element, value) => {
-      const bounds = element.getBoundingClientRect();
-      const durationMs = Number(element.getAttribute("aria-valuemax")) || 5_000;
-      element.dispatchEvent(
-        new globalThis.PointerEvent("pointerdown", {
-          bubbles: true,
-          clientX: bounds.left + bounds.width * (value / durationMs),
-        }),
-      );
-    }, timeMs);
+  const slider = page.getByRole("slider", { name: "再生位置" });
+  await slider.evaluate((element, value) => {
+    const bounds = element.getBoundingClientRect();
+    const durationMs = Number(element.getAttribute("aria-valuemax")) || 5_000;
+    element.dispatchEvent(
+      new globalThis.PointerEvent("pointerdown", {
+        bubbles: true,
+        clientX: bounds.left + bounds.width * (value / durationMs),
+      }),
+    );
+  }, timeMs);
+  await expect(slider).toHaveAttribute("aria-valuenow", String(timeMs));
 }
 
 async function dragTimelineLayer(page, sourceIndex, targetIndex) {
@@ -66,6 +66,13 @@ async function dragTimelineLayer(page, sourceIndex, targetIndex) {
   );
 }
 
+async function chooseTimelineMenu(page, name) {
+  await page
+    .getByRole("slider", { name: "再生位置" })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name }).click();
+}
+
 test("create a project and auto-save its canvas", async ({ page }) => {
   const email = `project-e2e-${Date.now()}@example.com`;
   await page.goto("/register");
@@ -84,19 +91,12 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(page.locator(".editor-workspace")).toBeVisible();
   await expect(page.locator(".scene-panel")).toHaveCount(0);
   await expect(page.locator(".timeline-scene-strip")).toHaveCount(0);
-  await page.getByRole("button", { name: "テロップ枠" }).click();
+  await chooseTimelineMenu(page, "テロップ枠設定");
   const captionPanelBounds = await page
     .locator(".property-panel--caption")
     .boundingBox();
-  const editorToolbarBounds = await page
-    .getByRole("toolbar", { name: "編集ツール" })
-    .boundingBox();
-  if (!captionPanelBounds || !editorToolbarBounds)
-    throw new Error("Caption panel is not measurable");
+  if (!captionPanelBounds) throw new Error("Caption panel is not measurable");
   expect(captionPanelBounds.width).toBeLessThanOrEqual(320);
-  expect(captionPanelBounds.x + captionPanelBounds.width).toBeLessThanOrEqual(
-    editorToolbarBounds.x,
-  );
   await page.getByRole("button", { name: "設定を閉じる" }).click();
   const dropZone = page.getByLabel("キャンバス画像のドロップ領域");
   await dropZone.evaluate((element) => {
@@ -137,7 +137,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(renderedImage).toHaveAttribute("x", "420");
   await expect(renderedImage).toHaveAttribute("y", "0");
 
-  await page.getByRole("button", { name: "カメラ" }).click();
+  await chooseTimelineMenu(page, "カメラを追加");
   await page.getByRole("button", { name: "浮遊" }).click();
   await expect(page.locator(".camera-timeline-clip")).toHaveText("浮遊");
   await page.getByRole("button", { name: "設定を閉じる" }).click();
@@ -224,8 +224,8 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await objectHitbox.click({ button: "right" });
   await page.getByRole("menuitem", { name: "ロック解除" }).click();
 
-  await page.getByRole("button", { name: "レイヤー", exact: true }).click();
-  await page.getByRole("button", { name: "図形", exact: true }).click();
+  await seekTimeline(page, 0);
+  await chooseTimelineMenu(page, "図形を追加");
   const timelineLabels = page.locator(
     ".object-timeline-label:not(.camera-timeline-label)",
   );
@@ -258,6 +258,10 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     2,
   );
   await seekTimeline(page, 4000);
+  await shapeTimelineRow
+    .locator(".object-timeline-clip")
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "設定", exact: true }).click();
   await page.getByRole("spinbutton", { name: "x" }).fill("600");
   await expect(shapeTimelineRow.locator(".object-keyframe-marker")).toHaveCount(
     3,
@@ -389,19 +393,17 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     "aria-valuemax",
     "10000",
   );
-  await page.getByRole("button", { name: "レイヤー" }).click();
+  await chooseTimelineMenu(page, "画像素材を追加");
   await expect(page.getByText("dropped.png")).toBeVisible();
-  await page.getByRole("button", { name: "台本・テロップ" }).click();
-  await page.getByRole("button", { name: "テロップを追加" }).click();
   const savedRevision = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       /\/api\/v1\/projects\/[^/]+\/revisions$/.test(response.url()) &&
       response.ok(),
   );
-  await page
-    .getByLabel("テロップ本文")
-    .fill("ノベルゲームのように自動で送られるテロップです。");
+  const inlineCaption = page.getByLabel("テロップ本文を直接入力");
+  await inlineCaption.fill("ノベルゲームのように自動で送られるテロップです。");
+  await inlineCaption.press("Control+Enter");
   await savedRevision;
   await page.reload();
   await expect(page.getByRole("slider", { name: "再生位置" })).toHaveAttribute(
@@ -409,12 +411,10 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     "10000",
   );
   await expect(page.getByRole("button", { name: /^メイン画像/ })).toBeVisible();
-  await page.getByRole("button", { name: "台本・テロップ" }).click();
-  await expect(page.getByLabel("テロップ本文")).toHaveValue(
+  await seekTimeline(page, 4500);
+  await expect(page.getByLabel("テロップ本文を直接入力")).toHaveValue(
     "ノベルゲームのように自動で送られるテロップです。",
   );
-  await expect(page.locator(".editor-preview image")).toHaveCount(0);
-  await seekTimeline(page, 4500);
   await expect(page.locator(".editor-preview image")).toBeVisible();
   const pastedUpload = page.waitForResponse(
     (response) =>
@@ -441,7 +441,6 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   }, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
   await pastedUpload;
   await expect(page.locator(".editor-preview image")).toHaveCount(2);
-  await page.getByRole("button", { name: "設定を閉じる" }).click();
   const trackCountBeforeMerge = await page
     .locator(".object-timeline-label")
     .count();

@@ -4,7 +4,9 @@ import { useParams } from "react-router-dom";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import {
+  buildSceneTimeline,
   resolveCameraTransform,
+  resolveCaptionAtTime,
   MIN_VIDEO_DURATION_MS,
   resolveLayerAtTime,
   resolveSceneDurationMs,
@@ -29,10 +31,6 @@ import {
   CanvasObjectEditor,
   type LayerTransformPatch,
 } from "../components/CanvasObjectEditor";
-import {
-  FloatingEditorTools,
-  type EditorTool,
-} from "../components/FloatingEditorTools";
 import { ObjectTimeline } from "../components/ObjectTimeline";
 import {
   applyLayerAnimationPreset,
@@ -51,6 +49,7 @@ type Dialogue = Scene["dialogues"][number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 type CameraEffect = NonNullable<ProjectDocument["camera_effects"]>[number];
 type CameraPreset = CameraEffect["preset"];
+type EditorTool = "dialogues" | "layers" | "camera" | "audio" | "caption";
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
 type LayerPreview = { layerId: string; patch: LayerTransformPatch };
 
@@ -111,6 +110,14 @@ function clipboardImageFile(event: ClipboardEvent): File | undefined {
   });
 }
 
+function colorWithOpacity(color: string, opacity: number): string {
+  return /^#[0-9a-f]{6}$/iu.test(color)
+    ? `${color}${Math.round(Math.max(0, Math.min(1, opacity)) * 255)
+        .toString(16)
+        .padStart(2, "0")}`
+    : color;
+}
+
 export function ProjectEditorPage() {
   const { t } = useTranslation();
   const { projectId } = useParams();
@@ -127,12 +134,15 @@ export function ProjectEditorPage() {
   const [audioDropActive, setAudioDropActive] = useState(false);
   const [uploadErrorKey, setUploadErrorKey] = useState<string>();
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
+  const [captionDraft, setCaptionDraft] = useState("");
+  const [captionEditing, setCaptionEditing] = useState(false);
   const [layerPreview, setLayerPreview] = useState<LayerPreview>();
   const documentRef = useRef<ProjectDocument | undefined>(undefined);
   const pastRef = useRef<ProjectDocument[]>([]);
   const futureRef = useRef<ProjectDocument[]>([]);
   const changeSequenceRef = useRef(0);
   const saveInFlightRef = useRef(false);
+  const captionInputRef = useRef<HTMLTextAreaElement>(null);
   const durationMs = detail
     ? resolveSceneDurationMs(detail.document, selectedSceneIndex)
     : MIN_VIDEO_DURATION_MS;
@@ -159,6 +169,21 @@ export function ProjectEditorPage() {
       active = false;
     };
   }, [projectId]);
+
+  useEffect(() => {
+    if (captionEditing || !detail) return;
+    const scene = detail.document.scenes[selectedSceneIndex];
+    if (!scene) return;
+    const resolved = resolveCaptionAtTime(
+      buildSceneTimeline(
+        scene,
+        detail.document.caption_style,
+        detail.document.content_locale,
+      ),
+      timeMs,
+    );
+    setCaptionDraft(resolved.page?.dialogue.text ?? "");
+  }, [captionEditing, detail, timeMs]);
 
   useEffect(() => {
     if (!playing) return;
@@ -286,6 +311,45 @@ export function ProjectEditorPage() {
     );
   }
 
+  function commitInlineCaption() {
+    const text = captionDraft.trim();
+    if (!text) {
+      setCaptionEditing(false);
+      return;
+    }
+    const document = documentRef.current;
+    const currentScene = document?.scenes[selectedSceneIndex];
+    if (!document || !currentScene) return;
+    const currentPage = resolveCaptionAtTime(
+      buildSceneTimeline(
+        currentScene,
+        document.caption_style,
+        document.content_locale,
+      ),
+      timeMs,
+    ).page;
+    updateScene((scene) => {
+      const dialogue = currentPage
+        ? scene.dialogues.find((item) => item.id === currentPage.dialogueId)
+        : undefined;
+      if (dialogue) {
+        dialogue.text = text;
+      } else {
+        scene.dialogues.push({
+          id: crypto.randomUUID(),
+          speaker: null,
+          start_ms: Math.round(timeMs),
+          text,
+          display_effect: "typewriter",
+          duration_mode: "auto",
+          duration_ms: null,
+          manual_page_breaks: [],
+        });
+      }
+    });
+    setCaptionEditing(false);
+  }
+
   function updateDialogue(dialogueId: string, patch: Partial<Dialogue>) {
     updateScene((scene) => {
       const dialogue = scene.dialogues.find((item) => item.id === dialogueId);
@@ -296,6 +360,47 @@ export function ProjectEditorPage() {
   function addLayer(layer: Layer) {
     updateScene((scene) => scene.layers.push(layer));
     setSelectedLayerId(layer.id);
+  }
+
+  function addTextLayer() {
+    addLayer({
+      id: crypto.randomUUID(),
+      type: "text",
+      text: t("editor.newText"),
+      font_size: 64,
+      color: "#ffffff",
+      x: 160,
+      y: 140,
+      width: 800,
+      height: 120,
+      rotation: 0,
+      opacity: 1,
+      start_ms: timeMs,
+      end_ms: durationMs,
+    });
+  }
+
+  function addShapeLayer() {
+    addLayer({
+      id: crypto.randomUUID(),
+      type: "shape",
+      shape: "rectangle",
+      fill: "#3ea6ff",
+      x: 160,
+      y: 140,
+      width: 400,
+      height: 240,
+      rotation: 0,
+      opacity: 1,
+      start_ms: timeMs,
+      end_ms: durationMs,
+    });
+  }
+
+  function beginInlineCaption() {
+    setCaptionDraft("");
+    setCaptionEditing(true);
+    requestAnimationFrame(() => captionInputRef.current?.focus());
   }
 
   function addImageLayer(asset: AssetDto) {
@@ -787,6 +892,7 @@ export function ProjectEditorPage() {
                   sceneIndex={selectedSceneIndex}
                   timeMs={timeMs}
                   assetUrl={assetContentUrl}
+                  hideCaption={!playing}
                 />
                 {!playing ? (
                   <CanvasObjectEditor
@@ -837,6 +943,61 @@ export function ProjectEditorPage() {
                     width={project.video.width}
                   />
                 ) : null}
+                {!playing ? (
+                  <svg
+                    className="inline-caption-overlay"
+                    viewBox={`0 0 ${project.video.width} ${project.video.height}`}
+                    aria-label={t("editor.inlineCaptionArea")}
+                  >
+                    <foreignObject
+                      x={project.caption_style.x}
+                      y={project.caption_style.y}
+                      width={project.caption_style.width}
+                      height={project.caption_style.height}
+                    >
+                      <textarea
+                        ref={captionInputRef}
+                        className="inline-caption-input"
+                        aria-label={t("editor.inlineCaptionInput")}
+                        value={captionDraft}
+                        placeholder={t("editor.inlineCaptionPlaceholder")}
+                        onBlur={commitInlineCaption}
+                        onChange={(event) =>
+                          setCaptionDraft(event.target.value)
+                        }
+                        onFocus={() => setCaptionEditing(true)}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          setActiveTool("dialogues");
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "Enter" &&
+                            (event.ctrlKey || event.metaKey)
+                          ) {
+                            event.preventDefault();
+                            commitInlineCaption();
+                            event.currentTarget.blur();
+                          }
+                        }}
+                        style={{
+                          background: colorWithOpacity(
+                            project.caption_style.background_color,
+                            project.caption_style.background_opacity,
+                          ),
+                          borderRadius: project.caption_style.border_radius,
+                          color: project.caption_style.text_color,
+                          fontFamily: project.caption_style.font_family,
+                          fontSize: project.caption_style.font_size,
+                          fontWeight: project.caption_style.font_weight ?? 600,
+                          lineHeight: project.caption_style.line_height,
+                          padding: project.caption_style.padding,
+                          textAlign: project.caption_style.text_align,
+                        }}
+                      />
+                    </foreignObject>
+                  </svg>
+                ) : null}
               </div>
             ) : (
               <p>{t("editor.noScenes")}</p>
@@ -861,20 +1022,6 @@ export function ProjectEditorPage() {
               tracks={project.audio_tracks ?? []}
               playing={playing}
               timeMs={timeMs}
-            />
-          ) : null}
-          {scene ? (
-            <FloatingEditorTools
-              activeTool={activeTool}
-              labels={{
-                dialogues: t("editor.tool.dialogues"),
-                layers: t("editor.tool.layers"),
-                camera: t("editor.tool.camera"),
-                audio: t("editor.tool.audio"),
-                caption: t("editor.tool.caption"),
-              }}
-              onSelect={setActiveTool}
-              toolbarLabel={t("editor.toolbarLabel")}
             />
           ) : null}
         </section>
@@ -942,6 +1089,14 @@ export function ProjectEditorPage() {
               onAudioStartChange={(trackId, startMs) =>
                 updateAudioTrack(trackId, { start_ms: startMs })
               }
+              onAddCamera={() => setActiveTool("camera")}
+              onAddCaption={beginInlineCaption}
+              onAddText={addTextLayer}
+              onAddShape={addShapeLayer}
+              onOpenAudioSettings={() => setActiveTool("audio")}
+              onOpenCameraSettings={() => setActiveTool("camera")}
+              onOpenCaptionSettings={() => setActiveTool("caption")}
+              onOpenLayerSettings={() => setActiveTool("layers")}
               onDuplicateKeyframe={duplicateKeyframe}
               onKeyframeEasingChange={updateKeyframeEasing}
               onMergeTrack={mergeLayerTrack}
@@ -972,6 +1127,14 @@ export function ProjectEditorPage() {
               splitTrackLabel={t("editor.splitTrack")}
               timeMs={timeMs}
               title={t("editor.objectTimeline")}
+              addCameraLabel={t("editor.timelineMenu.addCamera")}
+              addCaptionLabel={t("editor.timelineMenu.addCaption")}
+              addTextLabel={t("editor.timelineMenu.addText")}
+              addShapeLabel={t("editor.timelineMenu.addShape")}
+              addImageLabel={t("editor.timelineMenu.addImage")}
+              addAudioLabel={t("editor.timelineMenu.addAudio")}
+              settingsLabel={t("editor.timelineMenu.settings")}
+              captionSettingsLabel={t("editor.timelineMenu.captionSettings")}
             />
           ) : null}
           {audioDropActive || uploadingAudio ? (

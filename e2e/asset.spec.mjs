@@ -26,6 +26,13 @@ function silentWav() {
   return wav;
 }
 
+async function chooseTimelineMenu(page, name) {
+  await page
+    .getByRole("slider", { name: "再生位置" })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name }).click();
+}
+
 test("upload and display an image asset", async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto("/register");
@@ -71,12 +78,13 @@ test("upload and display an image asset", async ({ page }) => {
   await page.getByRole("button", { name: "作成" }).click();
   const readyAssets = await (await readyAssetsResponse).json();
   expect(readyAssets.items.map((asset) => asset.name)).toContain("tone.wav");
-  await page.getByRole("button", { name: "レイヤー" }).click();
+  await chooseTimelineMenu(page, "画像素材を追加");
   await page
     .locator(".asset-picker")
     .getByRole("button", { name: "pixel.png" })
     .click();
-  await page.getByRole("button", { name: "音声" }).click();
+  await page.getByRole("button", { name: "設定を閉じる" }).click();
+  await chooseTimelineMenu(page, "音声素材を追加");
   const savedRevision = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&

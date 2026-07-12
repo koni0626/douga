@@ -374,6 +374,7 @@
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "speaker": { "type": ["string", "null"], "maxLength": 100 },
+        "start_ms": { "type": "integer", "minimum": 0 },
         "text": { "type": "string", "maxLength": 20000 },
         "display_effect": {
           "type": "string",

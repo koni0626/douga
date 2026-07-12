@@ -309,6 +309,7 @@ class ProjectService:
         for scene in document["scenes"]:
             dialogue_end = 0
             for dialogue in scene["dialogues"]:
+                dialogue_end = max(dialogue_end, int(dialogue.get("start_ms", 0)))
                 dialogue_end += int(
                     dialogue.get("duration_ms") or max(1500, len(dialogue["text"]) * 100)
                 )

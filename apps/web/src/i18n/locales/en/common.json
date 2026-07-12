@@ -94,6 +94,19 @@
       "caption": "Caption frame"
     },
     "timeline": "Playback position",
+    "inlineCaptionArea": "Inline caption editor",
+    "inlineCaptionInput": "Edit caption text directly",
+    "inlineCaptionPlaceholder": "Enter a caption… (Ctrl+Enter to confirm)",
+    "timelineMenu": {
+      "addCamera": "Add camera",
+      "addCaption": "Add caption",
+      "addText": "Add text",
+      "addShape": "Add shape",
+      "addImage": "Add image asset",
+      "addAudio": "Add audio asset",
+      "settings": "Settings",
+      "captionSettings": "Caption frame settings"
+    },
     "camera": "Camera motion",
     "cameraTrack": "Camera",
     "startSeconds": "Start (seconds)",

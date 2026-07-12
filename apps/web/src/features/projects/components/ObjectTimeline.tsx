@@ -32,11 +32,36 @@ type AudioDrag = {
   startMs: number;
   trackWidth: number;
 };
+type TimelineMenu = {
+  kind: "add" | "camera" | "audio";
+  x: number;
+  y: number;
+};
 
 const MIN_DURATION_MS = 250;
 const DEFAULT_TIMELINE_HEIGHT_PX = 180;
 const MIN_TIMELINE_HEIGHT_PX = 96;
 const TIMELINE_VIEWPORT_RESERVE_PX = 360;
+const CONTEXT_MENU_WIDTH_PX = 208;
+
+function contextMenuPosition(
+  clientX: number,
+  clientY: number,
+  itemCount: number,
+): { x: number; y: number } {
+  const margin = 8;
+  const estimatedHeight = itemCount * 40 + 12;
+  return {
+    x: Math.max(
+      margin,
+      Math.min(clientX, globalThis.innerWidth - CONTEXT_MENU_WIDTH_PX - margin),
+    ),
+    y: Math.max(
+      margin,
+      Math.min(clientY, globalThis.innerHeight - estimatedHeight - margin),
+    ),
+  };
+}
 
 function formatTimelineTime(timeMs: number): string {
   return `${(timeMs / 1000).toFixed(2)}s`;
@@ -119,6 +144,14 @@ export interface ObjectTimelineProps {
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: Range) => void;
   onAudioStartChange: (trackId: string, startMs: number) => void;
+  onAddCamera: () => void;
+  onAddCaption: () => void;
+  onAddText: () => void;
+  onAddShape: () => void;
+  onOpenAudioSettings: () => void;
+  onOpenCameraSettings: () => void;
+  onOpenCaptionSettings: () => void;
+  onOpenLayerSettings: () => void;
   onExtend: () => void;
   onPlay: () => void;
   onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
@@ -156,6 +189,14 @@ export interface ObjectTimelineProps {
   mergeAboveLabel: string;
   mergeBelowLabel: string;
   splitTrackLabel: string;
+  addCameraLabel: string;
+  addCaptionLabel: string;
+  addTextLabel: string;
+  addShapeLabel: string;
+  addImageLabel: string;
+  addAudioLabel: string;
+  settingsLabel: string;
+  captionSettingsLabel: string;
 }
 
 export function ObjectTimeline({
@@ -173,6 +214,14 @@ export function ObjectTimeline({
   labelFor,
   onChange,
   onAudioStartChange,
+  onAddCamera,
+  onAddCaption,
+  onAddText,
+  onAddShape,
+  onOpenAudioSettings,
+  onOpenCameraSettings,
+  onOpenCaptionSettings,
+  onOpenLayerSettings,
   onExtend,
   onDeleteKeyframe,
   onDuplicateKeyframe,
@@ -198,6 +247,14 @@ export function ObjectTimeline({
   mergeAboveLabel,
   mergeBelowLabel,
   splitTrackLabel,
+  addCameraLabel,
+  addCaptionLabel,
+  addTextLabel,
+  addShapeLabel,
+  addImageLabel,
+  addAudioLabel,
+  settingsLabel,
+  captionSettingsLabel,
 }: ObjectTimelineProps) {
   // SVGは配列の後ろにあるレイヤーほど手前に描画する。
   // タイムラインでは一般的なレイヤーパネルと同様、最前面を上に表示する。
@@ -221,6 +278,7 @@ export function ObjectTimeline({
   const [clipMenu, setClipMenu] = useState<ClipMenu>();
   const [audioDrag, setAudioDrag] = useState<AudioDrag>();
   const [audioDraftStart, setAudioDraftStart] = useState<number>();
+  const [timelineMenu, setTimelineMenu] = useState<TimelineMenu>();
   const displayTrackIds = Array.from(
     new Set(displayLayers.map((layer) => trackId(layer))),
   );
@@ -315,6 +373,7 @@ export function ObjectTimeline({
   }
 
   function seek(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     onSeek(
       Math.max(
@@ -480,6 +539,20 @@ export function ObjectTimeline({
                 "--timeline-second-width": `${100_000 / durationMs}%`,
               } as CSSProperties
             }
+            onContextMenu={(event) => {
+              if (
+                event.target instanceof Element &&
+                event.target.closest(
+                  ".object-timeline-clip, .camera-timeline-clip, .audio-timeline-clip",
+                )
+              )
+                return;
+              event.preventDefault();
+              setTimelineMenu({
+                kind: "add",
+                ...contextMenuPosition(event.clientX, event.clientY, 7),
+              });
+            }}
           >
             <div className="object-timeline-corner" />
             <div
@@ -538,6 +611,14 @@ export function ObjectTimeline({
                     left: `${(effect.start_ms * 100) / durationMs}%`,
                     width: `${((effect.end_ms - effect.start_ms) * 100) / durationMs}%`,
                   }}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setTimelineMenu({
+                      kind: "camera",
+                      ...contextMenuPosition(event.clientX, event.clientY, 1),
+                    });
+                  }}
                 >
                   {cameraEffectLabel(effect)}
                 </div>
@@ -573,6 +654,18 @@ export function ObjectTimeline({
                       style={{
                         left: `${(startMs * 100) / durationMs}%`,
                         width: `${(Math.max(50, endMs - startMs) * 100) / durationMs}%`,
+                      }}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setTimelineMenu({
+                          kind: "audio",
+                          ...contextMenuPosition(
+                            event.clientX,
+                            event.clientY,
+                            1,
+                          ),
+                        });
                       }}
                       onPointerDown={(event) => {
                         event.preventDefault();
@@ -694,8 +787,11 @@ export function ObjectTimeline({
                         onSelect(layer.id);
                         setClipMenu({
                           layerId: layer.id,
-                          x: event.clientX,
-                          y: event.clientY,
+                          ...contextMenuPosition(
+                            event.clientX,
+                            event.clientY,
+                            4,
+                          ),
                         });
                       }}
                       onPointerDown={(event) => {
@@ -819,6 +915,16 @@ export function ObjectTimeline({
                 role="menu"
                 style={{ left: clipMenu.x, top: clipMenu.y }}
               >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    onOpenLayerSettings();
+                    setClipMenu(undefined);
+                  }}
+                >
+                  {settingsLabel}
+                </button>
                 {above ? (
                   <button
                     type="button"
@@ -859,6 +965,100 @@ export function ObjectTimeline({
             );
           })()
         : null}
+      {timelineMenu ? (
+        <div
+          className="timeline-clip-menu"
+          role="menu"
+          style={{ left: timelineMenu.x, top: timelineMenu.y }}
+        >
+          {timelineMenu.kind === "add" ? (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onAddCamera();
+                  setTimelineMenu(undefined);
+                }}
+              >
+                {addCameraLabel}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onAddCaption();
+                  setTimelineMenu(undefined);
+                }}
+              >
+                {addCaptionLabel}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onAddText();
+                  setTimelineMenu(undefined);
+                }}
+              >
+                {addTextLabel}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onAddShape();
+                  setTimelineMenu(undefined);
+                }}
+              >
+                {addShapeLabel}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onOpenLayerSettings();
+                  setTimelineMenu(undefined);
+                }}
+              >
+                {addImageLabel}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onOpenAudioSettings();
+                  setTimelineMenu(undefined);
+                }}
+              >
+                {addAudioLabel}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onOpenCaptionSettings();
+                  setTimelineMenu(undefined);
+                }}
+              >
+                {captionSettingsLabel}
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                if (timelineMenu.kind === "camera") onOpenCameraSettings();
+                else onOpenAudioSettings();
+                setTimelineMenu(undefined);
+              }}
+            >
+              {settingsLabel}
+            </button>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

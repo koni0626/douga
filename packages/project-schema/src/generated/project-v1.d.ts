@@ -182,6 +182,7 @@ export interface LayerKeyframe {
 export interface Dialogue {
   id: string;
   speaker?: string | null;
+  start_ms?: number;
   text: string;
   display_effect: "instant" | "fade" | "typewriter";
   duration_mode: "auto" | "manual" | "narration";

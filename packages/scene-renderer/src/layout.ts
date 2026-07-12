@@ -211,6 +211,7 @@ export function buildSceneTimeline(
   let cursor = 0;
 
   for (const dialogue of scene.dialogues) {
+    cursor = Math.max(cursor, dialogue.start_ms ?? cursor);
     const pages = layoutDialogue(dialogue, style, locale, measure);
     const manualPageDuration =
       dialogue.duration_mode === "manual" && dialogue.duration_ms
