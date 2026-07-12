@@ -246,6 +246,22 @@
       "failed": "Validation failed"
     }
   },
+  "assistant": {
+    "title": "AI Assistant",
+    "name": "AI",
+    "you": "You",
+    "phaseConversation": "Ideas and planning",
+    "open": "Open AI assistant",
+    "close": "Close AI assistant",
+    "resize": "Resize AI assistant",
+    "welcomeTitle": "What would you like to create?",
+    "welcomeLead": "We can work together on the plot, script, and visual direction.",
+    "plotSuggestion": "Help me develop the plot",
+    "input": "Message to the AI assistant",
+    "placeholder": "Describe the video or ask for ideas…",
+    "send": "Send",
+    "thinking": "Thinking…"
+  },
   "jobs": {
     "queued": "Queued",
     "running": "Running",
@@ -254,6 +270,8 @@
     "cancelled": "Cancelled"
   },
   "errors": {
+    "assistantThreadNotFound": "The AI conversation could not be found.",
+    "assistantUnavailable": "The AI assistant is unavailable. Please try again.",
     "imageQuotaExceeded": "You have reached the hourly image generation limit.",
     "imageGenerationNotFound": "Image generation history was not found.",
     "exportFailed": "Video export failed.",

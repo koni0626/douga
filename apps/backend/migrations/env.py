@@ -5,6 +5,7 @@ from alembic import context
 from douga.core.config import get_settings
 from douga.db.base import Base
 from douga.modules.assets import models as asset_models  # noqa: F401
+from douga.modules.assistant import models as assistant_models  # noqa: F401
 from douga.modules.auth import models as auth_models  # noqa: F401
 from douga.modules.exports import models as export_models  # noqa: F401
 from douga.modules.image_generations import models as image_generation_models  # noqa: F401

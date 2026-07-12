@@ -104,6 +104,38 @@ export interface ExportListDto {
   total: number;
 }
 
+export interface AssistantThreadDto {
+  id: string;
+  project_id: string;
+  title: string;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssistantMessageDto {
+  id: string;
+  role: "user" | "assistant" | "system_summary";
+  content: string;
+  created_at: string;
+}
+
+export interface AssistantThreadListDto {
+  items: AssistantThreadDto[];
+}
+
+export interface AssistantThreadDetailDto {
+  thread: AssistantThreadDto;
+  messages: AssistantMessageDto[];
+}
+
+export interface AssistantTurnDto {
+  run_id: string;
+  status: "completed" | "failed" | "cancelled";
+  user_message: AssistantMessageDto;
+  assistant_message: AssistantMessageDto;
+}
+
 interface ErrorResponse {
   error?: { code?: string; message_key?: string };
 }

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     job_dispatch_mode: Literal["inline", "redis"] = "inline"
     openai_api_key: SecretStr | None = None
     openai_image_model: str = "gpt-image-2"
+    openai_assistant_model: str = "gpt-5.6"
+    assistant_provider: Literal["auto", "fake", "openai"] = "auto"
+    assistant_history_limit: int = Field(default=30, ge=1, le=100)
     image_provider: Literal["fake", "openai"] = "fake"
     image_generation_limit_per_hour: int = Field(default=20, ge=1, le=1000)
     export_timeout_seconds: int = Field(default=900, ge=30, le=7200)

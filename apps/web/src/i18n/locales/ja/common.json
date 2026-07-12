@@ -246,6 +246,22 @@
       "failed": "検証失敗"
     }
   },
+  "assistant": {
+    "title": "AIアシスタント",
+    "name": "AI",
+    "you": "あなた",
+    "phaseConversation": "相談・企画",
+    "open": "AIアシスタントを開く",
+    "close": "AIアシスタントを閉じる",
+    "resize": "AIアシスタントの幅を変更",
+    "welcomeTitle": "どんな動画にしましょうか？",
+    "welcomeLead": "プロットの相談、台本づくり、映像の雰囲気などを一緒に整理できます。",
+    "plotSuggestion": "プロットを一緒に考えて",
+    "input": "AIアシスタントへのメッセージ",
+    "placeholder": "動画のイメージや相談内容を入力…",
+    "send": "送信",
+    "thinking": "考えています…"
+  },
   "jobs": {
     "queued": "待機中",
     "running": "処理中",
@@ -254,6 +270,8 @@
     "cancelled": "キャンセル"
   },
   "errors": {
+    "assistantThreadNotFound": "AIの会話が見つかりません。",
+    "assistantUnavailable": "AIアシスタントに接続できませんでした。もう一度お試しください。",
     "imageQuotaExceeded": "画像生成の1時間あたりの上限に達しました。",
     "imageGenerationNotFound": "画像生成履歴が見つかりません。",
     "exportFailed": "動画の書き出しに失敗しました。",

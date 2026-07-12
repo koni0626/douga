@@ -1,4 +1,10 @@
-import { type DragEvent, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type DragEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -42,6 +48,7 @@ import {
   type LayerAnimationPreset,
   snapKeyframeTime,
 } from "../lib/layerKeyframes";
+import { AssistantPanel } from "../../assistant/components/AssistantPanel";
 
 type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
@@ -134,6 +141,8 @@ export function ProjectEditorPage() {
   const [audioDropActive, setAudioDropActive] = useState(false);
   const [uploadErrorKey, setUploadErrorKey] = useState<string>();
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(true);
+  const [assistantWidth, setAssistantWidth] = useState(400);
   const [captionDraft, setCaptionDraft] = useState("");
   const [captionEditing, setCaptionEditing] = useState(false);
   const [layerPreview, setLayerPreview] = useState<LayerPreview>();
@@ -855,7 +864,10 @@ export function ProjectEditorPage() {
 
   return (
     <main className="editor-shell">
-      <div className="editor-workspace">
+      <div
+        className={`editor-workspace${assistantOpen ? " editor-workspace--assistant-open" : ""}`}
+        style={{ "--assistant-width": `${assistantWidth}px` } as CSSProperties}
+      >
         <section className="editor-center">
           <div
             className={`editor-preview${dropActive ? " editor-preview--drop-active" : ""}`}
@@ -1147,6 +1159,24 @@ export function ProjectEditorPage() {
             </div>
           ) : null}
         </section>
+
+        {assistantOpen && projectId ? (
+          <AssistantPanel
+            projectId={projectId}
+            onClose={() => setAssistantOpen(false)}
+            onWidthChange={setAssistantWidth}
+            width={assistantWidth}
+          />
+        ) : (
+          <button
+            type="button"
+            className="assistant-open"
+            aria-label={t("assistant.open")}
+            onClick={() => setAssistantOpen(true)}
+          >
+            AI
+          </button>
+        )}
 
         {scene && activeTool ? (
           <aside
