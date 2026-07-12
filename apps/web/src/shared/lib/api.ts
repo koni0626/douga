@@ -129,11 +129,10 @@ export interface AssistantThreadDetailDto {
   messages: AssistantMessageDto[];
 }
 
-export interface AssistantTurnDto {
+export interface AssistantRunStartedDto {
   run_id: string;
-  status: "completed" | "failed" | "cancelled";
+  status: "queued" | "running";
   user_message: AssistantMessageDto;
-  assistant_message: AssistantMessageDto;
 }
 
 interface ErrorResponse {
@@ -217,4 +216,8 @@ export function assetContentUrl(assetId: string): string {
 
 export function exportContentUrl(exportId: string): string {
   return `${apiBaseUrl}/exports/${exportId}/content`;
+}
+
+export function assistantEventsUrl(projectId: string, runId: string): string {
+  return `${apiBaseUrl}/projects/${projectId}/assistant/runs/${runId}/events`;
 }

@@ -260,7 +260,11 @@
     "input": "AIアシスタントへのメッセージ",
     "placeholder": "動画のイメージや相談内容を入力…",
     "send": "送信",
-    "thinking": "考えています…"
+    "thinking": "考えています…",
+    "stop": "停止",
+    "history": "会話履歴",
+    "newConversation": "新しい会話を作成",
+    "newConversationTitle": "新しい会話"
   },
   "jobs": {
     "queued": "待機中",
@@ -272,6 +276,9 @@
   "errors": {
     "assistantThreadNotFound": "AIの会話が見つかりません。",
     "assistantUnavailable": "AIアシスタントに接続できませんでした。もう一度お試しください。",
+    "assistantStreamDisconnected": "AIアシスタントとの接続が切れました。会話を再読み込みしてください。",
+    "assistantRunNotFound": "AIの実行履歴が見つかりません。",
+    "assistantRunNotCancellable": "このAI処理は停止できません。",
     "imageQuotaExceeded": "画像生成の1時間あたりの上限に達しました。",
     "imageGenerationNotFound": "画像生成履歴が見つかりません。",
     "exportFailed": "動画の書き出しに失敗しました。",

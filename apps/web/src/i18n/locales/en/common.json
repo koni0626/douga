@@ -260,7 +260,11 @@
     "input": "Message to the AI assistant",
     "placeholder": "Describe the video or ask for ideas…",
     "send": "Send",
-    "thinking": "Thinking…"
+    "thinking": "Thinking…",
+    "stop": "Stop",
+    "history": "Conversation history",
+    "newConversation": "Start a new conversation",
+    "newConversationTitle": "New conversation"
   },
   "jobs": {
     "queued": "Queued",
@@ -272,6 +276,9 @@
   "errors": {
     "assistantThreadNotFound": "The AI conversation could not be found.",
     "assistantUnavailable": "The AI assistant is unavailable. Please try again.",
+    "assistantStreamDisconnected": "The connection to the AI assistant was lost. Reload the conversation.",
+    "assistantRunNotFound": "The AI run could not be found.",
+    "assistantRunNotCancellable": "This AI run cannot be stopped.",
     "imageQuotaExceeded": "You have reached the hourly image generation limit.",
     "imageGenerationNotFound": "Image generation history was not found.",
     "exportFailed": "Video export failed.",

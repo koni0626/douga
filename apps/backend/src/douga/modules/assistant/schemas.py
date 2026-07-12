@@ -37,8 +37,15 @@ class AssistantThreadDetailResponse(BaseModel):
     messages: list[AssistantMessageResponse]
 
 
-class AssistantTurnResponse(BaseModel):
+class AssistantRunStartedResponse(BaseModel):
     run_id: UUID
     status: str
     user_message: AssistantMessageResponse
-    assistant_message: AssistantMessageResponse
+
+
+class AssistantRunResponse(BaseModel):
+    id: UUID
+    status: str
+    error_code: str | None
+    base_revision_number: int
+    result_revision_number: int | None

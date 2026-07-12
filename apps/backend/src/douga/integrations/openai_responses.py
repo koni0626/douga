@@ -1,3 +1,4 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -25,6 +26,7 @@ class AssistantProvider(Protocol):
         messages: list[AssistantProviderMessage],
         *,
         instructions: str,
+        on_delta: Callable[[str], Awaitable[None]] | None = None,
     ) -> AssistantProviderResult: ...
 
 
@@ -40,14 +42,32 @@ class OpenAIResponsesProvider:
         messages: list[AssistantProviderMessage],
         *,
         instructions: str,
+        on_delta: Callable[[str], Awaitable[None]] | None = None,
     ) -> AssistantProviderResult:
         input_items: Any = [{"role": item.role, "content": item.content} for item in messages]
+        if on_delta is not None:
+            async with self.client.responses.stream(
+                model=self.model,
+                instructions=instructions,
+                input=input_items,
+                store=False,
+            ) as stream:
+                async for event in stream:
+                    if event.type == "response.output_text.delta":
+                        await on_delta(event.delta)
+                streamed_response = await stream.get_final_response()
+            return self._result(streamed_response)
+
         response = await self.client.responses.create(
             model=self.model,
             instructions=instructions,
             input=input_items,
             store=False,
         )
+        return self._result(response)
+
+    @staticmethod
+    def _result(response: Any) -> AssistantProviderResult:
         usage = response.usage
         return AssistantProviderResult(
             content=response.output_text,
@@ -68,6 +88,7 @@ class FakeAssistantProvider:
         messages: list[AssistantProviderMessage],
         *,
         instructions: str,
+        on_delta: Callable[[str], Awaitable[None]] | None = None,
     ) -> AssistantProviderResult:
         del instructions
         prompt = messages[-1].content if messages else ""
@@ -81,6 +102,9 @@ class FakeAssistantProvider:
                 "ご相談内容を確認しました。現在は会話基盤の段階です。"
                 "目的やイメージを詳しく教えていただければ、構成を一緒に整理します。"
             )
+        if on_delta is not None:
+            for offset in range(0, len(content), 40):
+                await on_delta(content[offset : offset + 40])
         return AssistantProviderResult(content=content, response_id="fake-response")
 
 

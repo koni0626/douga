@@ -1,21 +1,27 @@
+import asyncio
+import json
+from collections.abc import AsyncIterator
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from douga.db.session import get_session
-from douga.modules.assistant.models import AssistantMessage, AssistantThread
+from douga.db.session import get_session, session_factory
+from douga.modules.assistant.models import AssistantMessage, AssistantRun, AssistantThread
+from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.assistant.schemas import (
     AssistantMessageCreateRequest,
     AssistantMessageResponse,
+    AssistantRunResponse,
+    AssistantRunStartedResponse,
     AssistantThreadCreateRequest,
     AssistantThreadDetailResponse,
     AssistantThreadListResponse,
     AssistantThreadResponse,
-    AssistantTurnResponse,
 )
-from douga.modules.assistant.service import AssistantService
+from douga.modules.assistant.service import AssistantService, process_assistant_run
 from douga.modules.auth.dependencies import csrf_protected_auth, current_auth
 from douga.modules.auth.service import AuthContext
 
@@ -28,6 +34,10 @@ def thread_response(thread: AssistantThread) -> AssistantThreadResponse:
 
 def message_response(message: AssistantMessage) -> AssistantMessageResponse:
     return AssistantMessageResponse.model_validate(message, from_attributes=True)
+
+
+def run_response(run: AssistantRun) -> AssistantRunResponse:
+    return AssistantRunResponse.model_validate(run, from_attributes=True)
 
 
 @router.get("/threads", response_model=AssistantThreadListResponse)
@@ -68,20 +78,94 @@ async def get_thread(
     )
 
 
-@router.post("/threads/{thread_id}/messages", response_model=AssistantTurnResponse)
+@router.post(
+    "/threads/{thread_id}/messages",
+    response_model=AssistantRunStartedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def send_message(
     project_id: UUID,
     thread_id: UUID,
     payload: AssistantMessageCreateRequest,
+    background_tasks: BackgroundTasks,
     context: Annotated[AuthContext, Depends(csrf_protected_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> AssistantTurnResponse:
-    result = await AssistantService(session).send_message(
+) -> AssistantRunStartedResponse:
+    result = await AssistantService(session).start_run(
         project_id, thread_id, context.user.id, payload.content
     )
-    return AssistantTurnResponse(
+    background_tasks.add_task(process_assistant_run, result.run.id)
+    return AssistantRunStartedResponse(
         run_id=result.run.id,
         status=result.run.status,
         user_message=message_response(result.user_message),
-        assistant_message=message_response(result.assistant_message),
+    )
+
+
+@router.get("/runs/{run_id}", response_model=AssistantRunResponse)
+async def get_run(
+    project_id: UUID,
+    run_id: UUID,
+    context: Annotated[AuthContext, Depends(current_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistantRunResponse:
+    return run_response(
+        await AssistantService(session).get_run(project_id, run_id, context.user.id)
+    )
+
+
+@router.post("/runs/{run_id}/cancel", response_model=AssistantRunResponse)
+async def cancel_run(
+    project_id: UUID,
+    run_id: UUID,
+    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistantRunResponse:
+    return run_response(
+        await AssistantService(session).cancel_run(project_id, run_id, context.user.id)
+    )
+
+
+@router.get("/runs/{run_id}/events")
+async def stream_run_events(
+    project_id: UUID,
+    run_id: UUID,
+    context: Annotated[AuthContext, Depends(current_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    after: Annotated[int, Query(ge=0)] = 0,
+    last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
+) -> StreamingResponse:
+    await AssistantService(session).get_run(project_id, run_id, context.user.id)
+
+    try:
+        resume_after = max(after, int(last_event_id or 0))
+    except ValueError:
+        resume_after = after
+
+    async def events() -> AsyncIterator[str]:
+        cursor = resume_after
+        idle_count = 0
+        while True:
+            async with session_factory() as event_session:
+                repository = AssistantRepository(event_session)
+                items = await repository.list_events(run_id, context.user.id, after=cursor)
+                run = await repository.get_run(run_id, project_id, context.user.id)
+            for item in items:
+                cursor = item.sequence
+                yield (
+                    f"id: {item.sequence}\n"
+                    f"event: {item.event_type}\n"
+                    f"data: {json.dumps(item.data, ensure_ascii=False)}\n\n"
+                )
+            if run is None or (run.status in {"completed", "failed", "cancelled"} and not items):
+                return
+            idle_count += 1
+            if idle_count % 40 == 0:
+                yield ": keep-alive\n\n"
+            await asyncio.sleep(0.25)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

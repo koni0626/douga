@@ -1,10 +1,15 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from douga.modules.assistant.models import AssistantMessage, AssistantRun, AssistantThread
+from douga.modules.assistant.models import (
+    AssistantMessage,
+    AssistantRun,
+    AssistantRunEvent,
+    AssistantThread,
+)
 
 
 class AssistantRepository:
@@ -72,6 +77,54 @@ class AssistantRepository:
     async def add_run(self, run: AssistantRun) -> None:
         self.session.add(run)
         await self.session.flush()
+
+    async def get_run(self, run_id: UUID, project_id: UUID, user_id: UUID) -> AssistantRun | None:
+        return (
+            await self.session.scalars(
+                select(AssistantRun).where(
+                    AssistantRun.id == run_id,
+                    AssistantRun.project_id == project_id,
+                    AssistantRun.user_id == user_id,
+                )
+            )
+        ).one_or_none()
+
+    async def get_run_internal(self, run_id: UUID) -> AssistantRun | None:
+        return (
+            await self.session.scalars(select(AssistantRun).where(AssistantRun.id == run_id))
+        ).one_or_none()
+
+    async def add_event(
+        self, run: AssistantRun, event_type: str, data: dict[str, object]
+    ) -> AssistantRunEvent:
+        maximum = await self.session.scalar(
+            select(func.max(AssistantRunEvent.sequence)).where(AssistantRunEvent.run_id == run.id)
+        )
+        event = AssistantRunEvent(
+            run_id=run.id,
+            user_id=run.user_id,
+            sequence=int(maximum or 0) + 1,
+            event_type=event_type,
+            data=data,
+        )
+        self.session.add(event)
+        await self.session.flush()
+        return event
+
+    async def list_events(
+        self, run_id: UUID, user_id: UUID, *, after: int
+    ) -> list[AssistantRunEvent]:
+        return list(
+            await self.session.scalars(
+                select(AssistantRunEvent)
+                .where(
+                    AssistantRunEvent.run_id == run_id,
+                    AssistantRunEvent.user_id == user_id,
+                    AssistantRunEvent.sequence > after,
+                )
+                .order_by(AssistantRunEvent.sequence)
+            )
+        )
 
     async def mark_thread_updated(self, thread: AssistantThread) -> None:
         thread.updated_at = datetime.now(UTC)

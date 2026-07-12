@@ -82,6 +82,7 @@ class AssistantRun(UuidPrimaryKeyMixin, Base):
             "'completed', 'failed', 'cancelled')",
             name="status",
         ),
+        UniqueConstraint("id", "user_id", name="uq_assistant_runs_id_user"),
         Index("ix_assistant_runs_user_thread_created", "user_id", "thread_id", "created_at"),
     )
 
@@ -104,3 +105,28 @@ class AssistantRun(UuidPrimaryKeyMixin, Base):
     )
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AssistantRunEvent(UuidPrimaryKeyMixin, Base):
+    __tablename__ = "assistant_run_events"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["run_id", "user_id"],
+            ["assistant_runs.id", "assistant_runs.user_id"],
+            ondelete="CASCADE",
+            name="fk_assistant_run_events_run_user_runs",
+        ),
+        UniqueConstraint("run_id", "sequence", name="uq_assistant_run_events_sequence"),
+        Index("ix_assistant_run_events_user_run_sequence", "user_id", "run_id", "sequence"),
+    )
+
+    run_id: Mapped[UUID] = mapped_column(nullable=False)
+    user_id: Mapped[UUID] = mapped_column(nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(80), nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
