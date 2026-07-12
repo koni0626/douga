@@ -485,6 +485,49 @@ export function ProjectEditorPage() {
     });
   }
 
+  function mergeLayerTrack(sourceLayerId: string, targetLayerId: string) {
+    updateScene((scene) => {
+      const source = scene.layers.find((layer) => layer.id === sourceLayerId);
+      const target = scene.layers.find((layer) => layer.id === targetLayerId);
+      if (!source || !target) return;
+      const sourceTrackId = source.track_id ?? source.id;
+      const targetTrackId = target.track_id ?? target.id;
+      if (sourceTrackId === targetTrackId) return;
+      const sourceLayers = scene.layers.filter(
+        (layer) => (layer.track_id ?? layer.id) === sourceTrackId,
+      );
+      const targetLayers = scene.layers.filter(
+        (layer) => (layer.track_id ?? layer.id) === targetTrackId,
+      );
+      const sourceStartMs = Math.min(
+        ...sourceLayers.map((layer) => layer.start_ms ?? 0),
+      );
+      const targetEndMs = Math.max(
+        ...targetLayers.map((layer) => layer.end_ms ?? durationMs),
+      );
+      const shiftMs = Math.max(0, targetEndMs - sourceStartMs);
+      for (const layer of sourceLayers) {
+        layer.start_ms = (layer.start_ms ?? 0) + shiftMs;
+        layer.end_ms = (layer.end_ms ?? durationMs) + shiftMs;
+        for (const keyframe of layer.keyframes ?? [])
+          keyframe.time_ms += shiftMs;
+      }
+      for (const layer of scene.layers) {
+        if ((layer.track_id ?? layer.id) === sourceTrackId)
+          layer.track_id = targetTrackId;
+        if ((layer.track_id ?? layer.id) === targetTrackId)
+          layer.track_id = targetTrackId;
+      }
+    });
+  }
+
+  function splitLayerTrack(layerId: string) {
+    updateScene((scene) => {
+      const layer = scene.layers.find((item) => item.id === layerId);
+      if (layer) layer.track_id = undefined;
+    });
+  }
+
   function addAudioTrack(asset: AssetDto) {
     mutate((document) => {
       document.audio_tracks ??= [];
@@ -749,6 +792,8 @@ export function ProjectEditorPage() {
                     : t(`editor.layerType.${layer.type}`)
               }
               layers={scene.layers}
+              mergeAboveLabel={t("editor.mergeTrackAbove")}
+              mergeBelowLabel={t("editor.mergeTrackBelow")}
               keyframeLabels={{
                 delete: t("editor.keyframe.delete"),
                 duplicate: t("editor.keyframe.duplicate"),
@@ -766,6 +811,7 @@ export function ProjectEditorPage() {
               onDeleteKeyframe={deleteKeyframe}
               onDuplicateKeyframe={duplicateKeyframe}
               onKeyframeEasingChange={updateKeyframeEasing}
+              onMergeTrack={mergeLayerTrack}
               onPlay={() => setPlaying(true)}
               onRename={(layerId, name) => updateLayer(layerId, { name })}
               onReorder={reorderLayer}
@@ -778,6 +824,7 @@ export function ProjectEditorPage() {
                 setTimeMs(value === durationMs ? value - 1 : value);
               }}
               onSelect={(layerId) => setSelectedLayerId(layerId)}
+              onSplitTrack={splitLayerTrack}
               onStop={() => {
                 setPlaying(false);
                 setTimeMs(0);
@@ -789,6 +836,7 @@ export function ProjectEditorPage() {
               seekLabel={t("editor.timeline")}
               selectedLayerId={selectedLayerId}
               stopLabel={t("stop")}
+              splitTrackLabel={t("editor.splitTrack")}
               timeMs={timeMs}
               title={t("editor.objectTimeline")}
             />

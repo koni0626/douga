@@ -23,6 +23,7 @@ type DragState = {
   trackWidth: number;
 };
 type ResizeState = { originHeight: number; originY: number };
+type ClipMenu = { layerId: string; x: number; y: number };
 
 const MIN_DURATION_MS = 250;
 const DEFAULT_TIMELINE_HEIGHT_PX = 180;
@@ -31,6 +32,10 @@ const TIMELINE_VIEWPORT_RESERVE_PX = 360;
 
 function formatTimelineTime(timeMs: number): string {
   return `${(timeMs / 1000).toFixed(2)}s`;
+}
+
+function trackId(layer: Layer): string {
+  return layer.track_id ?? layer.id;
 }
 
 function clampTimelineHeight(height: number): number {
@@ -112,6 +117,7 @@ export interface ObjectTimelineProps {
     keyframeId: string,
     easing: LayerEasing,
   ) => void;
+  onMergeTrack: (sourceLayerId: string, targetLayerId: string) => void;
   onReorder: (
     sourceIndex: number,
     targetIndex: number,
@@ -119,6 +125,7 @@ export interface ObjectTimelineProps {
   ) => void;
   onRename: (layerId: string, name?: string) => void;
   onSelect: (layerId: string) => void;
+  onSplitTrack: (layerId: string) => void;
   onSeek: (timeMs: number) => void;
   onStop: () => void;
   collapseLabel: string;
@@ -131,6 +138,9 @@ export interface ObjectTimelineProps {
   title: string;
   renameLabel: string;
   keyframeLabels: KeyframeLabels;
+  mergeAboveLabel: string;
+  mergeBelowLabel: string;
+  splitTrackLabel: string;
 }
 
 export function ObjectTimeline({
@@ -145,10 +155,12 @@ export function ObjectTimeline({
   onDeleteKeyframe,
   onDuplicateKeyframe,
   onKeyframeEasingChange,
+  onMergeTrack,
   onPlay,
   onReorder,
   onRename,
   onSelect,
+  onSplitTrack,
   onSeek,
   onStop,
   collapseLabel,
@@ -161,6 +173,9 @@ export function ObjectTimeline({
   title,
   renameLabel,
   keyframeLabels,
+  mergeAboveLabel,
+  mergeBelowLabel,
+  splitTrackLabel,
 }: ObjectTimelineProps) {
   // SVGは配列の後ろにあるレイヤーほど手前に描画する。
   // タイムラインでは一般的なレイヤーパネルと同様、最前面を上に表示する。
@@ -181,6 +196,15 @@ export function ObjectTimeline({
     x: number;
     y: number;
   }>();
+  const [clipMenu, setClipMenu] = useState<ClipMenu>();
+  const displayTrackIds = Array.from(
+    new Set(displayLayers.map((layer) => trackId(layer))),
+  );
+  const trackCounts = layers.reduce<Map<string, number>>((counts, layer) => {
+    const id = trackId(layer);
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+    return counts;
+  }, new Map());
   const seconds = Array.from(
     { length: Math.floor(durationMs / 1000) + 1 },
     (_, index) => index,
@@ -442,6 +466,16 @@ export function ObjectTimeline({
               <p className="object-timeline-empty">—</p>
             ) : null}
             {displayLayers.map((layer) => {
+              const layerTrackId = trackId(layer);
+              const trackIndex = displayTrackIds.indexOf(layerTrackId);
+              const trackLayers = displayLayers.filter(
+                (item) => trackId(item) === layerTrackId,
+              );
+              const representative = trackLayers[0];
+              const isRepresentative = representative?.id === layer.id;
+              const trackSelected = trackLayers.some(
+                (item) => item.id === selectedLayerId,
+              );
               const range =
                 draft?.layerId === layer.id
                   ? draft.range
@@ -452,37 +486,45 @@ export function ObjectTimeline({
                   : "";
               return (
                 <div className="object-timeline-row" key={layer.id}>
-                  <TimelineLayerLabel
-                    active={selectedLayerId === layer.id}
-                    dropClass={dropClass}
-                    grabbed={draggedLayerId === layer.id}
-                    label={labelFor(layer)}
-                    layer={layer}
-                    onDragEnd={() => {
-                      setDraggedLayerId(undefined);
-                      setDropTarget(undefined);
-                    }}
-                    onDragOver={(event) => orderDragOver(event, layer.id)}
-                    onDragStart={(event) => {
-                      setDraggedLayerId(layer.id);
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData(
-                        "application/x-douga-layer",
-                        layer.id,
-                      );
-                    }}
-                    onDrop={(event) => orderDrop(event, layer.id)}
-                    onRename={(name) => onRename(layer.id, name)}
-                    onSelect={() => onSelect(layer.id)}
-                    renameLabel={renameLabel}
-                  />
+                  {isRepresentative ? (
+                    <TimelineLayerLabel
+                      active={trackSelected}
+                      dropClass={dropClass}
+                      grabbed={draggedLayerId === layer.id}
+                      label={`${labelFor(layer)}${trackLayers.length > 1 ? ` (${trackLayers.length})` : ""}`}
+                      layer={layer}
+                      onDragEnd={() => {
+                        setDraggedLayerId(undefined);
+                        setDropTarget(undefined);
+                      }}
+                      onDragOver={(event) => orderDragOver(event, layer.id)}
+                      onDragStart={(event) => {
+                        setDraggedLayerId(layer.id);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData(
+                          "application/x-douga-layer",
+                          layer.id,
+                        );
+                      }}
+                      onDrop={(event) => orderDrop(event, layer.id)}
+                      onRename={(name) => onRename(layer.id, name)}
+                      onSelect={() => onSelect(layer.id)}
+                      renameLabel={renameLabel}
+                      style={{ gridColumn: 1, gridRow: trackIndex + 2 }}
+                    />
+                  ) : null}
                   <div
-                    className={["object-timeline-track", dropClass]
+                    className={[
+                      "object-timeline-track",
+                      isRepresentative ? "object-timeline-track--base" : "",
+                      dropClass,
+                    ]
                       .filter(Boolean)
                       .join(" ")}
                     onDragOver={(event) => orderDragOver(event, layer.id)}
                     onDrop={(event) => orderDrop(event, layer.id)}
                     onPointerDown={seek}
+                    style={{ gridColumn: 2, gridRow: trackIndex + 2 }}
                   >
                     <div
                       className={[
@@ -500,6 +542,16 @@ export function ObjectTimeline({
                       style={{
                         left: `${(range.startMs * 100) / durationMs}%`,
                         width: `${((range.endMs - range.startMs) * 100) / durationMs}%`,
+                      }}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onSelect(layer.id);
+                        setClipMenu({
+                          layerId: layer.id,
+                          x: event.clientX,
+                          y: event.clientY,
+                        });
                       }}
                       onPointerDown={(event) => {
                         if (layer.locked) {
@@ -601,6 +653,65 @@ export function ObjectTimeline({
                 y={selectedKeyframe.y}
               />
             ) : null;
+          })()
+        : null}
+      {clipMenu
+        ? (() => {
+            const layer = layers.find((item) => item.id === clipMenu.layerId);
+            if (!layer) return null;
+            const currentTrackIndex = displayTrackIds.indexOf(trackId(layer));
+            const aboveTrackId = displayTrackIds[currentTrackIndex - 1];
+            const belowTrackId = displayTrackIds[currentTrackIndex + 1];
+            const targetFor = (id?: string) =>
+              id
+                ? displayLayers.find((item) => trackId(item) === id)
+                : undefined;
+            const above = targetFor(aboveTrackId);
+            const below = targetFor(belowTrackId);
+            return (
+              <div
+                className="timeline-clip-menu"
+                role="menu"
+                style={{ left: clipMenu.x, top: clipMenu.y }}
+              >
+                {above ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onMergeTrack(layer.id, above.id);
+                      setClipMenu(undefined);
+                    }}
+                  >
+                    {mergeAboveLabel}
+                  </button>
+                ) : null}
+                {below ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onMergeTrack(layer.id, below.id);
+                      setClipMenu(undefined);
+                    }}
+                  >
+                    {mergeBelowLabel}
+                  </button>
+                ) : null}
+                {(trackCounts.get(trackId(layer)) ?? 0) > 1 ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onSplitTrack(layer.id);
+                      setClipMenu(undefined);
+                    }}
+                  >
+                    {splitTrackLabel}
+                  </button>
+                ) : null}
+              </div>
+            );
           })()
         : null}
     </section>

@@ -1141,6 +1141,16 @@ button,
   cursor: pointer;
   height: 1.65rem;
   position: relative;
+  pointer-events: none;
+}
+
+.object-timeline-track--base {
+  pointer-events: auto;
+}
+
+.object-timeline-clip,
+.object-keyframe-marker {
+  pointer-events: auto;
 }
 
 .object-timeline-drop-before {
@@ -1205,6 +1215,30 @@ button,
   transform: translateX(-50%);
   white-space: nowrap;
   z-index: 9;
+}
+
+.timeline-clip-menu {
+  background: #071522;
+  border: 1px solid #466b8b;
+  border-radius: 0.55rem;
+  box-shadow: 0 16px 45px rgb(0 0 0 / 50%);
+  display: grid;
+  min-width: 12rem;
+  padding: 0.3rem;
+  position: fixed;
+  z-index: 120;
+}
+
+.timeline-clip-menu button {
+  border: 0;
+  border-radius: 0.35rem;
+  font-size: 0.72rem;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+}
+
+.timeline-clip-menu button:hover {
+  background: #173b59;
 }
 
 .object-timeline-clip > span {

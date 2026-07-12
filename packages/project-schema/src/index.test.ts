@@ -49,6 +49,7 @@ describe("validateProjectDocument", () => {
       layers: [
         {
           id: "shape-1",
+          track_id: "visual-track",
           name: "Title card",
           type: "shape",
           shape: "rectangle",

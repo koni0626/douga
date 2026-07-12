@@ -18,6 +18,7 @@ export type Background =
 export type Layer = ImageLayer | TextLayer | ShapeLayer;
 export type ImageLayer = BaseLayer & {
   id: string;
+  track_id?: string;
   type: "image";
   name?: string;
   asset_id: string;
@@ -39,6 +40,7 @@ export type ImageLayer = BaseLayer & {
 };
 export type TextLayer = BaseLayer & {
   id: string;
+  track_id?: string;
   type: "text";
   name?: string;
   text: string;
@@ -62,6 +64,7 @@ export type TextLayer = BaseLayer & {
 };
 export type ShapeLayer = BaseLayer & {
   id: string;
+  track_id?: string;
   type: "shape";
   name?: string;
   shape: "rectangle" | "ellipse";
@@ -137,6 +140,7 @@ export interface Scene {
 }
 export interface BaseLayer {
   id: string;
+  track_id?: string;
   name?: string;
   start_ms?: number;
   end_ms?: number;

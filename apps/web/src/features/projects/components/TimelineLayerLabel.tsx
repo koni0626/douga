@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type KeyboardEvent,
   useState,
@@ -21,6 +22,7 @@ interface TimelineLayerLabelProps {
   onRename: (name?: string) => void;
   onSelect: () => void;
   renameLabel: string;
+  style?: CSSProperties;
 }
 
 export function TimelineLayerLabel({
@@ -36,6 +38,7 @@ export function TimelineLayerLabel({
   onRename,
   onSelect,
   renameLabel,
+  style,
 }: TimelineLayerLabelProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -105,6 +108,7 @@ export function TimelineLayerLabel({
         beginRename();
       }}
       title={renameLabel}
+      style={style}
     >
       <span className={`object-type-dot object-type-dot--${layer.type}`} />
       {label}

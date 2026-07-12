@@ -359,6 +359,33 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   }, "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
   await pastedUpload;
   await expect(page.locator(".editor-preview image")).toHaveCount(2);
+  await page.getByRole("button", { name: "設定を閉じる" }).click();
+  const trackCountBeforeMerge = await page
+    .locator(".object-timeline-label")
+    .count();
+  await page
+    .locator(".object-timeline-clip--active")
+    .click({ button: "right" });
+  await page
+    .getByRole("menuitem", { name: /レイヤーにまとめる/ })
+    .first()
+    .click();
+  await expect(page.locator(".object-timeline-label")).toHaveCount(
+    trackCountBeforeMerge - 1,
+  );
+  await expect(
+    page.locator(".object-timeline-label").filter({ hasText: "(2)" }),
+  ).toBeVisible();
+  await expect(
+    page.locator(".object-timeline-clip--active"),
+  ).not.toHaveAttribute("style", /left: 0%/);
+  await page
+    .locator(".object-timeline-clip--active")
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "別のレイヤーに分ける" }).click();
+  await expect(page.locator(".object-timeline-label")).toHaveCount(
+    trackCountBeforeMerge,
+  );
   await page.getByRole("link", { name: "プロジェクト", exact: true }).click();
   const projectCard = page
     .locator("article")
