@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from uuid import UUID
 
 import pytest
@@ -69,6 +70,41 @@ async def test_project_revision_conflict_duplicate_delete_and_tenant_isolation()
         project_id = UUID(detail["project"]["id"])
         assert detail["project"]["current_revision_number"] == 1
         assert detail["document"]["project_id"] == str(project_id)
+
+        valid = await owner.post(
+            f"/api/v1/projects/{project_id}/validate",
+            json={"document": detail["document"]},
+            headers={"X-CSRF-Token": owner_csrf},
+        )
+        assert valid.status_code == 200
+        assert valid.json()["valid"] is True
+        assert valid.json()["estimated_duration_ms"] == 5000
+
+        invalid_document = deepcopy(detail["document"])
+        invalid_document["schema_version"] = 99
+        invalid = await owner.post(
+            f"/api/v1/projects/{project_id}/validate",
+            json={"document": invalid_document},
+            headers={"X-CSRF-Token": owner_csrf},
+        )
+        assert invalid.status_code == 200
+        assert invalid.json()["valid"] is False
+        assert any(
+            issue["code"] == "PROJECT_SCHEMA_UNSUPPORTED" for issue in invalid.json()["errors"]
+        )
+
+        malformed_document = deepcopy(detail["document"])
+        malformed_document["scenes"] = ["not-an-object"]
+        malformed = await owner.post(
+            f"/api/v1/projects/{project_id}/validate",
+            json={"document": malformed_document},
+            headers={"X-CSRF-Token": owner_csrf},
+        )
+        assert malformed.status_code == 200
+        assert malformed.json()["valid"] is False
+        assert any(
+            issue["code"] == "PROJECT_SCHEMA_INVALID" for issue in malformed.json()["errors"]
+        )
 
         hidden = await outsider.get(f"/api/v1/projects/{project_id}")
         assert hidden.status_code == 404

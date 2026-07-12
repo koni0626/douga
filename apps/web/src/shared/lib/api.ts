@@ -15,12 +15,28 @@ export interface SettingsDto {
   default_caption_settings: Record<string, unknown>;
 }
 
+export interface ApiTokenDto {
+  id: string;
+  name: string;
+  token_prefix: string;
+  scopes: string[];
+  last_used_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+export interface ApiTokenIssuedDto extends ApiTokenDto {
+  token: string;
+}
+
+export interface ApiTokenListDto {
+  items: ApiTokenDto[];
+}
+
 export interface ProjectSummaryDto {
   id: string;
   name: string;
-  kind: "export" | "preview";
-  range_start_ms: number | null;
-  range_end_ms: number | null;
   status: "draft" | "editing" | "rendered" | "archived";
   content_locale: "ja" | "en";
   current_revision_number: number;
@@ -91,6 +107,9 @@ export interface ExportDto {
   project_revision_id: string;
   job_id: string;
   name: string;
+  kind: "export" | "preview";
+  range_start_ms: number | null;
+  range_end_ms: number | null;
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
   progress: number;
   width: number;

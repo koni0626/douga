@@ -7,6 +7,8 @@ import {
   apiRequest,
   type SettingsDto,
 } from "../../../shared/lib/api";
+import { ApiTokenSettings } from "../components/ApiTokenSettings";
+import { PasswordSettings } from "../components/PasswordSettings";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -45,7 +47,7 @@ export function SettingsPage() {
 
   if (!settings) return <p>{errorKey ? t(errorKey) : t("loading")}</p>;
   return (
-    <section className="page-card">
+    <section className="page-card settings-page">
       <h1>{t("settings.title")}</h1>
       <form className="settings-form" onSubmit={(event) => void submit(event)}>
         <label>
@@ -134,6 +136,8 @@ export function SettingsPage() {
         {saved ? <p className="form-success">{t("settings.saved")}</p> : null}
         <button type="submit">{t("save")}</button>
       </form>
+      <PasswordSettings />
+      <ApiTokenSettings />
     </section>
   );
 }

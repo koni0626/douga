@@ -30,6 +30,21 @@ class ExportRepository:
         ).one_or_none()
         return (row[0], row[1]) if row else None
 
+    async def active_count(self, user_id: UUID, kind: str) -> int:
+        return int(
+            await self.session.scalar(
+                select(func.count(Export.id))
+                .join(Job, Job.id == Export.job_id)
+                .where(
+                    Export.user_id == user_id,
+                    Export.kind == kind,
+                    Job.user_id == user_id,
+                    Job.status.in_(("queued", "running")),
+                )
+            )
+            or 0
+        )
+
     async def list_owned(
         self, user_id: UUID, *, kind: str | None, limit: int, offset: int
     ) -> tuple[list[tuple[Export, Job]], int]:

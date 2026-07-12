@@ -16,13 +16,25 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "production"] = "development"
     app_secret_key: str = Field(min_length=32)
     database_url: str = "postgresql+asyncpg://douga:douga-local-only@127.0.0.1:5432/douga"
+    test_database_url: str | None = None
     allowed_origins: tuple[str, ...] = ("http://127.0.0.1:5173",)
     session_cookie_name: str = "douga_session"
     csrf_cookie_name: str = "douga_csrf"
     session_lifetime_hours: int = Field(default=336, ge=1, le=24 * 90)
     auth_rate_limit_per_minute: int = Field(default=10, ge=1, le=1000)
+    api_token_rate_limit_per_minute: int = Field(default=120, ge=1, le=10_000)
     local_storage_path: Path = Path(".local-data/storage")
+    test_local_storage_path: Path = Path(".local-data/test-storage")
     max_upload_bytes: int = Field(default=200 * 1024 * 1024, ge=1024)
+    max_image_upload_bytes: int = Field(default=25 * 1024 * 1024, ge=1024)
+    max_audio_upload_bytes: int = Field(default=200 * 1024 * 1024, ge=1024)
+    max_video_upload_bytes: int = Field(default=1024 * 1024 * 1024, ge=1024)
+    max_image_pixels: int = Field(default=80_000_000, ge=1_000_000)
+    max_audio_duration_ms: int = Field(default=4 * 60 * 60 * 1000, ge=1_000)
+    max_video_duration_ms: int = Field(default=60 * 60 * 1000, ge=1_000)
+    max_concurrent_uploads: int = Field(default=4, ge=1, le=100)
+    max_concurrent_previews: int = Field(default=2, ge=1, le=20)
+    max_concurrent_exports: int = Field(default=1, ge=1, le=20)
     ffprobe_path: str = "ffprobe"
     ffmpeg_path: str = "ffmpeg"
     redis_url: str = "redis://127.0.0.1:6379/0"
@@ -42,7 +54,7 @@ class Settings(BaseSettings):
     image_generation_limit_per_hour: int = Field(default=20, ge=1, le=1000)
     export_timeout_seconds: int = Field(default=900, ge=30, le=7200)
     export_limit_per_hour: int = Field(default=5, ge=1, le=100)
-    max_json_request_bytes: int = Field(default=2 * 1024 * 1024, ge=1024)
+    max_json_request_bytes: int = Field(default=5 * 1024 * 1024, ge=1024)
 
     @property
     def secure_cookies(self) -> bool:
@@ -65,6 +77,12 @@ class Settings(BaseSettings):
             raise ValueError("Production origins must use HTTPS")
         if self.app_env == "production" and self.image_provider == "fake":
             raise ValueError("Production must configure a real image provider")
+        if self.app_env == "test":
+            self.database_url = self.test_database_url or (
+                "postgresql+asyncpg://invalid:invalid@127.0.0.1:1/"
+                "douga_test_database_url_is_required"
+            )
+            self.local_storage_path = self.test_local_storage_path
         return self
 
 

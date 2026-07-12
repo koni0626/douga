@@ -15,6 +15,19 @@ class AssetRepository:
         self.session.add(asset)
         await self.session.flush()
 
+    async def active_upload_count(self, user_id: UUID) -> int:
+        return int(
+            await self.session.scalar(
+                select(func.count(Asset.id)).where(
+                    Asset.user_id == user_id,
+                    Asset.source == "upload",
+                    Asset.status.in_(("pending", "processing")),
+                    Asset.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+
     async def get_owned(self, asset_id: UUID, user_id: UUID) -> Asset | None:
         statement = select(Asset).where(
             Asset.id == asset_id,

@@ -5,7 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from douga.db.session import get_session
-from douga.modules.auth.dependencies import csrf_protected_auth, current_auth
+from douga.modules.auth.dependencies import scoped_auth, scoped_write_auth
 from douga.modules.auth.service import AuthContext
 from douga.modules.image_generations.schemas import (
     ImageGenerationCreateRequest,
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/image-generations", tags=["image-generations"])
 async def create_image_generation(
     payload: ImageGenerationCreateRequest,
     background_tasks: BackgroundTasks,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("image-generations:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ImageGenerationResponse:
     result = await ImageGenerationService(session).create(
@@ -37,7 +37,7 @@ async def create_image_generation(
 
 @router.get("", response_model=ImageGenerationListResponse)
 async def list_image_generations(
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("image-generations:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -51,7 +51,7 @@ async def list_image_generations(
 @router.get("/{request_id}", response_model=ImageGenerationResponse)
 async def get_image_generation(
     request_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("image-generations:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ImageGenerationResponse:
     return await ImageGenerationService(session).get(request_id, context.user.id)

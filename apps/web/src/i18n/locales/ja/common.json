@@ -41,7 +41,37 @@
     "width": "幅",
     "height": "高さ",
     "fps": "FPS",
-    "saved": "設定を保存しました。"
+    "saved": "設定を保存しました。",
+    "apiTokens": {
+      "title": "外部APIトークン",
+      "description": "CodexやNovelCreatorからDougaを操作するためのトークンを発行します。",
+      "name": "トークン名",
+      "scopes": "許可する操作",
+      "expiresAt": "有効期限（任意）",
+      "expiresHint": "未指定の場合は手動で失効するまで有効です。",
+      "issue": "APIトークンを発行",
+      "issued": "APIトークンを発行しました",
+      "issuedWarning": "この値は一度だけ表示されます。安全な場所へ保存してください。",
+      "copy": "コピー",
+      "empty": "発行済みのAPIトークンはありません。",
+      "created": "発行日時: {{date}}",
+      "expires": "有効期限: {{date}}",
+      "noExpiry": "有効期限なし",
+      "lastUsed": "最終利用: {{date}}",
+      "active": "有効",
+      "revoked": "失効済み",
+      "revoke": "失効させる"
+    },
+    "password": {
+      "title": "パスワード変更",
+      "description": "現在のパスワードを確認して、新しいパスワードへ変更します。",
+      "current": "現在のパスワード",
+      "new": "新しいパスワード",
+      "confirmation": "新しいパスワード（確認）",
+      "change": "パスワードを変更",
+      "saved": "パスワードを変更しました。",
+      "mismatch": "新しいパスワードが一致しません。"
+    }
   },
   "projects": {
     "nav": "プロジェクト",
@@ -363,6 +393,29 @@
     "imageUploadOnly": "PNG、JPEG、WebP画像をドロップしてください。",
     "audioUploadOnly": "MP3ファイルをドロップしてください。",
     "uploadTooLarge": "ファイルサイズが上限を超えています。",
-    "assetNotFound": "素材が見つかりません。"
+    "assetNotFound": "素材が見つかりません。",
+    "assetNotReady": "素材のアップロードまたは処理が完了していません。",
+    "apiTokenScopeInvalid": "APIトークンの権限指定が正しくありません。",
+    "apiTokenExpiryInvalid": "APIトークンの有効期限が正しくありません。",
+    "apiTokenNotFound": "APIトークンが見つかりません。",
+    "apiTokenInvalid": "APIトークンが無効または期限切れです。",
+    "apiTokenScopeRequired": "この操作に必要なAPIトークン権限がありません。",
+    "authAmbiguous": "Cookie認証とAPIトークンを同時に使用できません。",
+    "idempotencyKeyRequired": "このAPI操作にはIdempotency-Keyが必要です。",
+    "idempotencyConflict": "同じIdempotency-Keyが異なる内容で使用されました。",
+    "idempotencyInProgress": "同じAPI操作が現在実行中です。",
+    "operationNotFound": "外部API操作の履歴が見つかりません。",
+    "projectSchemaUnsupported": "このプロジェクトデータのバージョンには対応していません。",
+    "clipRangeInvalid": "クリップの開始時間と終了時間が正しくありません。",
+    "clipOutOfRange": "クリップが動画の時間範囲を超えています。",
+    "keyframeOutOfRange": "キーフレームがクリップの時間範囲外です。",
+    "audioFadeTooLong": "音声のフェード時間がクリップの長さを超えています。",
+    "previewNotFound": "プレビュー動画が見つかりません。",
+    "requestTooLarge": "送信データが上限を超えています。"
+  },
+  "warnings": {
+    "emptyCaption": "空のテロップがあります。",
+    "trackClipOverlap": "同じトラック内でクリップが重なっています。",
+    "timelineGap": "映像が配置されていない時間帯があります。"
   }
 }

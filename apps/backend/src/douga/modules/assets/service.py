@@ -51,13 +51,38 @@ class AssetService:
     def __init__(self, session: AsyncSession) -> None:
         settings = get_settings()
         self.repository = AssetRepository(session)
-        self.storage = LocalStorage(settings.local_storage_path, settings.max_upload_bytes)
+        self.settings = settings
+        self.storage = LocalStorage(
+            settings.local_storage_path,
+            max(
+                settings.max_upload_bytes,
+                settings.max_image_upload_bytes,
+                settings.max_audio_upload_bytes,
+                settings.max_video_upload_bytes,
+            ),
+        )
         self.uow = UnitOfWork(session)
         self.ffprobe_path = settings.ffprobe_path
 
     async def begin_upload(
-        self, user_id: UUID, *, name: str, original_filename: str, kind: AssetKind
+        self,
+        user_id: UUID,
+        *,
+        name: str,
+        original_filename: str,
+        kind: AssetKind,
+        content_type: str | None = None,
+        expected_size_bytes: int | None = None,
+        expected_sha256: str | None = None,
     ) -> UploadTarget:
+        if (
+            await self.repository.active_upload_count(user_id)
+            >= self.settings.max_concurrent_uploads
+        ):
+            raise ApplicationError("UPLOAD_CONCURRENCY_EXCEEDED", "errors.rateLimited", 429)
+        max_bytes = self._max_bytes(kind)
+        if expected_size_bytes is not None and expected_size_bytes > max_bytes:
+            raise ApplicationError("UPLOAD_TOO_LARGE", "errors.uploadTooLarge", 413)
         asset_id = uuid4()
         storage_key = f"users/{user_id}/assets/{asset_id}/original"
         asset = Asset(
@@ -70,6 +95,11 @@ class AssetService:
             name=name,
             original_filename=Path(original_filename).name[:255],
             storage_key=storage_key,
+            asset_metadata={
+                "expected_content_type": content_type,
+                "expected_size_bytes": expected_size_bytes,
+                "expected_sha256": expected_sha256.casefold() if expected_sha256 else None,
+            },
         )
         await self.repository.add(asset)
         await self.uow.commit()
@@ -82,6 +112,20 @@ class AssetService:
         if not asset.storage_key:
             raise ConflictError("ASSET_STORAGE_MISSING", "errors.uploadInvalid")
         size, digest = await self.storage.write(asset.storage_key, chunks)
+        expected_size = asset.asset_metadata.get("expected_size_bytes")
+        expected_digest = asset.asset_metadata.get("expected_sha256")
+        if size > self._max_bytes(asset.kind) or (
+            expected_size is not None and size != int(expected_size)
+        ):
+            await self.storage.delete(asset.storage_key)
+            asset.status = "failed"
+            await self.uow.commit()
+            raise ApplicationError("UPLOAD_SIZE_MISMATCH", "errors.uploadInvalid", 422)
+        if expected_digest is not None and digest != str(expected_digest).casefold():
+            await self.storage.delete(asset.storage_key)
+            asset.status = "failed"
+            await self.uow.commit()
+            raise ApplicationError("UPLOAD_HASH_MISMATCH", "errors.uploadInvalid", 422)
         asset.size_bytes = size
         asset.sha256 = digest
         asset.status = "processing"
@@ -101,6 +145,9 @@ class AssetService:
                 asset.height = height
             else:
                 await self._inspect_media(asset, path)
+            expected_type = asset.asset_metadata.get("expected_content_type")
+            if expected_type is not None and asset.mime_type != expected_type:
+                raise ApplicationError("MEDIA_TYPE_MISMATCH", "errors.uploadInvalid", 422)
             asset.status = "ready"
             await self.uow.commit()
         except (ApplicationError, UnidentifiedImageError, OSError, ValueError) as error:
@@ -128,6 +175,9 @@ class AssetService:
         return AssetList(
             [self._view_sync(asset, tags.get(asset.id, [])) for asset in assets], total
         )
+
+    async def get_asset(self, asset_id: UUID, user_id: UUID) -> AssetView:
+        return await self._view(await self._owned(asset_id, user_id))
 
     async def update_asset(
         self, asset_id: UUID, user_id: UUID, *, name: str | None, tags: list[str] | None
@@ -198,14 +248,15 @@ class AssetService:
             tags=tags,
         )
 
-    @staticmethod
-    def _inspect_image(path: Path) -> tuple[str, int, int]:
+    def _inspect_image(self, path: Path) -> tuple[str, int, int]:
         mime_types = {"PNG": "image/png", "JPEG": "image/jpeg", "WEBP": "image/webp"}
         with Image.open(path) as image:
             image.verify()
         with Image.open(path) as image:
             if image.format not in mime_types:
                 raise ApplicationError("IMAGE_FORMAT_UNSUPPORTED", "errors.uploadInvalid", 422)
+            if image.width * image.height > self.settings.max_image_pixels:
+                raise ApplicationError("IMAGE_DIMENSIONS_TOO_LARGE", "errors.uploadInvalid", 422)
             return mime_types[image.format], image.width, image.height
 
     async def _inspect_media(self, asset: Asset, path: Path) -> None:
@@ -232,6 +283,14 @@ class AssetService:
             raise ApplicationError("MEDIA_KIND_MISMATCH", "errors.uploadInvalid", 422)
         duration = stream.get("duration") or probe.get("format", {}).get("duration")
         asset.duration_ms = round(float(duration) * 1000) if duration is not None else None
+        if asset.duration_ms is not None:
+            maximum = (
+                self.settings.max_video_duration_ms
+                if asset.kind == "video"
+                else self.settings.max_audio_duration_ms
+            )
+            if asset.duration_ms > maximum:
+                raise ApplicationError("MEDIA_DURATION_TOO_LONG", "errors.uploadInvalid", 422)
         asset.width = int(stream["width"]) if stream.get("width") else None
         asset.height = int(stream["height"]) if stream.get("height") else None
         format_name = str(probe.get("format", {}).get("format_name", ""))
@@ -240,6 +299,14 @@ class AssetService:
         else:
             asset.mime_type = "audio/wav" if "wav" in format_name else "audio/mpeg"
         asset.asset_metadata = {
+            **asset.asset_metadata,
             "codec_name": stream.get("codec_name"),
             "format_name": format_name,
         }
+
+    def _max_bytes(self, kind: str) -> int:
+        return {
+            "image": self.settings.max_image_upload_bytes,
+            "audio": self.settings.max_audio_upload_bytes,
+            "video": self.settings.max_video_upload_bytes,
+        }[kind]

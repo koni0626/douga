@@ -12,6 +12,7 @@ const apiCommand =
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
+  workers: 1,
   use: {
     baseURL: webOrigin,
     channel: process.env.CI
@@ -24,7 +25,7 @@ export default defineConfig({
     {
       command: apiCommand,
       url: `${apiOrigin}/api/v1/health/live`,
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       env: {
         APP_ENV: "test",
         APP_SECRET_KEY: "e2e-only-secret-key-with-at-least-32-characters",
@@ -34,12 +35,15 @@ export default defineConfig({
         DATABASE_URL:
           process.env.TEST_DATABASE_URL ??
           "postgresql+asyncpg://postgres@127.0.0.1:5432/douga_test",
+        TEST_DATABASE_URL:
+          process.env.TEST_DATABASE_URL ??
+          "postgresql+asyncpg://postgres@127.0.0.1:5432/douga_test",
       },
     },
     {
       command: `pnpm --filter @douga/web dev --host 127.0.0.1 --port ${webPort}`,
       url: `${webOrigin}/login`,
-      reuseExistingServer: true,
+      reuseExistingServer: false,
       env: {
         VITE_API_BASE_URL: `${apiOrigin}/api/v1`,
       },

@@ -13,6 +13,7 @@ from douga.modules.auth.dependencies import (
 from douga.modules.auth.rate_limit import auth_rate_limiter
 from douga.modules.auth.schemas import (
     LoginRequest,
+    PasswordChangeRequest,
     RegisterRequest,
     SettingsResponse,
     SettingsUpdateRequest,
@@ -95,6 +96,17 @@ async def logout(
 @router.get("/auth/me", response_model=UserResponse)
 async def me(context: Annotated[AuthContext, Depends(current_auth)]) -> UserResponse:
     return UserResponse.model_validate(context.user, from_attributes=True)
+
+
+@router.patch("/auth/password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    payload: PasswordChangeRequest,
+    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> None:
+    await AuthService(session).change_password(
+        context, payload.current_password, payload.new_password
+    )
 
 
 @router.get("/settings", response_model=SettingsResponse)

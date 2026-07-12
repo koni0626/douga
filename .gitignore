@@ -8,6 +8,8 @@ venv/
 # Local application data
 .local-data/
 .local-tools/
+.recovery/
+.artifacts/
 
 # Python
 __pycache__/

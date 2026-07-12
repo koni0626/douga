@@ -13,7 +13,7 @@ from douga.modules.assistant.creative_schemas import (
 )
 from douga.modules.assistant.creative_service import CreativeDocumentService
 from douga.modules.assistant.models import CreativeDocument
-from douga.modules.auth.dependencies import csrf_protected_auth, current_auth
+from douga.modules.auth.dependencies import scoped_auth, scoped_write_auth
 from douga.modules.auth.service import AuthContext
 
 router = APIRouter(prefix="/projects/{project_id}/creative-documents", tags=["creative"])
@@ -26,7 +26,7 @@ def document_response(document: CreativeDocument) -> CreativeDocumentResponse:
 @router.get("", response_model=CreativeDocumentListResponse)
 async def list_documents(
     project_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("creative:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CreativeDocumentListResponse:
     items = await CreativeDocumentService(session).list_documents(project_id, context.user.id)
@@ -37,7 +37,7 @@ async def list_documents(
 async def get_document(
     project_id: UUID,
     kind: CreativeKind,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("creative:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CreativeDocumentResponse:
     return document_response(
@@ -49,7 +49,7 @@ async def get_document(
 async def save_document(
     project_id: UUID,
     payload: CreativeDocumentSaveRequest,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("creative:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CreativeDocumentResponse:
     return document_response(
@@ -68,7 +68,7 @@ async def save_document(
 async def adopt_document(
     project_id: UUID,
     document_id: UUID,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("creative:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> CreativeDocumentResponse:
     return document_response(

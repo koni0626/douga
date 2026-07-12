@@ -4,6 +4,8 @@ from logging.config import fileConfig
 from alembic import context
 from douga.core.config import get_settings
 from douga.db.base import Base
+from douga.modules.api_tokens import models as api_token_models  # noqa: F401
+from douga.modules.automation import models as automation_models  # noqa: F401
 from douga.modules.assets import models as asset_models  # noqa: F401
 from douga.modules.assistant import models as assistant_models  # noqa: F401
 from douga.modules.auth import models as auth_models  # noqa: F401

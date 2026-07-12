@@ -14,7 +14,7 @@ from douga.modules.assets.schemas import (
     UploadTargetResponse,
 )
 from douga.modules.assets.service import AssetList, AssetService, AssetView, UploadTarget
-from douga.modules.auth.dependencies import csrf_protected_auth, current_auth
+from douga.modules.auth.dependencies import scoped_auth, scoped_write_auth
 from douga.modules.auth.service import AuthContext
 
 router = APIRouter(prefix="/assets", tags=["assets"])
@@ -30,7 +30,7 @@ def upload_response(target: UploadTarget) -> UploadTargetResponse:
 
 @router.get("", response_model=AssetListResponse)
 async def list_assets(
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assets:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
     search: Annotated[str | None, Query(max_length=255)] = None,
     kind: Annotated[Literal["image", "video", "audio"] | None, Query()] = None,
@@ -56,7 +56,7 @@ async def list_assets(
 @router.post("/uploads", response_model=UploadTargetResponse, status_code=status.HTTP_201_CREATED)
 async def begin_upload(
     payload: UploadBeginRequest,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assets:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UploadTargetResponse:
     return upload_response(
@@ -65,6 +65,9 @@ async def begin_upload(
             name=payload.name,
             original_filename=payload.original_filename,
             kind=payload.kind,
+            content_type=payload.content_type,
+            expected_size_bytes=payload.size_bytes,
+            expected_sha256=payload.sha256,
         )
     )
 
@@ -73,7 +76,7 @@ async def begin_upload(
 async def upload_content(
     asset_id: UUID,
     request: Request,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assets:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssetResponse:
     return asset_response(
@@ -84,16 +87,25 @@ async def upload_content(
 @router.post("/{asset_id}/complete", response_model=AssetResponse)
 async def complete_upload(
     asset_id: UUID,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assets:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssetResponse:
     return asset_response(await AssetService(session).complete_upload(asset_id, context.user.id))
 
 
+@router.get("/{asset_id}", response_model=AssetResponse)
+async def get_asset(
+    asset_id: UUID,
+    context: Annotated[AuthContext, Depends(scoped_auth("assets:read"))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssetResponse:
+    return asset_response(await AssetService(session).get_asset(asset_id, context.user.id))
+
+
 @router.get("/{asset_id}/content", response_class=FileResponse)
 async def get_content(
     asset_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assets:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> FileResponse:
     path, media_type = await AssetService(session).content_path(asset_id, context.user.id)
@@ -104,7 +116,7 @@ async def get_content(
 async def update_asset(
     asset_id: UUID,
     payload: AssetUpdateRequest,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assets:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssetResponse:
     return asset_response(
@@ -117,7 +129,7 @@ async def update_asset(
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_asset(
     asset_id: UUID,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assets:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> None:
     await AssetService(session).delete_asset(asset_id, context.user.id)

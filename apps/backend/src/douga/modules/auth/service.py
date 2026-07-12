@@ -42,8 +42,11 @@ class AuthResult:
 @dataclass(frozen=True, slots=True)
 class AuthContext:
     user: UserView
-    session_id: UUID
-    csrf_token_hash: str
+    session_id: UUID | None
+    csrf_token_hash: str | None
+    api_token_id: UUID | None = None
+    scopes: frozenset[str] = frozenset()
+    auth_method: Literal["session", "api_token"] = "session"
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,10 +126,14 @@ class AuthService:
         )
 
     async def logout(self, context: AuthContext) -> None:
+        if context.session_id is None:
+            raise UnauthorizedError()
         await self.repository.revoke_session(context.session_id)
         await self.uow.commit()
 
     def verify_csrf(self, context: AuthContext, cookie: str | None, header: str | None) -> None:
+        if context.csrf_token_hash is None:
+            raise ForbiddenError("CSRF_INVALID", "errors.csrfInvalid")
         if not cookie or not header or cookie != header:
             raise ForbiddenError("CSRF_INVALID", "errors.csrfInvalid")
         if hash_token(header) != context.csrf_token_hash:
@@ -168,6 +175,18 @@ class AuthService:
             settings.default_caption_settings = default_caption_settings
         await self.uow.commit()
         return self._settings_view(user, settings)
+
+    async def change_password(
+        self, context: AuthContext, current_password: str, new_password: str
+    ) -> None:
+        if context.session_id is None:
+            raise UnauthorizedError()
+        user = await self.repository.get_user_by_id(context.user.id)
+        if user is None or not password_service.verify(user.password_hash, current_password):
+            raise UnauthorizedError("INVALID_CREDENTIALS", "errors.invalidCredentials")
+        user.password_hash = password_service.hash(new_password)
+        await self.repository.revoke_other_sessions(user.id, context.session_id)
+        await self.uow.commit()
 
     async def _issue_session(self, user_id: UUID, user_agent: str | None) -> SessionCredentials:
         token = token_urlsafe(32)

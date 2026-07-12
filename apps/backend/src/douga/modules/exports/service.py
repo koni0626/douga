@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import logging
+from copy import deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
@@ -28,6 +29,60 @@ logger = logging.getLogger(__name__)
 REPOSITORY_ROOT = Path(__file__).resolve().parents[6]
 
 
+def scale_project_document(
+    document: dict[str, object], target_width: int, target_height: int
+) -> None:
+    video = document["video"]
+    if not isinstance(video, dict):
+        raise ValueError("Project video settings are invalid")
+    source_width = float(video["width"])
+    source_height = float(video["height"])
+    scale_x = target_width / source_width
+    scale_y = target_height / source_height
+    scale_text = min(scale_x, scale_y)
+    video["width"] = target_width
+    video["height"] = target_height
+
+    caption_style = document.get("caption_style")
+    if isinstance(caption_style, dict):
+        _scale_transform(caption_style, scale_x, scale_y)
+        for field in ("padding", "font_size", "border_radius"):
+            if field in caption_style:
+                caption_style[field] = float(caption_style[field]) * scale_text
+
+    scenes = document.get("scenes")
+    if not isinstance(scenes, list):
+        return
+    for scene in scenes:
+        if not isinstance(scene, dict) or not isinstance(scene.get("layers"), list):
+            continue
+        for layer in scene["layers"]:
+            if not isinstance(layer, dict):
+                continue
+            _scale_transform(layer, scale_x, scale_y)
+            if "font_size" in layer:
+                layer["font_size"] = float(layer["font_size"]) * scale_text
+            keyframes = layer.get("keyframes")
+            if isinstance(keyframes, list):
+                for keyframe in keyframes:
+                    if isinstance(keyframe, dict):
+                        _scale_transform(keyframe, scale_x, scale_y)
+
+
+def _scale_transform(value: dict[str, object], scale_x: float, scale_y: float) -> None:
+    for field, factor in (
+        ("x", scale_x),
+        ("y", scale_y),
+        ("width", scale_x),
+        ("height", scale_y),
+    ):
+        if field in value:
+            current = value[field]
+            if not isinstance(current, int | float) or isinstance(current, bool):
+                raise ValueError(f"Project transform field {field} is invalid")
+            value[field] = current * factor
+
+
 class ExportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -44,14 +99,26 @@ class ExportService:
         kind: str = "export",
         range_start_ms: int | None = None,
         range_end_ms: int | None = None,
+        revision_number: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+        fps: int | None = None,
     ) -> ExportResponse:
-        if await self.jobs.recent_count(user_id, "export") >= get_settings().export_limit_per_hour:
+        settings = get_settings()
+        if await self.jobs.recent_count(user_id, "export") >= settings.export_limit_per_hour:
             raise ApplicationError("EXPORT_QUOTA_EXCEEDED", "errors.exportQuotaExceeded", 429)
+        active_limit = (
+            settings.max_concurrent_previews
+            if kind == "preview"
+            else settings.max_concurrent_exports
+        )
+        if await self.exports.active_count(user_id, kind) >= active_limit:
+            raise ApplicationError("EXPORT_CONCURRENCY_EXCEEDED", "errors.rateLimited", 429)
         project = await self.projects.get_owned(project_id, user_id)
         if project is None:
             raise NotFoundError("PROJECT_NOT_FOUND", "errors.projectNotFound")
         revision = await self.projects.get_latest_revision(
-            project.id, user_id, project.current_revision_number
+            project.id, user_id, revision_number or project.current_revision_number
         )
         if revision is None:
             raise ConflictError("PROJECT_REVISION_MISSING", "errors.exportFailed")
@@ -78,9 +145,9 @@ class ExportService:
             kind=kind,
             range_start_ms=start_ms,
             range_end_ms=end_ms,
-            width=int(video["width"]),
-            height=int(video["height"]),
-            fps=round(float(video["fps"])),
+            width=width or int(video["width"]),
+            height=height or int(video["height"]),
+            fps=fps or round(float(video["fps"])),
         )
         await self.exports.add(export)
         job.payload = {"export_id": str(export.id)}
@@ -90,6 +157,20 @@ class ExportService:
     async def get(self, export_id: UUID, user_id: UUID) -> ExportResponse:
         row = await self._owned(export_id, user_id)
         return self._response(*row)
+
+    async def get_preview(
+        self, project_id: UUID, preview_id: UUID, user_id: UUID
+    ) -> ExportResponse:
+        export, job = await self._owned(preview_id, user_id)
+        if export.kind != "preview" or export.project_id != project_id:
+            raise NotFoundError("PREVIEW_NOT_FOUND", "errors.previewNotFound")
+        return self._response(export, job)
+
+    async def preview_content_path(
+        self, project_id: UUID, preview_id: UUID, user_id: UUID
+    ) -> tuple[Path, str, str]:
+        await self.get_preview(project_id, preview_id, user_id)
+        return await self.content_path(preview_id, user_id)
 
     async def list(
         self, user_id: UUID, *, kind: str | None = "export", limit: int, offset: int
@@ -163,6 +244,9 @@ async def _render_input(session: AsyncSession, export: Export) -> dict[str, obje
     )
     assets = {asset.id: asset for asset in rows.scalars().unique()}
     storage = LocalStorage(settings.local_storage_path, settings.max_upload_bytes)
+    document = deepcopy(revision.document)
+    scale_project_document(document, export.width, export.height)
+    document["video"]["fps"] = export.fps
     data_urls: dict[str, str] = {}
     for asset in assets.values():
         if asset.kind == "image" and asset.storage_key:
@@ -204,7 +288,7 @@ async def _render_input(session: AsyncSession, export: Export) -> dict[str, obje
     storage_key = f"users/{export.user_id}/exports/{export.id}/{export.name}"
     export.storage_key = storage_key
     return {
-        "project": revision.document,
+        "project": document,
         "asset_data_urls": data_urls,
         "audio_inputs": audio_inputs,
         "output_path": str(storage.path_for(storage_key)),

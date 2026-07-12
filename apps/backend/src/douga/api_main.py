@@ -14,14 +14,35 @@ from douga.core.config import get_settings
 from douga.core.errors import ApplicationError
 from douga.core.logging import configure_logging
 from douga.db.engine import engine
+from douga.modules.api_tokens.controller import router as api_tokens_router
 from douga.modules.assets.controller import router as assets_router
 from douga.modules.assistant.controller import router as assistant_router
 from douga.modules.assistant.creative_controller import router as creative_router
 from douga.modules.auth.controller import router as auth_router
+from douga.modules.automation.controller import router as automation_router
+from douga.modules.automation.middleware import AutomationMiddleware
 from douga.modules.exports.controller import router as exports_router
+from douga.modules.exports.preview_controller import router as previews_router
 from douga.modules.health.controller import router as health_router
 from douga.modules.image_generations.controller import router as image_generations_router
 from douga.modules.projects.controller import router as projects_router
+
+
+async def json_body_too_large(request: Request, maximum_bytes: int) -> bool:
+    content_length = request.headers.get("Content-Length")
+    if content_length is not None:
+        try:
+            if int(content_length) > maximum_bytes:
+                return True
+        except ValueError:
+            pass
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > maximum_bytes:
+            return True
+    request._body = bytes(body)
+    return False
 
 
 @asynccontextmanager
@@ -35,19 +56,44 @@ def create_app() -> FastAPI:
     settings = get_settings()
     logger = logging.getLogger("douga.http")
     app = FastAPI(title="Douga API", version="0.1.0", lifespan=lifespan)
+    app.add_middleware(AutomationMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-CSRF-Token", "X-Request-ID"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "X-Content-SHA256",
+            "X-CSRF-Token",
+            "X-Douga-Source",
+            "X-Request-ID",
+        ],
     )
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next: Any) -> Any:
         request_id = request.headers.get("X-Request-ID", str(uuid4()))
+        request.state.request_id = request_id
         started_at = perf_counter()
-        response = await call_next(request)
+        content_type = request.headers.get("Content-Type", "").split(";", 1)[0].strip()
+        if content_type == "application/json" and await json_body_too_large(
+            request, settings.max_json_request_bytes
+        ):
+            response = JSONResponse(
+                status_code=413,
+                content={
+                    "error": {
+                        "code": "REQUEST_TOO_LARGE",
+                        "message_key": "errors.requestTooLarge",
+                        "request_id": request_id,
+                    }
+                },
+            )
+        else:
+            response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -69,20 +115,30 @@ def create_app() -> FastAPI:
         return response
 
     @app.exception_handler(ApplicationError)
-    async def application_error_handler(_: Request, error: ApplicationError) -> JSONResponse:
+    async def application_error_handler(request: Request, error: ApplicationError) -> JSONResponse:
+        payload: dict[str, Any] = {
+            "code": error.code,
+            "message_key": error.message_key,
+            "request_id": getattr(request.state, "request_id", str(uuid4())),
+        }
+        if error.details:
+            payload["details"] = error.details
         return JSONResponse(
             status_code=error.status_code,
-            content={"error": {"code": error.code, "message_key": error.message_key}},
+            content={"error": payload},
         )
 
     app.include_router(health_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(api_tokens_router, prefix="/api/v1")
+    app.include_router(automation_router, prefix="/api/v1")
     app.include_router(projects_router, prefix="/api/v1")
     app.include_router(assets_router, prefix="/api/v1")
     app.include_router(assistant_router, prefix="/api/v1")
     app.include_router(creative_router, prefix="/api/v1")
     app.include_router(image_generations_router, prefix="/api/v1")
     app.include_router(exports_router, prefix="/api/v1")
+    app.include_router(previews_router, prefix="/api/v1")
     return app
 
 

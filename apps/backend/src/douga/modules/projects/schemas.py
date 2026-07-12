@@ -21,6 +21,25 @@ class RevisionCreateRequest(BaseModel):
     change_summary: str | None = Field(default=None, max_length=500)
 
 
+class ProjectValidateRequest(BaseModel):
+    document: dict[str, Any]
+
+
+class ProjectValidationIssue(BaseModel):
+    code: str
+    path: str | None = None
+    message_key: str
+    start_ms: int | None = None
+    end_ms: int | None = None
+
+
+class ProjectValidateResponse(BaseModel):
+    valid: bool
+    errors: list[ProjectValidationIssue]
+    warnings: list[ProjectValidationIssue]
+    estimated_duration_ms: int | None
+
+
 class ProjectSummaryResponse(BaseModel):
     id: UUID
     name: str

@@ -23,6 +23,18 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
+    new_password_confirmation: str = Field(min_length=12, max_length=128)
+
+    @model_validator(mode="after")
+    def new_passwords_match(self) -> PasswordChangeRequest:
+        if self.new_password != self.new_password_confirmation:
+            raise ValueError("new passwords do not match")
+        return self
+
+
 class UserResponse(BaseModel):
     id: UUID
     email: str

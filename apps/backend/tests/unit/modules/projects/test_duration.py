@@ -23,7 +23,10 @@ def test_estimated_duration_uses_longest_content_and_rounds_to_five_seconds() ->
 
 
 def test_estimated_duration_has_a_five_second_minimum() -> None:
-    document = {"video": {}, "scenes": [{"dialogues": [], "layers": []}]}
+    document: dict[str, object] = {
+        "video": {},
+        "scenes": [{"dialogues": [], "layers": []}],
+    }
 
     assert ProjectService._estimated_duration(document) == 5000
 

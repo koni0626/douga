@@ -8,6 +8,9 @@ class UploadBeginRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     original_filename: str = Field(min_length=1, max_length=255)
     kind: Literal["image", "video", "audio"]
+    content_type: str | None = Field(default=None, min_length=1, max_length=100)
+    size_bytes: int | None = Field(default=None, ge=1)
+    sha256: str | None = Field(default=None, pattern=r"^[a-fA-F0-9]{64}$")
 
 
 class AssetUpdateRequest(BaseModel):

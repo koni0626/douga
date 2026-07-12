@@ -49,5 +49,16 @@ class AuthRepository:
             .values(revoked_at=datetime.now(UTC))
         )
 
+    async def revoke_other_sessions(self, user_id: UUID, current_session_id: UUID) -> None:
+        await self.session.execute(
+            update(UserSession)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.id != current_session_id,
+                UserSession.revoked_at.is_(None),
+            )
+            .values(revoked_at=datetime.now(UTC))
+        )
+
     async def get_settings(self, user_id: UUID) -> UserSettings | None:
         return await self.session.get(UserSettings, user_id)

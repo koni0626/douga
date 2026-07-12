@@ -41,7 +41,37 @@
     "width": "Width",
     "height": "Height",
     "fps": "FPS",
-    "saved": "Settings saved."
+    "saved": "Settings saved.",
+    "apiTokens": {
+      "title": "External API tokens",
+      "description": "Issue a token for Codex or NovelCreator to control Douga.",
+      "name": "Token name",
+      "scopes": "Allowed operations",
+      "expiresAt": "Expiration (optional)",
+      "expiresHint": "If omitted, the token remains valid until manually revoked.",
+      "issue": "Issue API token",
+      "issued": "API token issued",
+      "issuedWarning": "This value is shown only once. Store it somewhere secure.",
+      "copy": "Copy",
+      "empty": "No API tokens have been issued.",
+      "created": "Issued: {{date}}",
+      "expires": "Expires: {{date}}",
+      "noExpiry": "No expiration",
+      "lastUsed": "Last used: {{date}}",
+      "active": "Active",
+      "revoked": "Revoked",
+      "revoke": "Revoke"
+    },
+    "password": {
+      "title": "Change password",
+      "description": "Confirm your current password and choose a new one.",
+      "current": "Current password",
+      "new": "New password",
+      "confirmation": "Confirm new password",
+      "change": "Change password",
+      "saved": "Password changed.",
+      "mismatch": "The new passwords do not match."
+    }
   },
   "projects": {
     "nav": "Projects",
@@ -363,6 +393,29 @@
     "imageUploadOnly": "Drop a PNG, JPEG, or WebP image.",
     "audioUploadOnly": "Drop an MP3 file.",
     "uploadTooLarge": "The file exceeds the upload size limit.",
-    "assetNotFound": "The asset was not found."
+    "assetNotFound": "The asset was not found.",
+    "assetNotReady": "The asset upload or processing has not completed.",
+    "apiTokenScopeInvalid": "The API token scopes are invalid.",
+    "apiTokenExpiryInvalid": "The API token expiry is invalid.",
+    "apiTokenNotFound": "The API token was not found.",
+    "apiTokenInvalid": "The API token is invalid or expired.",
+    "apiTokenScopeRequired": "The API token lacks the required scope.",
+    "authAmbiguous": "Cookie authentication and an API token cannot be used together.",
+    "idempotencyKeyRequired": "This API operation requires an Idempotency-Key.",
+    "idempotencyConflict": "The Idempotency-Key was reused with different content.",
+    "idempotencyInProgress": "The same API operation is currently running.",
+    "operationNotFound": "The external API operation was not found.",
+    "projectSchemaUnsupported": "This project data version is not supported.",
+    "clipRangeInvalid": "The clip start and end times are invalid.",
+    "clipOutOfRange": "The clip extends beyond the video duration.",
+    "keyframeOutOfRange": "The keyframe is outside the clip time range.",
+    "audioFadeTooLong": "The audio fades exceed the clip duration.",
+    "previewNotFound": "The preview video was not found.",
+    "requestTooLarge": "The request data exceeds the size limit."
+  },
+  "warnings": {
+    "emptyCaption": "There is an empty caption.",
+    "trackClipOverlap": "Clips overlap on the same track.",
+    "timelineGap": "There is a time range with no visual clip."
   }
 }

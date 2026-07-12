@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -6,6 +7,7 @@ class ApplicationError(Exception):
     code: str
     message_key: str
     status_code: int = 400
+    details: dict[str, Any] | None = None
 
 
 class NotFoundError(ApplicationError):

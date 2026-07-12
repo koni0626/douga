@@ -1,5 +1,4 @@
 import os
-from uuid import UUID
 
 import pytest
 from douga.api_main import create_app
@@ -15,12 +14,11 @@ from douga.modules.assistant.models import (
 )
 from douga.modules.auth.models import User, UserSession
 from douga.modules.exports.models import Export
-from douga.modules.exports.service import ExportService, process_export_job
 from douga.modules.image_generations.models import ImageGenerationRequest
 from douga.modules.jobs.models import Job
 from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TEST_DATABASE_URL"), reason="integration database not configured"
@@ -130,22 +128,32 @@ async def test_fixed_revision_export_download_and_tenant_isolation() -> None:
         assert (await outsider.get(f"/api/v1/exports/{export_id}")).status_code == 404
         assert (await outsider.get(f"/api/v1/exports/{export_id}/content")).status_code == 404
 
-        async with session_factory() as session:
-            user = (
-                await session.scalars(select(User).where(User.email == "export-owner@example.com"))
-            ).one()
-            preview = await ExportService(session).create(
-                UUID(project_id),
-                user.id,
-                kind="preview",
-                range_start_ms=1_000,
-                range_end_ms=2_500,
-            )
-        await process_export_job(preview.job_id)
-        async with session_factory() as session:
-            completed = await ExportService(session).get(preview.id, user.id)
-            assert completed.status == "succeeded"
-            assert completed.kind == "preview"
-            assert completed.duration_ms == 1_500
+        preview = await owner.post(
+            f"/api/v1/projects/{project_id}/previews",
+            json={
+                "revision_number": 2,
+                "range_start_ms": 1_000,
+                "range_end_ms": 2_500,
+                "width": 320,
+                "height": 240,
+                "fps": 10,
+            },
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert preview.status_code == 202
+        preview_id = preview.json()["id"]
+        completed = await owner.get(f"/api/v1/projects/{project_id}/previews/{preview_id}")
+        assert completed.json()["status"] == "succeeded"
+        assert completed.json()["kind"] == "preview"
+        assert completed.json()["duration_ms"] == 1_500
+        assert completed.json()["width"] == 320
+        preview_video = await owner.get(
+            f"/api/v1/projects/{project_id}/previews/{preview_id}/content"
+        )
+        assert preview_video.status_code == 200
+        assert preview_video.content[4:8] == b"ftyp"
+        assert (
+            await outsider.get(f"/api/v1/projects/{project_id}/previews/{preview_id}")
+        ).status_code == 404
 
     await clear_data()

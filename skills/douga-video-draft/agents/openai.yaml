@@ -1,0 +1,4 @@
+interface:
+  display_name: "Douga Video Draft"
+  short_description: "Create editable Douga video drafts from stories"
+  default_prompt: "Use $douga-video-draft to turn this story into an editable Douga video draft."

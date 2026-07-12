@@ -1,5 +1,6 @@
 import base64
 import os
+from hashlib import sha256
 
 import pytest
 from douga.api_main import create_app
@@ -64,7 +65,14 @@ async def test_image_upload_validation_tags_and_tenant_isolation() -> None:
         await register(outsider, "asset-outsider@example.com")
         started = await owner.post(
             "/api/v1/assets/uploads",
-            json={"name": "Pixel", "original_filename": "pixel.png", "kind": "image"},
+            json={
+                "name": "Pixel",
+                "original_filename": "pixel.png",
+                "kind": "image",
+                "content_type": "image/png",
+                "size_bytes": len(PNG_1X1),
+                "sha256": sha256(PNG_1X1).hexdigest(),
+            },
             headers={"X-CSRF-Token": csrf},
         )
         assert started.status_code == 201
@@ -96,8 +104,30 @@ async def test_image_upload_validation_tags_and_tenant_isolation() -> None:
         assert (await owner.get(f"/api/v1/assets/{asset_id}/content")).content == PNG_1X1
         assert (await outsider.get(f"/api/v1/assets/{asset_id}/content")).status_code == 404
 
+        mismatch = await owner.post(
+            "/api/v1/assets/uploads",
+            json={
+                "name": "Bad hash",
+                "original_filename": "bad.png",
+                "kind": "image",
+                "size_bytes": len(PNG_1X1),
+                "sha256": "0" * 64,
+            },
+            headers={"X-CSRF-Token": csrf},
+        )
+        mismatch_id = mismatch.json()["asset"]["id"]
+        rejected = await owner.put(
+            f"/api/v1/assets/{mismatch_id}/content",
+            content=PNG_1X1,
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert rejected.status_code == 422
+        assert rejected.json()["error"]["code"] == "UPLOAD_HASH_MISMATCH"
+
         deleted = await owner.delete(f"/api/v1/assets/{asset_id}", headers={"X-CSRF-Token": csrf})
         assert deleted.status_code == 204
-        assert (await owner.get("/api/v1/assets")).json()["total"] == 0
+        remaining = (await owner.get("/api/v1/assets")).json()
+        assert remaining["total"] == 1
+        assert remaining["items"][0]["status"] == "failed"
 
     await clear_all_data()
