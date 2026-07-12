@@ -7,6 +7,33 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-color: #496b87 #071522;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  height: 0.65rem;
+  width: 0.65rem;
+}
+
+*::-webkit-scrollbar-track {
+  background: #071522;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #547792, #35546d);
+  background-clip: padding-box;
+  border: 2px solid #071522;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #668ba8;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: #071522;
 }
 
 body {
@@ -1105,12 +1132,11 @@ button,
 .object-timeline-track {
   background-image: linear-gradient(
     to right,
-    transparent calc(10% - 1px),
-    rgb(54 81 109 / 45%) calc(10% - 1px),
-    rgb(54 81 109 / 45%) 10%,
-    transparent 10%
+    rgb(54 81 109 / 55%) 1px,
+    transparent 1px
   );
-  background-size: 10% 100%;
+  background-position: left top;
+  background-size: var(--timeline-second-width) 100%;
   border-bottom: 1px solid #1f3850;
   cursor: pointer;
   height: 1.65rem;
@@ -1156,6 +1182,29 @@ button,
   cursor: not-allowed;
   filter: saturate(0.45);
   opacity: 0.72;
+}
+
+.object-timeline-clip--dragging {
+  overflow: visible;
+  z-index: 8;
+}
+
+.timeline-drag-time {
+  background: #020b13;
+  border: 1px solid #5b86aa;
+  border-radius: 0.35rem;
+  bottom: calc(100% + 0.3rem);
+  box-shadow: 0 5px 18px rgb(0 0 0 / 45%);
+  color: #dff2ff;
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+  left: 50%;
+  padding: 0.2rem 0.4rem;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 9;
 }
 
 .object-timeline-clip > span {

@@ -285,6 +285,8 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     trackBounds.x + trackBounds.width / 2,
     trackBounds.y + trackBounds.height / 2,
   );
+  await expect(page.locator(".timeline-drag-time")).toBeVisible();
+  await expect(page.locator(".timeline-drag-time")).toContainText("s –");
   await page.mouse.up();
   await expect(
     imageTimelineRow.locator(".object-timeline-clip"),

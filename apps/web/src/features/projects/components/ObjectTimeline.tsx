@@ -1,4 +1,5 @@
 import {
+  type CSSProperties,
   type DragEvent as ReactDragEvent,
   type PointerEvent,
   useEffect,
@@ -27,6 +28,10 @@ const MIN_DURATION_MS = 250;
 const DEFAULT_TIMELINE_HEIGHT_PX = 180;
 const MIN_TIMELINE_HEIGHT_PX = 96;
 const TIMELINE_VIEWPORT_RESERVE_PX = 360;
+
+function formatTimelineTime(timeMs: number): string {
+  return `${(timeMs / 1000).toFixed(2)}s`;
+}
 
 function clampTimelineHeight(height: number): number {
   return Math.max(
@@ -392,9 +397,12 @@ export function ObjectTimeline({
         <div className="object-timeline-scroll">
           <div
             className="object-timeline-grid"
-            style={{
-              minWidth: `${9 + Math.max(36, (durationMs / 1000) * 4)}rem`,
-            }}
+            style={
+              {
+                minWidth: `${9 + Math.max(36, (durationMs / 1000) * 4)}rem`,
+                "--timeline-second-width": `${100_000 / durationMs}%`,
+              } as CSSProperties
+            }
           >
             <div className="object-timeline-corner" />
             <div
@@ -483,6 +491,9 @@ export function ObjectTimeline({
                           ? "object-timeline-clip--active"
                           : "",
                         layer.locked ? "object-timeline-clip--locked" : "",
+                        draft?.layerId === layer.id
+                          ? "object-timeline-clip--dragging"
+                          : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
@@ -513,6 +524,15 @@ export function ObjectTimeline({
                         className="object-timeline-handle object-timeline-handle--start"
                       />
                       <span>{labelFor(layer)}</span>
+                      {draft?.layerId === layer.id ? (
+                        <output
+                          aria-live="polite"
+                          className="timeline-drag-time"
+                        >
+                          {formatTimelineTime(range.startMs)} –{" "}
+                          {formatTimelineTime(range.endMs)}
+                        </output>
+                      ) : null}
                       <div
                         aria-label="end"
                         className="object-timeline-handle object-timeline-handle--end"
