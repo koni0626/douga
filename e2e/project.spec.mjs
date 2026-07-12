@@ -84,6 +84,20 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(page.locator(".editor-workspace")).toBeVisible();
   await expect(page.locator(".scene-panel")).toHaveCount(0);
   await expect(page.locator(".timeline-scene-strip")).toHaveCount(0);
+  await page.getByRole("button", { name: "テロップ枠" }).click();
+  const captionPanelBounds = await page
+    .locator(".property-panel--caption")
+    .boundingBox();
+  const editorToolbarBounds = await page
+    .getByRole("toolbar", { name: "編集ツール" })
+    .boundingBox();
+  if (!captionPanelBounds || !editorToolbarBounds)
+    throw new Error("Caption panel is not measurable");
+  expect(captionPanelBounds.width).toBeLessThanOrEqual(320);
+  expect(captionPanelBounds.x + captionPanelBounds.width).toBeLessThanOrEqual(
+    editorToolbarBounds.x,
+  );
+  await page.getByRole("button", { name: "設定を閉じる" }).click();
   const dropZone = page.getByLabel("キャンバス画像のドロップ領域");
   await dropZone.evaluate((element) => {
     element.dispatchEvent(

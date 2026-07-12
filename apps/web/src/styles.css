@@ -574,6 +574,15 @@ button,
   z-index: 30;
 }
 
+.property-panel--caption {
+  bottom: auto;
+  max-height: min(27rem, calc(100vh - 10rem));
+  padding: 0.75rem;
+  right: 6.4rem;
+  top: 5.5rem;
+  width: min(18rem, calc(100vw - 7rem));
+}
+
 .property-panel details {
   border: 0;
   padding: 0.35rem 0 0;
@@ -1520,6 +1529,30 @@ button,
   display: grid;
   gap: 0.5rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.property-grid > label {
+  min-width: 0;
+}
+
+.property-grid input,
+.property-grid select {
+  min-width: 0;
+  width: 100%;
+}
+
+.property-panel--caption .property-grid {
+  gap: 0.4rem;
+}
+
+.property-panel--caption input,
+.property-panel--caption select {
+  padding: 0.5rem 0.6rem;
+}
+
+.property-panel--caption label {
+  font-size: 0.75rem;
+  margin-bottom: 0.45rem;
 }
 
 .audio-picker {

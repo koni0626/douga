@@ -987,7 +987,11 @@ export function ProjectEditorPage() {
 
         {scene && activeTool ? (
           <aside
-            className="property-panel"
+            className={
+              activeTool === "caption"
+                ? "property-panel property-panel--caption"
+                : "property-panel"
+            }
             aria-label={t(`editor.tool.${activeTool}`)}
           >
             <div className="floating-panel-header">
