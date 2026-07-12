@@ -1,135 +1,30 @@
-import {
-  type CSSProperties,
-  type DragEvent as ReactDragEvent,
-  type PointerEvent,
-  useEffect,
-  useState,
-} from "react";
+import { type CSSProperties, type PointerEvent, useState } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import type { LayerEasing } from "@douga/scene-renderer";
 
 import type { CaptionTimelineClip } from "../lib/captionTimeline";
+import { timelineMenuPosition } from "../lib/timelineMenuPosition";
+import type { TimelineRange } from "../lib/timelineRange";
 import { CaptionTimelineTrack } from "./CaptionTimelineTrack";
-import { KeyframePopover, type KeyframeLabels } from "./KeyframePopover";
-import { TimelineLayerLabel } from "./TimelineLayerLabel";
+import type { KeyframeLabels } from "./KeyframePopover";
+import { LayerTimelineTracks } from "./LayerTimelineTracks";
+import {
+  AudioTimelineTracks,
+  CameraTimelineTrack,
+} from "./MediaTimelineTracks";
+import {
+  TimelineContextMenu,
+  type TimelineMenuState,
+} from "./TimelineContextMenu";
+import { TimelineHeader } from "./TimelineHeader";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type CameraEffect = NonNullable<ProjectDocument["camera_effects"]>[number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
-type Range = { startMs: number; endMs: number };
-type DragMode = "move" | "start" | "end";
-type DragState = {
-  layerId: string;
-  initial: Range;
-  mode: DragMode;
-  originX: number;
-  trackWidth: number;
-};
-type ResizeState = { originHeight: number; originY: number };
-type ClipMenu = { layerId: string; x: number; y: number };
-type AudioDrag = {
-  trackId: string;
-  originX: number;
-  startMs: number;
-  trackWidth: number;
-};
-type TimelineMenu = {
-  kind: "add" | "camera" | "audio";
-  x: number;
-  y: number;
-};
-
-const MIN_DURATION_MS = 250;
 const DEFAULT_TIMELINE_HEIGHT_PX = 180;
 const MIN_TIMELINE_HEIGHT_PX = 96;
 const TIMELINE_VIEWPORT_RESERVE_PX = 360;
-const CONTEXT_MENU_WIDTH_PX = 208;
-
-function contextMenuPosition(
-  clientX: number,
-  clientY: number,
-  itemCount: number,
-): { x: number; y: number } {
-  const margin = 8;
-  const estimatedHeight = itemCount * 40 + 12;
-  return {
-    x: Math.max(
-      margin,
-      Math.min(clientX, globalThis.innerWidth - CONTEXT_MENU_WIDTH_PX - margin),
-    ),
-    y: Math.max(
-      margin,
-      Math.min(clientY, globalThis.innerHeight - estimatedHeight - margin),
-    ),
-  };
-}
-
-function formatTimelineTime(timeMs: number): string {
-  return `${(timeMs / 1000).toFixed(2)}s`;
-}
-
-function trackId(layer: Layer): string {
-  return layer.track_id ?? layer.id;
-}
-
-function clampTimelineHeight(height: number): number {
-  return Math.max(
-    MIN_TIMELINE_HEIGHT_PX,
-    Math.min(
-      height,
-      Math.max(
-        MIN_TIMELINE_HEIGHT_PX,
-        globalThis.innerHeight - TIMELINE_VIEWPORT_RESERVE_PX,
-      ),
-    ),
-  );
-}
-
-function layerRange(layer: Layer, durationMs: number): Range {
-  return {
-    startMs: Math.max(
-      0,
-      Math.min(layer.start_ms ?? 0, durationMs - MIN_DURATION_MS),
-    ),
-    endMs: Math.max(
-      MIN_DURATION_MS,
-      Math.min(layer.end_ms ?? durationMs, durationMs),
-    ),
-  };
-}
-
-function movedRange(
-  initial: Range,
-  deltaMs: number,
-  mode: DragMode,
-  durationMs: number,
-): Range {
-  if (mode === "start") {
-    return {
-      ...initial,
-      startMs: Math.max(
-        0,
-        Math.min(initial.startMs + deltaMs, initial.endMs - MIN_DURATION_MS),
-      ),
-    };
-  }
-  if (mode === "end") {
-    return {
-      ...initial,
-      endMs: Math.min(
-        durationMs,
-        Math.max(initial.endMs + deltaMs, initial.startMs + MIN_DURATION_MS),
-      ),
-    };
-  }
-  const length = initial.endMs - initial.startMs;
-  const startMs = Math.max(
-    0,
-    Math.min(initial.startMs + deltaMs, durationMs - length),
-  );
-  return { startMs, endMs: startMs + length };
-}
 
 export interface ObjectTimelineProps {
   durationMs: number;
@@ -150,7 +45,7 @@ export interface ObjectTimelineProps {
   selectedLayerId?: string;
   timeMs: number;
   labelFor: (layer: Layer) => string;
-  onChange: (layerId: string, range: Range) => void;
+  onChange: (layerId: string, range: TimelineRange) => void;
   onAudioStartChange: (trackId: string, startMs: number) => void;
   onAddCamera: () => void;
   onAddCaption: (startMs: number) => void;
@@ -159,7 +54,7 @@ export interface ObjectTimelineProps {
   onOpenAudioSettings: () => void;
   onOpenCameraSettings: () => void;
   onOpenCaptionSettings: () => void;
-  onCaptionChange: (captionId: string, range: Range) => void;
+  onCaptionChange: (captionId: string, range: TimelineRange) => void;
   onCaptionDelete: (captionId: string) => void;
   onCaptionTextChange: (captionId: string, text: string) => void;
   onOpenLayerSettings: () => void;
@@ -276,121 +171,13 @@ export function ObjectTimeline({
   settingsLabel,
   captionSettingsLabel,
 }: ObjectTimelineProps) {
-  // SVGは配列の後ろにあるレイヤーほど手前に描画する。
-  // タイムラインでは一般的なレイヤーパネルと同様、最前面を上に表示する。
-  const displayLayers = [...layers].reverse();
-  const [draft, setDraft] = useState<{ layerId: string; range: Range }>();
-  const [drag, setDrag] = useState<DragState>();
   const [expanded, setExpanded] = useState(true);
   const [height, setHeight] = useState(DEFAULT_TIMELINE_HEIGHT_PX);
-  const [resize, setResize] = useState<ResizeState>();
-  const [draggedLayerId, setDraggedLayerId] = useState<string>();
-  const [dropTarget, setDropTarget] = useState<{
-    layerId: string;
-    position: "before" | "after";
-  }>();
-  const [selectedKeyframe, setSelectedKeyframe] = useState<{
-    keyframeId: string;
-    layerId: string;
-    x: number;
-    y: number;
-  }>();
-  const [clipMenu, setClipMenu] = useState<ClipMenu>();
-  const [audioDrag, setAudioDrag] = useState<AudioDrag>();
-  const [audioDraftStart, setAudioDraftStart] = useState<number>();
-  const [timelineMenu, setTimelineMenu] = useState<TimelineMenu>();
-  const displayTrackIds = Array.from(
-    new Set(displayLayers.map((layer) => trackId(layer))),
-  );
-  const trackCounts = layers.reduce<Map<string, number>>((counts, layer) => {
-    const id = trackId(layer);
-    counts.set(id, (counts.get(id) ?? 0) + 1);
-    return counts;
-  }, new Map());
+  const [timelineMenu, setTimelineMenu] = useState<TimelineMenuState>();
   const seconds = Array.from(
     { length: Math.floor(durationMs / 1000) + 1 },
     (_, index) => index,
   );
-
-  useEffect(() => {
-    if (!drag) return;
-    const rangeAt = (clientX: number) => {
-      const deltaMs = Math.round(
-        ((clientX - drag.originX) / drag.trackWidth) * durationMs,
-      );
-      return movedRange(drag.initial, deltaMs, drag.mode, durationMs);
-    };
-    const move = (event: globalThis.PointerEvent) => {
-      setDraft({ layerId: drag.layerId, range: rangeAt(event.clientX) });
-    };
-    const finish = (event: globalThis.PointerEvent) => {
-      const range = rangeAt(event.clientX);
-      setDraft(undefined);
-      setDrag(undefined);
-      onChange(drag.layerId, {
-        startMs: Math.round(range.startMs / 50) * 50,
-        endMs: Math.round(range.endMs / 50) * 50,
-      });
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", finish, { once: true });
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", finish);
-    };
-  }, [drag, durationMs, onChange]);
-
-  useEffect(() => {
-    if (!audioDrag) return;
-    const startAt = (clientX: number) =>
-      Math.max(
-        0,
-        Math.min(
-          durationMs - 50,
-          audioDrag.startMs +
-            ((clientX - audioDrag.originX) / audioDrag.trackWidth) * durationMs,
-        ),
-      );
-    const move = (event: globalThis.PointerEvent) =>
-      setAudioDraftStart(startAt(event.clientX));
-    const finish = (event: globalThis.PointerEvent) => {
-      onAudioStartChange(
-        audioDrag.trackId,
-        Math.round(startAt(event.clientX) / 50) * 50,
-      );
-      setAudioDrag(undefined);
-      setAudioDraftStart(undefined);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", finish, { once: true });
-    return () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", finish);
-    };
-  }, [audioDrag, durationMs, onAudioStartChange]);
-
-  function beginDrag(
-    event: PointerEvent<HTMLDivElement>,
-    layer: Layer,
-    mode: DragMode,
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
-    onSelect(layer.id);
-    const track = event.currentTarget.closest<HTMLElement>(
-      ".object-timeline-track",
-    );
-    if (!track) return;
-    const initial = layerRange(layer, durationMs);
-    setDraft({ layerId: layer.id, range: initial });
-    setDrag({
-      layerId: layer.id,
-      initial,
-      mode,
-      originX: event.clientX,
-      trackWidth: track.getBoundingClientRect().width,
-    });
-  }
 
   function seek(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
@@ -408,39 +195,6 @@ export function ObjectTimeline({
     );
   }
 
-  function orderDragOver(event: ReactDragEvent<HTMLElement>, layerId: string) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    const bounds = event.currentTarget.getBoundingClientRect();
-    setDropTarget({
-      layerId,
-      position:
-        event.clientY < bounds.top + bounds.height / 2 ? "before" : "after",
-    });
-  }
-
-  function orderDrop(
-    event: ReactDragEvent<HTMLElement>,
-    targetLayerId: string,
-  ) {
-    event.preventDefault();
-    const sourceLayerId =
-      draggedLayerId || event.dataTransfer.getData("application/x-douga-layer");
-    const sourceIndex = layers.findIndex((layer) => layer.id === sourceLayerId);
-    const targetIndex = layers.findIndex((layer) => layer.id === targetLayerId);
-    const position = dropTarget?.position ?? "before";
-    setDraggedLayerId(undefined);
-    setDropTarget(undefined);
-    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex)
-      return;
-    // 表示順は描画配列と逆なので、画面上の before/after も反転させる。
-    onReorder(
-      sourceIndex,
-      targetIndex,
-      position === "before" ? "after" : "before",
-    );
-  }
-
   return (
     <section
       className={
@@ -451,104 +205,29 @@ export function ObjectTimeline({
       aria-label={title}
       style={expanded ? { height } : undefined}
     >
-      {expanded ? (
-        <div
-          aria-label={resizeLabel}
-          aria-orientation="horizontal"
-          aria-valuemax={Math.max(
-            MIN_TIMELINE_HEIGHT_PX,
-            globalThis.innerHeight - TIMELINE_VIEWPORT_RESERVE_PX,
-          )}
-          aria-valuemin={MIN_TIMELINE_HEIGHT_PX}
-          aria-valuenow={height}
-          className="timeline-resize-handle"
-          onKeyDown={(event) => {
-            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
-            event.preventDefault();
-            setHeight((current) =>
-              clampTimelineHeight(
-                current + (event.key === "ArrowUp" ? 20 : -20),
-              ),
-            );
-          }}
-          onPointerDown={(event) => {
-            event.preventDefault();
-            event.currentTarget.setPointerCapture(event.pointerId);
-            setResize({ originHeight: height, originY: event.clientY });
-          }}
-          onPointerMove={(event) => {
-            if (!resize) return;
-            setHeight(
-              clampTimelineHeight(
-                resize.originHeight + resize.originY - event.clientY,
-              ),
-            );
-          }}
-          onPointerUp={(event) => {
-            if (!resize) return;
-            event.currentTarget.releasePointerCapture(event.pointerId);
-            setResize(undefined);
-          }}
-          role="separator"
-          tabIndex={0}
-          title={resizeLabel}
-        >
-          <span />
-        </div>
-      ) : null}
-      <header className="object-timeline-header">
-        <button
-          type="button"
-          aria-expanded={expanded}
-          aria-label={expanded ? collapseLabel : expandLabel}
-          className="timeline-toggle-button"
-          onClick={() => setExpanded((current) => !current)}
-          title={expanded ? collapseLabel : expandLabel}
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d={expanded ? "m6 9 6 6 6-6" : "m9 6 6 6-6 6"} />
-          </svg>
-        </button>
-        <h2>{title}</h2>
-        <button
-          type="button"
-          className="timeline-extend-button"
-          aria-label={extendLabel}
-          title={extendLabel}
-          onClick={onExtend}
-        >
-          +5s
-        </button>
-        <div className="object-timeline-playback">
-          <button
-            type="button"
-            aria-label={playLabel}
-            className={
-              playing
-                ? "timeline-icon-button timeline-icon-button--active"
-                : "timeline-icon-button"
-            }
-            onClick={onPlay}
-            title={playLabel}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            aria-label={stopLabel}
-            className="timeline-icon-button"
-            onClick={onStop}
-            title={stopLabel}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="6" y="6" width="12" height="12" rx="1" />
-            </svg>
-          </button>
-        </div>
-        <span>{(timeMs / 1000).toFixed(1)}s</span>
-      </header>
+      <TimelineHeader
+        collapseLabel={collapseLabel}
+        expandLabel={expandLabel}
+        expanded={expanded}
+        extendLabel={extendLabel}
+        height={height}
+        maximumHeight={Math.max(
+          MIN_TIMELINE_HEIGHT_PX,
+          globalThis.innerHeight - TIMELINE_VIEWPORT_RESERVE_PX,
+        )}
+        minimumHeight={MIN_TIMELINE_HEIGHT_PX}
+        onExtend={onExtend}
+        onHeightChange={setHeight}
+        onPlay={onPlay}
+        onStop={onStop}
+        onToggle={() => setExpanded((current) => !current)}
+        playLabel={playLabel}
+        playing={playing}
+        resizeLabel={resizeLabel}
+        stopLabel={stopLabel}
+        timeMs={timeMs}
+        title={title}
+      />
       {expanded ? (
         <div className="object-timeline-scroll">
           <div
@@ -570,7 +249,7 @@ export function ObjectTimeline({
               event.preventDefault();
               setTimelineMenu({
                 kind: "add",
-                ...contextMenuPosition(event.clientX, event.clientY, 7),
+                ...timelineMenuPosition(event.clientX, event.clientY, 7),
               });
             }}
           >
@@ -626,272 +305,58 @@ export function ObjectTimeline({
               settingsLabel={captionSettingsLabel}
               timeMs={timeMs}
             />
-            <div
-              className="object-timeline-label camera-timeline-label"
-              style={{ gridColumn: 1, gridRow: 3 }}
-            >
-              <span className="camera-track-icon">●</span>
-              {cameraLabel}
-            </div>
-            <div
-              className="object-timeline-track object-timeline-track--base camera-timeline-track"
-              style={{ gridColumn: 2, gridRow: 3 }}
-              onPointerDown={seek}
-            >
-              {cameraEffects.map((effect) => (
-                <div
-                  className="camera-timeline-clip"
-                  key={effect.id}
-                  style={{
-                    left: `${(effect.start_ms * 100) / durationMs}%`,
-                    width: `${((effect.end_ms - effect.start_ms) * 100) / durationMs}%`,
-                  }}
-                  onContextMenu={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    setTimelineMenu({
-                      kind: "camera",
-                      ...contextMenuPosition(event.clientX, event.clientY, 1),
-                    });
-                  }}
-                >
-                  {cameraEffectLabel(effect)}
-                </div>
-              ))}
-            </div>
-            {audioTracks.map((track, audioIndex) => {
-              const startMs =
-                audioDrag?.trackId === track.id && audioDraftStart !== undefined
-                  ? audioDraftStart
-                  : track.start_ms;
-              const endMs = Math.min(
-                durationMs,
-                track.loop || !track.duration_ms
-                  ? durationMs
-                  : startMs + track.duration_ms,
-              );
-              return (
-                <div className="object-timeline-row" key={track.id}>
-                  <div
-                    className="object-timeline-label audio-timeline-label"
-                    style={{ gridColumn: 1, gridRow: audioIndex + 4 }}
-                  >
-                    <span className="audio-track-icon">♪</span>
-                    {audioIndex === 0 ? audioLabel : audioTrackLabel(track)}
-                  </div>
-                  <div
-                    className="object-timeline-track object-timeline-track--base audio-timeline-track"
-                    style={{ gridColumn: 2, gridRow: audioIndex + 4 }}
-                    onPointerDown={seek}
-                  >
-                    <div
-                      className="audio-timeline-clip"
-                      style={{
-                        left: `${(startMs * 100) / durationMs}%`,
-                        width: `${(Math.max(50, endMs - startMs) * 100) / durationMs}%`,
-                      }}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setTimelineMenu({
-                          kind: "audio",
-                          ...contextMenuPosition(
-                            event.clientX,
-                            event.clientY,
-                            1,
-                          ),
-                        });
-                      }}
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        const timelineTrack = event.currentTarget.parentElement;
-                        if (!timelineTrack) return;
-                        setAudioDraftStart(track.start_ms);
-                        setAudioDrag({
-                          trackId: track.id,
-                          originX: event.clientX,
-                          startMs: track.start_ms,
-                          trackWidth:
-                            timelineTrack.getBoundingClientRect().width,
-                        });
-                      }}
-                    >
-                      {audioTrackLabel(track)}
-                      {audioDrag?.trackId === track.id ? (
-                        <output
-                          className="timeline-drag-time"
-                          aria-live="polite"
-                        >
-                          {formatTimelineTime(startMs)} –{" "}
-                          {formatTimelineTime(endMs)}
-                        </output>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {displayLayers.map((layer) => {
-              const layerTrackId = trackId(layer);
-              const trackIndex = displayTrackIds.indexOf(layerTrackId);
-              const trackLayers = displayLayers.filter(
-                (item) => trackId(item) === layerTrackId,
-              );
-              const representative = trackLayers[0];
-              const isRepresentative = representative?.id === layer.id;
-              const trackSelected = trackLayers.some(
-                (item) => item.id === selectedLayerId,
-              );
-              const range =
-                draft?.layerId === layer.id
-                  ? draft.range
-                  : layerRange(layer, durationMs);
-              const dropClass =
-                dropTarget?.layerId === layer.id
-                  ? `object-timeline-drop-${dropTarget.position}`
-                  : "";
-              return (
-                <div className="object-timeline-row" key={layer.id}>
-                  {isRepresentative ? (
-                    <TimelineLayerLabel
-                      active={trackSelected}
-                      dropClass={dropClass}
-                      grabbed={draggedLayerId === layer.id}
-                      label={`${labelFor(layer)}${trackLayers.length > 1 ? ` (${trackLayers.length})` : ""}`}
-                      layer={layer}
-                      onDragEnd={() => {
-                        setDraggedLayerId(undefined);
-                        setDropTarget(undefined);
-                      }}
-                      onDragOver={(event) => orderDragOver(event, layer.id)}
-                      onDragStart={(event) => {
-                        setDraggedLayerId(layer.id);
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setData(
-                          "application/x-douga-layer",
-                          layer.id,
-                        );
-                      }}
-                      onDrop={(event) => orderDrop(event, layer.id)}
-                      onRename={(name) => onRename(layer.id, name)}
-                      onSelect={() => onSelect(layer.id)}
-                      renameLabel={renameLabel}
-                      style={{
-                        gridColumn: 1,
-                        gridRow: trackIndex + audioTracks.length + 4,
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className={[
-                      "object-timeline-track",
-                      isRepresentative ? "object-timeline-track--base" : "",
-                      dropClass,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onDragOver={(event) => orderDragOver(event, layer.id)}
-                    onDrop={(event) => orderDrop(event, layer.id)}
-                    onPointerDown={seek}
-                    style={{
-                      gridColumn: 2,
-                      gridRow: trackIndex + audioTracks.length + 4,
-                    }}
-                  >
-                    <div
-                      className={[
-                        "object-timeline-clip",
-                        selectedLayerId === layer.id
-                          ? "object-timeline-clip--active"
-                          : "",
-                        layer.locked ? "object-timeline-clip--locked" : "",
-                        draft?.layerId === layer.id
-                          ? "object-timeline-clip--dragging"
-                          : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      style={{
-                        left: `${(range.startMs * 100) / durationMs}%`,
-                        width: `${((range.endMs - range.startMs) * 100) / durationMs}%`,
-                      }}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onSelect(layer.id);
-                        setClipMenu({
-                          layerId: layer.id,
-                          ...contextMenuPosition(
-                            event.clientX,
-                            event.clientY,
-                            4,
-                          ),
-                        });
-                      }}
-                      onPointerDown={(event) => {
-                        if (layer.locked) {
-                          event.stopPropagation();
-                          onSelect(layer.id);
-                          return;
-                        }
-                        const bounds =
-                          event.currentTarget.getBoundingClientRect();
-                        const edgeSize = 14;
-                        const mode =
-                          event.clientX - bounds.left <= edgeSize
-                            ? "start"
-                            : bounds.right - event.clientX <= edgeSize
-                              ? "end"
-                              : "move";
-                        beginDrag(event, layer, mode);
-                      }}
-                    >
-                      <div
-                        aria-label="start"
-                        className="object-timeline-handle object-timeline-handle--start"
-                      />
-                      <span>{labelFor(layer)}</span>
-                      {draft?.layerId === layer.id ? (
-                        <output
-                          aria-live="polite"
-                          className="timeline-drag-time"
-                        >
-                          {formatTimelineTime(range.startMs)} –{" "}
-                          {formatTimelineTime(range.endMs)}
-                        </output>
-                      ) : null}
-                      <div
-                        aria-label="end"
-                        className="object-timeline-handle object-timeline-handle--end"
-                      />
-                    </div>
-                    {(layer.keyframes ?? []).map((keyframe) => (
-                      <button
-                        type="button"
-                        aria-label={`${keyframeLabels.keyframe} ${(keyframe.time_ms / 1000).toFixed(1)}s`}
-                        className="object-keyframe-marker"
-                        key={keyframe.id}
-                        style={{
-                          left: `${(keyframe.time_ms * 100) / durationMs}%`,
-                        }}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onSelect(layer.id);
-                          setSelectedKeyframe({
-                            keyframeId: keyframe.id,
-                            layerId: layer.id,
-                            x: event.clientX + 8,
-                            y: event.clientY + 8,
-                          });
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+            <CameraTimelineTrack
+              durationMs={durationMs}
+              effects={cameraEffects}
+              label={cameraLabel}
+              labelFor={cameraEffectLabel}
+              onOpenMenu={(x, y) =>
+                setTimelineMenu({
+                  kind: "camera",
+                  ...timelineMenuPosition(x, y, 1),
+                })
+              }
+              onSeek={onSeek}
+            />
+            <AudioTimelineTracks
+              durationMs={durationMs}
+              label={audioLabel}
+              labelFor={audioTrackLabel}
+              onOpenMenu={(x, y) =>
+                setTimelineMenu({
+                  kind: "audio",
+                  ...timelineMenuPosition(x, y, 1),
+                })
+              }
+              onSeek={onSeek}
+              onStartChange={onAudioStartChange}
+              tracks={audioTracks}
+            />
+            <LayerTimelineTracks
+              audioTrackCount={audioTracks.length}
+              durationMs={durationMs}
+              keyframeLabels={keyframeLabels}
+              labelFor={labelFor}
+              layers={layers}
+              mergeAboveLabel={mergeAboveLabel}
+              mergeBelowLabel={mergeBelowLabel}
+              onChange={onChange}
+              onDeleteKeyframe={onDeleteKeyframe}
+              onDuplicateKeyframe={onDuplicateKeyframe}
+              onKeyframeEasingChange={onKeyframeEasingChange}
+              onMergeTrack={onMergeTrack}
+              onOpenSettings={onOpenLayerSettings}
+              onRename={onRename}
+              onReorder={onReorder}
+              onSeek={onSeek}
+              onSelect={onSelect}
+              onSplitTrack={onSplitTrack}
+              renameLabel={renameLabel}
+              selectedLayerId={selectedLayerId}
+              settingsLabel={settingsLabel}
+              splitTrackLabel={splitTrackLabel}
+              timeMs={timeMs}
+            />
             <div className="object-timeline-playhead-area">
               <div
                 className="object-timeline-playhead"
@@ -901,199 +366,27 @@ export function ObjectTimeline({
           </div>
         </div>
       ) : null}
-      {selectedKeyframe
-        ? (() => {
-            const layer = layers.find(
-              (item) => item.id === selectedKeyframe.layerId,
-            );
-            const keyframe = layer?.keyframes?.find(
-              (item) => item.id === selectedKeyframe.keyframeId,
-            );
-            return layer && keyframe ? (
-              <KeyframePopover
-                keyframe={keyframe}
-                labels={keyframeLabels}
-                onClose={() => setSelectedKeyframe(undefined)}
-                onDelete={() => {
-                  onDeleteKeyframe(layer.id, keyframe.id);
-                  setSelectedKeyframe(undefined);
-                }}
-                onDuplicate={() => {
-                  onDuplicateKeyframe(layer.id, keyframe.id, timeMs);
-                  setSelectedKeyframe(undefined);
-                }}
-                onEasingChange={(easing) =>
-                  onKeyframeEasingChange(layer.id, keyframe.id, easing)
-                }
-                x={selectedKeyframe.x}
-                y={selectedKeyframe.y}
-              />
-            ) : null;
-          })()
-        : null}
-      {clipMenu
-        ? (() => {
-            const layer = layers.find((item) => item.id === clipMenu.layerId);
-            if (!layer) return null;
-            const currentTrackIndex = displayTrackIds.indexOf(trackId(layer));
-            const aboveTrackId = displayTrackIds[currentTrackIndex - 1];
-            const belowTrackId = displayTrackIds[currentTrackIndex + 1];
-            const targetFor = (id?: string) =>
-              id
-                ? displayLayers.find((item) => trackId(item) === id)
-                : undefined;
-            const above = targetFor(aboveTrackId);
-            const below = targetFor(belowTrackId);
-            return (
-              <div
-                className="timeline-clip-menu"
-                role="menu"
-                style={{ left: clipMenu.x, top: clipMenu.y }}
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    onOpenLayerSettings();
-                    setClipMenu(undefined);
-                  }}
-                >
-                  {settingsLabel}
-                </button>
-                {above ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      onMergeTrack(layer.id, above.id);
-                      setClipMenu(undefined);
-                    }}
-                  >
-                    {mergeAboveLabel}
-                  </button>
-                ) : null}
-                {below ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      onMergeTrack(layer.id, below.id);
-                      setClipMenu(undefined);
-                    }}
-                  >
-                    {mergeBelowLabel}
-                  </button>
-                ) : null}
-                {(trackCounts.get(trackId(layer)) ?? 0) > 1 ? (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      onSplitTrack(layer.id);
-                      setClipMenu(undefined);
-                    }}
-                  >
-                    {splitTrackLabel}
-                  </button>
-                ) : null}
-              </div>
-            );
-          })()
-        : null}
-      {timelineMenu ? (
-        <div
-          className="timeline-clip-menu"
-          role="menu"
-          style={{ left: timelineMenu.x, top: timelineMenu.y }}
-        >
-          {timelineMenu.kind === "add" ? (
-            <>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onAddCamera();
-                  setTimelineMenu(undefined);
-                }}
-              >
-                {addCameraLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onAddCaption(timeMs);
-                  setTimelineMenu(undefined);
-                }}
-              >
-                {addCaptionLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onAddText();
-                  setTimelineMenu(undefined);
-                }}
-              >
-                {addTextLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onAddShape();
-                  setTimelineMenu(undefined);
-                }}
-              >
-                {addShapeLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onOpenLayerSettings();
-                  setTimelineMenu(undefined);
-                }}
-              >
-                {addImageLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onOpenAudioSettings();
-                  setTimelineMenu(undefined);
-                }}
-              >
-                {addAudioLabel}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onOpenCaptionSettings();
-                  setTimelineMenu(undefined);
-                }}
-              >
-                {captionSettingsLabel}
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                if (timelineMenu.kind === "camera") onOpenCameraSettings();
-                else onOpenAudioSettings();
-                setTimelineMenu(undefined);
-              }}
-            >
-              {settingsLabel}
-            </button>
-          )}
-        </div>
-      ) : null}
+      <TimelineContextMenu
+        addAudioLabel={addAudioLabel}
+        addCameraLabel={addCameraLabel}
+        addCaptionLabel={addCaptionLabel}
+        addImageLabel={addImageLabel}
+        addShapeLabel={addShapeLabel}
+        addTextLabel={addTextLabel}
+        captionSettingsLabel={captionSettingsLabel}
+        menu={timelineMenu}
+        onAddAudio={onOpenAudioSettings}
+        onAddCamera={onAddCamera}
+        onAddCaption={() => onAddCaption(timeMs)}
+        onAddImage={onOpenLayerSettings}
+        onAddShape={onAddShape}
+        onAddText={onAddText}
+        onClose={() => setTimelineMenu(undefined)}
+        onOpenAudioSettings={onOpenAudioSettings}
+        onOpenCameraSettings={onOpenCameraSettings}
+        onOpenCaptionSettings={onOpenCaptionSettings}
+        settingsLabel={settingsLabel}
+      />
     </section>
   );
 }

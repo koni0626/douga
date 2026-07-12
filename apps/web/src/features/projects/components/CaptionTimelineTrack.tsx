@@ -6,43 +6,21 @@ import {
 } from "react";
 
 import type { CaptionTimelineClip } from "../lib/captionTimeline";
+import {
+  moveTimelineRange,
+  snapTimelineRange,
+  type TimelineDragMode,
+  type TimelineRange,
+} from "../lib/timelineRange";
 
-type Range = { startMs: number; endMs: number };
-type DragMode = "move" | "start" | "end";
 type DragState = {
   captionId: string;
-  initial: Range;
-  mode: DragMode;
+  initial: TimelineRange;
+  mode: TimelineDragMode;
   originX: number;
   trackWidth: number;
 };
 type CaptionMenu = { captionId: string; x: number; y: number };
-
-const MIN_DURATION_MS = 250;
-
-function movedRange(initial: Range, deltaMs: number, mode: DragMode): Range {
-  if (mode === "start") {
-    return {
-      ...initial,
-      startMs: Math.max(
-        0,
-        Math.min(initial.startMs + deltaMs, initial.endMs - MIN_DURATION_MS),
-      ),
-    };
-  }
-  if (mode === "end") {
-    return {
-      ...initial,
-      endMs: Math.max(
-        initial.startMs + MIN_DURATION_MS,
-        initial.endMs + deltaMs,
-      ),
-    };
-  }
-  const length = initial.endMs - initial.startMs;
-  const startMs = Math.max(0, initial.startMs + deltaMs);
-  return { startMs, endMs: startMs + length };
-}
 
 function timeAt(
   event: ReactMouseEvent<HTMLElement>,
@@ -65,7 +43,7 @@ export interface CaptionTimelineTrackProps {
   inputLabel: string;
   label: string;
   onAdd: (startMs: number) => void;
-  onChange: (captionId: string, range: Range) => void;
+  onChange: (captionId: string, range: TimelineRange) => void;
   onDelete: (captionId: string) => void;
   onOpenSettings: () => void;
   onSeek: (timeMs: number) => void;
@@ -95,7 +73,7 @@ export function CaptionTimelineTrack({
   const [drag, setDrag] = useState<DragState>();
   const [draft, setDraft] = useState<{
     captionId: string;
-    range: Range;
+    range: TimelineRange;
   }>();
   const [menu, setMenu] = useState<CaptionMenu>();
 
@@ -105,16 +83,13 @@ export function CaptionTimelineTrack({
       const deltaMs = Math.round(
         ((clientX - drag.originX) / drag.trackWidth) * durationMs,
       );
-      return movedRange(drag.initial, deltaMs, drag.mode);
+      return moveTimelineRange(drag.initial, deltaMs, drag.mode);
     };
     const move = (event: globalThis.PointerEvent) =>
       setDraft({ captionId: drag.captionId, range: rangeAt(event.clientX) });
     const finish = (event: globalThis.PointerEvent) => {
       const range = rangeAt(event.clientX);
-      onChange(drag.captionId, {
-        startMs: Math.round(range.startMs / 50) * 50,
-        endMs: Math.round(range.endMs / 50) * 50,
-      });
+      onChange(drag.captionId, snapTimelineRange(range));
       setDraft(undefined);
       setDrag(undefined);
     };
