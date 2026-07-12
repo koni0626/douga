@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class ProjectCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     content_locale: Literal["ja", "en"] | None = None
+    aspect_ratio: Literal["16:9", "9:16"] | None = None
 
 
 class ProjectUpdateRequest(BaseModel):

@@ -48,6 +48,12 @@ def create_draft(client: DougaClient, manifest_path: Path) -> dict[str, Any]:
         created = client.create_project(
             project_settings["name"],
             project_settings.get("locale", "ja"),
+            aspect_ratio=(
+                "9:16"
+                if int(project_settings.get("height", 1080))
+                > int(project_settings.get("width", 1920))
+                else "16:9"
+            ),
             key=f"manifest-{run_key}-project",
         )
     project_id = str(created["project"]["id"])

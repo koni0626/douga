@@ -38,6 +38,7 @@ import {
   type LayerTransformPatch,
 } from "../components/CanvasObjectEditor";
 import { ObjectTimeline } from "../components/ObjectTimeline";
+import { buildCaptionTimelineClips } from "../lib/captionTimeline";
 import {
   applyLayerAnimationPreset,
   applyLayerPatchAtTime,
@@ -338,6 +339,48 @@ export function ProjectEditorPage() {
     );
   }
 
+  function addCaptionAt(startMs: number) {
+    updateScene((scene) => {
+      scene.dialogues.push({
+        id: crypto.randomUUID(),
+        speaker: null,
+        start_ms: Math.max(0, Math.round(startMs / 50) * 50),
+        text: t("editor.newDialogue"),
+        display_effect: "instant",
+        duration_mode: "manual",
+        duration_ms: 3000,
+        manual_page_breaks: [],
+      });
+      scene.dialogues.sort(
+        (left, right) => (left.start_ms ?? 0) - (right.start_ms ?? 0),
+      );
+    });
+  }
+
+  function updateCaptionRange(
+    dialogueId: string,
+    range: { startMs: number; endMs: number },
+  ) {
+    updateScene((scene) => {
+      const dialogue = scene.dialogues.find((item) => item.id === dialogueId);
+      if (!dialogue) return;
+      dialogue.start_ms = range.startMs;
+      dialogue.duration_mode = "manual";
+      dialogue.duration_ms = Math.max(250, range.endMs - range.startMs);
+      scene.dialogues.sort(
+        (left, right) => (left.start_ms ?? 0) - (right.start_ms ?? 0),
+      );
+    });
+  }
+
+  function deleteCaption(dialogueId: string) {
+    updateScene((scene) => {
+      scene.dialogues = scene.dialogues.filter(
+        (dialogue) => dialogue.id !== dialogueId,
+      );
+    });
+  }
+
   function commitInlineCaption() {
     const text = captionDraft.trim();
     if (!text) {
@@ -422,12 +465,6 @@ export function ProjectEditorPage() {
       start_ms: timeMs,
       end_ms: durationMs,
     });
-  }
-
-  function beginInlineCaption() {
-    setCaptionDraft("");
-    setCaptionEditing(true);
-    requestAnimationFrame(() => captionInputRef.current?.focus());
   }
 
   function addImageLayer(asset: AssetDto) {
@@ -857,6 +894,13 @@ export function ProjectEditorPage() {
 
   const project = detail.document;
   const scene = project.scenes[selectedSceneIndex];
+  const captionClips = scene
+    ? buildCaptionTimelineClips(
+        scene,
+        project.caption_style,
+        project.content_locale,
+      )
+    : [];
   const previewProject = {
     ...project,
     scenes: project.scenes.map((item, sceneIndex) =>
@@ -1093,6 +1137,16 @@ export function ProjectEditorPage() {
                 t(`editor.cameraPreset.${effect.preset}`)
               }
               cameraLabel={t("editor.cameraTrack")}
+              captions={captionClips}
+              captionTrackLabel={t("editor.captionTrack")}
+              captionTrackEmptyLabel={t("editor.captionTrackEmpty")}
+              captionInputLabel={t("editor.dialogueText")}
+              captionDeleteLabel={t("editor.deleteCaption")}
+              formatCaptionDuration={(value) =>
+                t("editor.captionClipDuration", {
+                  seconds: (value / 1000).toFixed(1),
+                })
+              }
               audioLabel={t("editor.audioTrack")}
               audioTracks={project.audio_tracks ?? []}
               audioTrackLabel={(track) =>
@@ -1120,7 +1174,12 @@ export function ProjectEditorPage() {
                 updateAudioTrack(trackId, { start_ms: startMs })
               }
               onAddCamera={() => setActiveTool("camera")}
-              onAddCaption={beginInlineCaption}
+              onAddCaption={addCaptionAt}
+              onCaptionChange={updateCaptionRange}
+              onCaptionDelete={deleteCaption}
+              onCaptionTextChange={(dialogueId, text) =>
+                updateDialogue(dialogueId, { text })
+              }
               onAddText={addTextLayer}
               onAddShape={addShapeLayer}
               onOpenAudioSettings={() => setActiveTool("audio")}

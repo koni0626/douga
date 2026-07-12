@@ -73,12 +73,20 @@ class DougaClient:
         self.close()
 
     def create_project(
-        self, name: str, locale: str = "ja", *, key: str | None = None
+        self,
+        name: str,
+        locale: str = "ja",
+        *,
+        aspect_ratio: str | None = None,
+        key: str | None = None,
     ) -> dict[str, Any]:
+        payload = {"name": name, "content_locale": locale}
+        if aspect_ratio is not None:
+            payload["aspect_ratio"] = aspect_ratio
         return self._request(
             "POST",
             "/projects",
-            json={"name": name, "content_locale": locale},
+            json=payload,
             idempotency_key=key,
         )
 

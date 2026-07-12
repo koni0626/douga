@@ -9,6 +9,8 @@ import {
 import type { ProjectDocument } from "@douga/project-schema";
 import type { LayerEasing } from "@douga/scene-renderer";
 
+import type { CaptionTimelineClip } from "../lib/captionTimeline";
+import { CaptionTimelineTrack } from "./CaptionTimelineTrack";
 import { KeyframePopover, type KeyframeLabels } from "./KeyframePopover";
 import { TimelineLayerLabel } from "./TimelineLayerLabel";
 
@@ -134,6 +136,12 @@ export interface ObjectTimelineProps {
   cameraEffects: CameraEffect[];
   cameraEffectLabel: (effect: CameraEffect) => string;
   cameraLabel: string;
+  captions: CaptionTimelineClip[];
+  captionTrackLabel: string;
+  captionTrackEmptyLabel: string;
+  captionInputLabel: string;
+  captionDeleteLabel: string;
+  formatCaptionDuration: (durationMs: number) => string;
   audioLabel: string;
   audioTracks: AudioTrack[];
   audioTrackLabel: (track: AudioTrack) => string;
@@ -145,12 +153,15 @@ export interface ObjectTimelineProps {
   onChange: (layerId: string, range: Range) => void;
   onAudioStartChange: (trackId: string, startMs: number) => void;
   onAddCamera: () => void;
-  onAddCaption: () => void;
+  onAddCaption: (startMs: number) => void;
   onAddText: () => void;
   onAddShape: () => void;
   onOpenAudioSettings: () => void;
   onOpenCameraSettings: () => void;
   onOpenCaptionSettings: () => void;
+  onCaptionChange: (captionId: string, range: Range) => void;
+  onCaptionDelete: (captionId: string) => void;
+  onCaptionTextChange: (captionId: string, text: string) => void;
   onOpenLayerSettings: () => void;
   onExtend: () => void;
   onPlay: () => void;
@@ -204,6 +215,12 @@ export function ObjectTimeline({
   cameraEffects,
   cameraEffectLabel,
   cameraLabel,
+  captions,
+  captionTrackLabel,
+  captionTrackEmptyLabel,
+  captionInputLabel,
+  captionDeleteLabel,
+  formatCaptionDuration,
   audioLabel,
   audioTracks,
   audioTrackLabel,
@@ -221,6 +238,9 @@ export function ObjectTimeline({
   onOpenAudioSettings,
   onOpenCameraSettings,
   onOpenCaptionSettings,
+  onCaptionChange,
+  onCaptionDelete,
+  onCaptionTextChange,
   onOpenLayerSettings,
   onExtend,
   onDeleteKeyframe,
@@ -543,7 +563,7 @@ export function ObjectTimeline({
               if (
                 event.target instanceof Element &&
                 event.target.closest(
-                  ".object-timeline-clip, .camera-timeline-clip, .audio-timeline-clip",
+                  ".object-timeline-clip, .camera-timeline-clip, .audio-timeline-clip, .caption-timeline-clip",
                 )
               )
                 return;
@@ -588,19 +608,34 @@ export function ObjectTimeline({
                 </span>
               ))}
             </div>
-            {layers.length === 0 ? (
-              <p className="object-timeline-empty">—</p>
-            ) : null}
+            <CaptionTimelineTrack
+              addLabel={addCaptionLabel}
+              captions={captions}
+              deleteLabel={captionDeleteLabel}
+              durationMs={durationMs}
+              emptyLabel={captionTrackEmptyLabel}
+              formatDuration={formatCaptionDuration}
+              inputLabel={captionInputLabel}
+              label={captionTrackLabel}
+              onAdd={onAddCaption}
+              onChange={onCaptionChange}
+              onDelete={onCaptionDelete}
+              onOpenSettings={onOpenCaptionSettings}
+              onSeek={onSeek}
+              onTextChange={onCaptionTextChange}
+              settingsLabel={captionSettingsLabel}
+              timeMs={timeMs}
+            />
             <div
               className="object-timeline-label camera-timeline-label"
-              style={{ gridColumn: 1, gridRow: 2 }}
+              style={{ gridColumn: 1, gridRow: 3 }}
             >
               <span className="camera-track-icon">●</span>
               {cameraLabel}
             </div>
             <div
               className="object-timeline-track object-timeline-track--base camera-timeline-track"
-              style={{ gridColumn: 2, gridRow: 2 }}
+              style={{ gridColumn: 2, gridRow: 3 }}
               onPointerDown={seek}
             >
               {cameraEffects.map((effect) => (
@@ -639,14 +674,14 @@ export function ObjectTimeline({
                 <div className="object-timeline-row" key={track.id}>
                   <div
                     className="object-timeline-label audio-timeline-label"
-                    style={{ gridColumn: 1, gridRow: audioIndex + 3 }}
+                    style={{ gridColumn: 1, gridRow: audioIndex + 4 }}
                   >
                     <span className="audio-track-icon">♪</span>
                     {audioIndex === 0 ? audioLabel : audioTrackLabel(track)}
                   </div>
                   <div
                     className="object-timeline-track object-timeline-track--base audio-timeline-track"
-                    style={{ gridColumn: 2, gridRow: audioIndex + 3 }}
+                    style={{ gridColumn: 2, gridRow: audioIndex + 4 }}
                     onPointerDown={seek}
                   >
                     <div
@@ -744,7 +779,7 @@ export function ObjectTimeline({
                       renameLabel={renameLabel}
                       style={{
                         gridColumn: 1,
-                        gridRow: trackIndex + audioTracks.length + 3,
+                        gridRow: trackIndex + audioTracks.length + 4,
                       }}
                     />
                   ) : null}
@@ -761,7 +796,7 @@ export function ObjectTimeline({
                     onPointerDown={seek}
                     style={{
                       gridColumn: 2,
-                      gridRow: trackIndex + audioTracks.length + 3,
+                      gridRow: trackIndex + audioTracks.length + 4,
                     }}
                   >
                     <div
@@ -987,7 +1022,7 @@ export function ObjectTimeline({
                 type="button"
                 role="menuitem"
                 onClick={() => {
-                  onAddCaption();
+                  onAddCaption(timeMs);
                   setTimelineMenu(undefined);
                 }}
               >

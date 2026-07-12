@@ -62,7 +62,11 @@ async def test_project_revision_conflict_duplicate_delete_and_tenant_isolation()
 
         created = await owner.post(
             "/api/v1/projects",
-            json={"name": "First project", "content_locale": "ja"},
+            json={
+                "name": "First project",
+                "content_locale": "ja",
+                "aspect_ratio": "9:16",
+            },
             headers={"X-CSRF-Token": owner_csrf},
         )
         assert created.status_code == 201
@@ -70,6 +74,25 @@ async def test_project_revision_conflict_duplicate_delete_and_tenant_isolation()
         project_id = UUID(detail["project"]["id"])
         assert detail["project"]["current_revision_number"] == 1
         assert detail["document"]["project_id"] == str(project_id)
+        assert detail["document"]["video"]["width"] == 1080
+        assert detail["document"]["video"]["height"] == 1920
+        assert detail["document"]["caption_style"] == {
+            "x": 72,
+            "y": 1440,
+            "width": 936,
+            "height": 360,
+            "padding": 36,
+            "font_family": "sans-serif",
+            "font_size": 52,
+            "font_weight": 700,
+            "line_height": 1.35,
+            "max_lines": 3,
+            "text_color": "#ffffff",
+            "background_color": "#000000",
+            "background_opacity": 0.75,
+            "border_radius": 24,
+            "text_align": "left",
+        }
 
         valid = await owner.post(
             f"/api/v1/projects/{project_id}/validate",

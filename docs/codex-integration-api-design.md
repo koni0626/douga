@@ -331,9 +331,12 @@ Content-Type: application/json
 ```json
 {
   "name": "ラプラスシティ 第12話 YouTube版",
-  "content_locale": "ja"
+  "content_locale": "ja",
+  "aspect_ratio": "16:9"
 }
 ```
+
+`aspect_ratio`は`16:9`または`9:16`を指定できる。`16:9`は1920x1080、`9:16`は1080x1920で初期化し、テロップ枠の位置、寸法、文字サイズ、最大行数も向きに合う初期値へ切り替える。既存クライアントとの互換性のため省略可能で、省略時はユーザー設定の既定解像度とテロップ設定を使用する。
 
 返却された`project.id`を、後続のProject Documentの`project_id`へ設定する。
 

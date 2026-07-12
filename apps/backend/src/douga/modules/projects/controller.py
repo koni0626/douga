@@ -62,7 +62,10 @@ async def create_project(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ProjectDetailResponse:
     result = await ProjectService(session).create_project(
-        context.user.id, payload.name, payload.content_locale
+        context.user.id,
+        payload.name,
+        payload.content_locale,
+        payload.aspect_ratio,
     )
     return detail_response(result)
 

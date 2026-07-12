@@ -213,14 +213,20 @@ export function buildSceneTimeline(
   for (const dialogue of scene.dialogues) {
     cursor = Math.max(cursor, dialogue.start_ms ?? cursor);
     const pages = layoutDialogue(dialogue, style, locale, measure);
-    const manualPageDuration =
+    const manualDuration =
       dialogue.duration_mode === "manual" && dialogue.duration_ms
-        ? Math.max(1, Math.round(dialogue.duration_ms / pages.length))
+        ? Math.max(pages.length, dialogue.duration_ms)
         : undefined;
+    const manualPageDuration = manualDuration
+      ? Math.floor(manualDuration / pages.length)
+      : undefined;
+    const manualRemainder = manualDuration ? manualDuration % pages.length : 0;
 
-    for (const page of pages) {
+    for (const [pageIndex, page] of pages.entries()) {
       const duration =
-        manualPageDuration ?? calculateAutoDurationMs(page.text, locale);
+        manualPageDuration !== undefined
+          ? manualPageDuration + (pageIndex < manualRemainder ? 1 : 0)
+          : calculateAutoDurationMs(page.text, locale);
       timeline.push({
         ...page,
         dialogue,

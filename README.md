@@ -20,6 +20,7 @@ Webは`pnpm dev:web`、APIは`.venv\Scripts\uv.exe run douga-api`で起動しま
 設定画面の「外部APIトークン」でPersonal API Tokenを発行し、外部クライアントの`DOUGA_API_TOKEN`へ設定します。トークンは発行時に一度だけ表示され、いつでも設定画面から失効できます。
 
 `douga_manifest.json`から編集可能な動画ドラフトを作成する場合は、次を実行します。
+Manifestの`project.width`と`project.height`が横長なら16:9、縦長なら9:16としてプロジェクトを初期化し、向きに適したテロップ枠を設定します。
 
 ```powershell
 $env:DOUGA_API_URL='http://127.0.0.1:8000/api/v1'

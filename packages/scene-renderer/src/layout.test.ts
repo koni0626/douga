@@ -102,6 +102,28 @@ describe("timing", () => {
     expect(timeline[0]?.startMs).toBe(5000);
   });
 
+  it("preserves the exact manual duration across multiple pages", () => {
+    const value = dialogue("long caption ".repeat(20));
+    value.duration_mode = "manual";
+    value.duration_ms = 4000;
+
+    const timeline = buildSceneTimeline(
+      {
+        id: "scene-1",
+        name: "Scene",
+        background: { type: "color", color: "#000000" },
+        layers: [],
+        dialogues: [value],
+      },
+      style,
+      "en",
+      measure,
+    );
+
+    expect(timeline.length).toBeGreaterThan(1);
+    expect(timeline.at(-1)?.endMs).toBe(4000);
+  });
+
   it("uses a two second minimum", () => {
     expect(calculateAutoDurationMs("短い", "ja")).toBe(2000);
   });

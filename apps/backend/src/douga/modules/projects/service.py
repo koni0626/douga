@@ -15,6 +15,11 @@ from douga.db.unit_of_work import UnitOfWork
 from douga.modules.assets.service import AssetService
 from douga.modules.auth.service import AuthService
 from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
+from douga.modules.projects.project_defaults import (
+    AspectRatio,
+    project_caption_style,
+    project_dimensions,
+)
 from douga.modules.projects.repository import ProjectRepository
 
 Locale = Literal["ja", "en"]
@@ -51,26 +56,6 @@ def canonical_document_hash(document: dict[str, Any]) -> str:
         document, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return sha256(encoded).hexdigest()
-
-
-def default_caption_style() -> dict[str, Any]:
-    return {
-        "x": 140,
-        "y": 760,
-        "width": 1640,
-        "height": 240,
-        "padding": 40,
-        "font_family": "sans-serif",
-        "font_size": 56,
-        "font_weight": 700,
-        "line_height": 1.35,
-        "max_lines": 2,
-        "text_color": "#ffffff",
-        "background_color": "#000000",
-        "background_opacity": 0.75,
-        "border_radius": 24,
-        "text_align": "left",
-    }
 
 
 def load_project_validator() -> Draft202012Validator:
@@ -113,10 +98,19 @@ class ProjectService:
         return ProjectList(summaries, total)
 
     async def create_project(
-        self, user_id: UUID, name: str, content_locale: Locale | None
+        self,
+        user_id: UUID,
+        name: str,
+        content_locale: Locale | None,
+        aspect_ratio: AspectRatio | None = None,
     ) -> ProjectDetail:
         settings = await self.auth_service.get_settings(user_id)
         locale = content_locale or settings.default_content_locale
+        width, height = project_dimensions(
+            aspect_ratio,
+            settings.default_video_width,
+            settings.default_video_height,
+        )
         project_id = uuid4()
         document = {
             "schema_version": 1,
@@ -124,11 +118,16 @@ class ProjectService:
             "name": name,
             "content_locale": locale,
             "video": {
-                "width": settings.default_video_width,
-                "height": settings.default_video_height,
+                "width": width,
+                "height": height,
                 "fps": float(settings.default_video_fps),
             },
-            "caption_style": {**default_caption_style(), **settings.default_caption_settings},
+            "caption_style": project_caption_style(
+                width,
+                height,
+                settings.default_caption_settings,
+                enforce_aspect_layout=aspect_ratio is not None,
+            ),
             # Schema v1 keeps the legacy scenes array as a storage envelope.
             # The editor exposes this as a single canvas, not as user-facing scenes.
             "scenes": [

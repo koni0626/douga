@@ -12,6 +12,8 @@ import {
   type ProjectSummaryDto,
 } from "../../../shared/lib/api";
 
+type ProjectAspectRatio = "16:9" | "9:16";
+
 function ProjectThumbnail({
   project,
   labels,
@@ -45,6 +47,7 @@ export function ProjectListPage() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectListDto>();
   const [name, setName] = useState("");
+  const [aspectRatio, setAspectRatio] = useState<ProjectAspectRatio>("16:9");
   const [search, setSearch] = useState("");
   const [errorKey, setErrorKey] = useState<string>();
 
@@ -72,7 +75,10 @@ export function ProjectListPage() {
     try {
       const result = await apiRequest<ProjectDetailDto>("/projects", {
         method: "POST",
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          aspect_ratio: aspectRatio,
+        }),
       });
       navigate(`/projects/${result.project.id}`);
     } catch (error) {
@@ -129,6 +135,37 @@ export function ProjectListPage() {
             placeholder={t("projects.newName")}
             onChange={(event) => setName(event.target.value)}
           />
+          <fieldset className="project-aspect-picker">
+            <legend>{t("projects.aspectRatio")}</legend>
+            {(["16:9", "9:16"] as const).map((ratio) => (
+              <label
+                className={aspectRatio === ratio ? "selected" : undefined}
+                key={ratio}
+              >
+                <input
+                  type="radio"
+                  name="project-aspect-ratio"
+                  value={ratio}
+                  checked={aspectRatio === ratio}
+                  onChange={() => setAspectRatio(ratio)}
+                />
+                <span
+                  className={`project-aspect-icon ${ratio === "9:16" ? "portrait" : "landscape"}`}
+                  aria-hidden="true"
+                />
+                <span>
+                  <strong>{ratio}</strong>
+                  <small>
+                    {t(
+                      ratio === "16:9"
+                        ? "projects.aspectLandscape"
+                        : "projects.aspectPortrait",
+                    )}
+                  </small>
+                </span>
+              </label>
+            ))}
+          </fieldset>
           <button type="submit">
             <span aria-hidden="true">＋</span>
             {t("projects.create")}
