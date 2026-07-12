@@ -1163,7 +1163,7 @@ export function ProjectEditorPage() {
         {assistantOpen && projectId ? (
           <AssistantPanel
             projectId={projectId}
-            onClose={() => setAssistantOpen(false)}
+            onCollapse={() => setAssistantOpen(false)}
             onWidthChange={setAssistantWidth}
             width={assistantWidth}
           />
@@ -1171,10 +1171,12 @@ export function ProjectEditorPage() {
           <button
             type="button"
             className="assistant-open"
-            aria-label={t("assistant.open")}
+            aria-label={t("assistant.expand")}
+            title={t("assistant.expand")}
             onClick={() => setAssistantOpen(true)}
           >
-            AI
+            <span aria-hidden="true">‹</span>
+            <strong>AI</strong>
           </button>
         )}
 

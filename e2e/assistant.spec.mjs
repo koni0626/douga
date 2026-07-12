@@ -23,8 +23,10 @@ test("open the project assistant and keep the conversation composer available", 
   await expect(page.getByLabel("AIアシスタントへのメッセージ")).toBeEnabled({
     timeout: 10_000,
   });
-  await page.getByRole("button", { name: "AIアシスタントを閉じる" }).click();
+  await page
+    .getByRole("button", { name: "AIアシスタントを折りたたむ" })
+    .click();
   await expect(panel).toHaveCount(0);
-  await page.getByRole("button", { name: "AIアシスタントを開く" }).click();
+  await page.getByRole("button", { name: "AIアシスタントを展開する" }).click();
   await expect(panel).toBeVisible();
 });

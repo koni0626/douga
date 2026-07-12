@@ -12,14 +12,14 @@ import {
 } from "../../../shared/lib/api";
 
 interface AssistantPanelProps {
-  onClose: () => void;
+  onCollapse: () => void;
   onWidthChange: (width: number) => void;
   projectId: string;
   width: number;
 }
 
 export function AssistantPanel({
-  onClose,
+  onCollapse,
   onWidthChange,
   projectId,
   width,
@@ -140,19 +140,20 @@ export function AssistantPanel({
         aria-valuenow={width}
         onPointerDown={startResize}
       />
+      <button
+        type="button"
+        className="assistant-collapse"
+        aria-label={t("assistant.collapse")}
+        title={t("assistant.collapse")}
+        onClick={onCollapse}
+      >
+        ›
+      </button>
       <header className="assistant-panel-header">
         <div>
           <h2>{t("assistant.title")}</h2>
           <span>{t("assistant.phaseConversation")}</span>
         </div>
-        <button
-          type="button"
-          className="assistant-close"
-          aria-label={t("assistant.close")}
-          onClick={onClose}
-        >
-          ×
-        </button>
       </header>
       <div className="assistant-messages" aria-live="polite">
         {loading ? <p className="assistant-status">{t("loading")}</p> : null}
