@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -142,11 +143,56 @@ class FakeAssistantProvider:
         del instructions, tools
         prompt = messages[-1].content if messages else ""
         if any(item.get("type") == "function_call_output" for item in continuation):
-            content = "構造化した案を保存しました。カードから内容を確認し、採用できます。"
+            failed = any(
+                '"error"' in str(item.get("output", ""))
+                for item in continuation
+                if item.get("type") == "function_call_output"
+            )
+            content = (
+                "操作を完了できませんでした。最新の状態を確認して、もう一度指示してください。"
+                if failed
+                else "操作を完了しました。画面に反映された内容を確認できます。"
+            )
             if on_delta is not None:
                 await on_delta(content)
             return AssistantProviderResult(content=content, response_id="fake-response-final")
-        requested = any(word in prompt for word in ("保存", "作って", "作成"))
+        requested = any(
+            word in prompt.casefold()
+            for word in ("保存", "作って", "作成", "追加", "add", "create", "save")
+        )
+        if requested and ("テキスト" in prompt or "text" in prompt.casefold()):
+            match = re.search(r"[「\"]([^」\"]+)[」\"]", prompt)
+            text = match.group(1) if match else "AIで追加したテキスト"
+            arguments = {
+                "name": text[:200],
+                "x": 120,
+                "y": 120,
+                "width": 960,
+                "height": 180,
+                "rotation": 0,
+                "opacity": 1,
+                "start_ms": 0,
+                "end_ms": 5000,
+                "text": text,
+                "font_size": 64,
+                "color": "#ffffff",
+            }
+            output_item = {
+                "type": "function_call",
+                "call_id": "fake-add-text",
+                "name": "add_text_clip",
+                "arguments": json.dumps(arguments, ensure_ascii=False),
+            }
+            return AssistantProviderResult(
+                content="",
+                response_id="fake-response-tool",
+                tool_calls=(
+                    AssistantProviderToolCall(
+                        call_id="fake-add-text", name="add_text_clip", arguments=arguments
+                    ),
+                ),
+                output_items=(output_item,),
+            )
         if requested and "プロット" in prompt:
             arguments = {
                 "content": {

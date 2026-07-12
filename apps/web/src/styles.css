@@ -804,6 +804,14 @@ button,
   padding: 0.35rem 0.55rem;
 }
 
+.assistant-undo {
+  align-self: flex-start;
+  border-color: #7b63d8;
+  color: #d8ceff;
+  font-size: 0.72rem;
+  padding: 0.4rem 0.65rem;
+}
+
 .assistant-error {
   color: #ffb7b7;
   font-size: 0.75rem;
@@ -827,6 +835,12 @@ button,
 .assistant-composer button {
   height: 2.5rem;
   padding: 0 0.8rem;
+}
+
+.assistant-save-required {
+  color: #e5ba77;
+  font-size: 0.64rem;
+  grid-column: 1 / -1;
 }
 
 .assistant-open {

@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from pydantic import ValidationError
@@ -28,6 +28,10 @@ class CreativeDocumentService:
     async def list_documents(self, project_id: UUID, user_id: UUID) -> list[CreativeDocument]:
         await self._owned_project(project_id, user_id)
         return await self.repository.list_latest(project_id, user_id)
+
+    async def list_approved(self, project_id: UUID, user_id: UUID) -> list[CreativeDocument]:
+        await self._owned_project(project_id, user_id)
+        return await self.repository.list_approved(project_id, user_id)
 
     async def get_kind(
         self, project_id: UUID, user_id: UUID, kind: CreativeKind
@@ -90,3 +94,25 @@ class CreativeDocumentService:
         await self.repository.add(adopted)
         await self.uow.commit()
         return adopted
+
+    async def revise_status(
+        self,
+        project_id: UUID,
+        document_id: UUID,
+        user_id: UUID,
+        *,
+        status: str,
+        source_run_id: UUID,
+    ) -> CreativeDocument:
+        await self._owned_project(project_id, user_id)
+        source = await self.repository.get_owned(document_id, project_id, user_id)
+        if source is None:
+            raise NotFoundError("CREATIVE_DOCUMENT_NOT_FOUND", "errors.creativeDocumentNotFound")
+        return await self.save(
+            project_id,
+            user_id,
+            kind=cast(CreativeKind, source.kind),
+            status=status,
+            content=deepcopy(source.content),
+            source_run_id=source_run_id,
+        )

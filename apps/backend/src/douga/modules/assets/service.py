@@ -158,6 +158,13 @@ class AssetService:
         if available != asset_ids:
             raise NotFoundError("ASSET_NOT_FOUND", "errors.assetNotFound")
 
+    async def assert_ready_kind(
+        self, asset_id: UUID, user_id: UUID, expected_kind: AssetKind
+    ) -> None:
+        asset = await self._owned(asset_id, user_id)
+        if asset.status != "ready" or asset.kind != expected_kind:
+            raise NotFoundError("ASSET_NOT_FOUND", "errors.assetNotFound")
+
     async def _owned(self, asset_id: UUID, user_id: UUID) -> Asset:
         asset = await self.repository.get_owned(asset_id, user_id)
         if asset is None:

@@ -127,6 +127,23 @@ export interface AssistantThreadListDto {
 export interface AssistantThreadDetailDto {
   thread: AssistantThreadDto;
   messages: AssistantMessageDto[];
+  runs: AssistantRunDto[];
+}
+
+export interface AssistantRunDto {
+  id: string;
+  status:
+    | "queued"
+    | "running"
+    | "waiting_approval"
+    | "completed"
+    | "failed"
+    | "cancelled";
+  error_code: string | null;
+  base_revision_number: number;
+  result_revision_number: number | null;
+  undo_revision_number: number | null;
+  created_at: string;
 }
 
 export interface AssistantRunStartedDto {

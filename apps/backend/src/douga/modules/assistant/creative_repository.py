@@ -57,6 +57,19 @@ class CreativeDocumentRepository:
             )
         ).one_or_none()
 
+    async def list_approved(self, project_id: UUID, user_id: UUID) -> list[CreativeDocument]:
+        return list(
+            await self.session.scalars(
+                select(CreativeDocument)
+                .where(
+                    CreativeDocument.project_id == project_id,
+                    CreativeDocument.user_id == user_id,
+                    CreativeDocument.status == "approved",
+                )
+                .order_by(CreativeDocument.kind)
+            )
+        )
+
     async def get_owned(
         self, document_id: UUID, project_id: UUID, user_id: UUID
     ) -> CreativeDocument | None:

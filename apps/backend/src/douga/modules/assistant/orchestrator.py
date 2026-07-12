@@ -16,7 +16,9 @@ from douga.integrations.openai_responses import (
 from douga.modules.assistant.models import AssistantMessage, AssistantRun, AssistantToolCall
 from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.assistant.tools.creative_tools import creative_tool_definitions
+from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.registry import ToolContext, ToolRegistry
+from douga.modules.assistant.tools.timeline_tools import timeline_tool_definitions
 from douga.modules.projects.models import Project
 from douga.modules.projects.repository import ProjectRepository
 
@@ -38,7 +40,11 @@ class AssistantOrchestrator:
         self.provider = provider
         self.settings = settings or get_settings()
         self.uow = UnitOfWork(session)
-        self.tools = ToolRegistry(creative_tool_definitions())
+        self.tools = ToolRegistry(
+            creative_tool_definitions()
+            + project_read_tool_definitions()
+            + timeline_tool_definitions()
+        )
 
     async def process(self, run_id: UUID) -> None:
         run = await self.repository.get_run_internal(run_id)
@@ -111,7 +117,14 @@ class AssistantOrchestrator:
         run.usage_json = aggregate_usage
         run.finished_at = datetime.now(UTC)
         await self.repository.add_event(
-            run, "run.completed", {"run_id": str(run.id), "status": run.status}
+            run,
+            "run.completed",
+            {
+                "run_id": str(run.id),
+                "status": run.status,
+                "base_revision_number": run.base_revision_number,
+                "result_revision_number": run.result_revision_number,
+            },
         )
         await self.repository.mark_thread_updated(thread)
         await self.uow.commit()
@@ -231,6 +244,15 @@ class AssistantOrchestrator:
                 run,
                 "artifact.created",
                 {"call_id": str(call.id), "artifact": result.artifact},
+            )
+        if result.revision_number is not None:
+            await self.repository.add_event(
+                run,
+                "project.revision_created",
+                {
+                    "call_id": str(call.id),
+                    "revision_number": result.revision_number,
+                },
             )
         await self.uow.commit()
         return result.data

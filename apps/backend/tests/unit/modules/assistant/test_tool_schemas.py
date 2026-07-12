@@ -1,6 +1,8 @@
 from typing import Any
 
 from douga.modules.assistant.tools.creative_tools import creative_tool_definitions
+from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
+from douga.modules.assistant.tools.timeline_tools import timeline_tool_definitions
 
 
 def assert_strict_objects(schema: dict[str, Any], root: dict[str, Any]) -> None:
@@ -23,5 +25,8 @@ def assert_strict_objects(schema: dict[str, Any], root: dict[str, Any]) -> None:
 
 
 def test_creative_tool_json_schemas_are_strict() -> None:
-    for definition in creative_tool_definitions():
+    definitions = (
+        creative_tool_definitions() + project_read_tool_definitions() + timeline_tool_definitions()
+    )
+    for definition in definitions:
         assert_strict_objects(definition.parameters, definition.parameters)

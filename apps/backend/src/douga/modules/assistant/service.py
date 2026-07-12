@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -14,18 +15,27 @@ from douga.modules.assistant.orchestrator import AssistantOrchestrator
 from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.projects.models import Project
 from douga.modules.projects.repository import ProjectRepository
+from douga.modules.projects.service import ProjectService
 
 
 @dataclass(frozen=True, slots=True)
 class AssistantThreadDetail:
     thread: AssistantThread
     messages: list[AssistantMessage]
+    runs: list[AssistantRun]
 
 
 @dataclass(frozen=True, slots=True)
 class AssistantRunStarted:
     run: AssistantRun
     user_message: AssistantMessage
+
+
+@dataclass(frozen=True, slots=True)
+class AssistantUndoResult:
+    run_id: UUID
+    revision_number: int
+    lock_version: int
 
 
 class AssistantService:
@@ -69,10 +79,16 @@ class AssistantService:
         if thread is None:
             raise NotFoundError("ASSISTANT_THREAD_NOT_FOUND", "errors.assistantThreadNotFound")
         messages = await self.repository.list_messages(thread_id, user_id)
-        return AssistantThreadDetail(thread=thread, messages=messages)
+        runs = await self.repository.list_runs(thread_id, user_id)
+        return AssistantThreadDetail(thread=thread, messages=messages, runs=runs)
 
     async def start_run(
-        self, project_id: UUID, thread_id: UUID, user_id: UUID, content: str
+        self,
+        project_id: UUID,
+        thread_id: UUID,
+        user_id: UUID,
+        content: str,
+        context: dict[str, object] | None = None,
     ) -> AssistantRunStarted:
         project = await self._owned_project(project_id, user_id)
         thread = await self.repository.get_thread(thread_id, project_id, user_id)
@@ -89,6 +105,7 @@ class AssistantService:
             status="queued",
             model=self.settings.openai_assistant_model,
             base_revision_number=project.current_revision_number,
+            context_json=context or {},
             usage_json={},
         )
         await self.repository.add_message(user_message)
@@ -125,6 +142,44 @@ class AssistantService:
         )
         await self.uow.commit()
         return run
+
+    async def undo_run(self, project_id: UUID, run_id: UUID, user_id: UUID) -> AssistantUndoResult:
+        run = await self.get_run(project_id, run_id, user_id)
+        if run.result_revision_number is None:
+            raise ConflictError("ASSISTANT_RUN_HAS_NO_CHANGES", "errors.assistantRunHasNoChanges")
+        if run.undo_revision_number is not None:
+            raise ConflictError("ASSISTANT_RUN_ALREADY_UNDONE", "errors.assistantRunAlreadyUndone")
+        project = await self._owned_project(project_id, user_id)
+        if project.current_revision_number != run.result_revision_number:
+            raise ConflictError("ASSISTANT_UNDO_CONFLICT", "errors.assistantUndoConflict")
+        base_revision = await self.projects.get_latest_revision(
+            project_id, user_id, run.base_revision_number
+        )
+        if base_revision is None:
+            raise NotFoundError("PROJECT_REVISION_NOT_FOUND", "errors.projectNotFound")
+        restored = await ProjectService(self.session).save_revision(
+            project_id,
+            user_id,
+            project.lock_version,
+            deepcopy(base_revision.document),
+            f"undo assistant run {run.id}",
+        )
+        await self.repository.add_event(
+            run,
+            "run.undo_completed",
+            {
+                "run_id": str(run.id),
+                "restored_from_revision": run.base_revision_number,
+                "revision_number": restored.project.current_revision_number,
+            },
+        )
+        run.undo_revision_number = restored.project.current_revision_number
+        await self.uow.commit()
+        return AssistantUndoResult(
+            run_id=run.id,
+            revision_number=restored.project.current_revision_number,
+            lock_version=restored.project.lock_version,
+        )
 
 
 async def process_assistant_run(run_id: UUID) -> None:

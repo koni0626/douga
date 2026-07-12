@@ -281,6 +281,24 @@ export function ProjectEditorPage() {
     applyDocument(document);
   }
 
+  async function refreshProjectFromAssistant() {
+    if (!projectId) return;
+    try {
+      const result = await apiRequest<ProjectDetailDto>(
+        `/projects/${projectId}`,
+      );
+      const document = ensureCanvas(result.document);
+      documentRef.current = document;
+      pastRef.current = [];
+      futureRef.current = [];
+      setDetail({ ...result, document });
+      setSelectedLayerId(undefined);
+      setSaveState("saved");
+    } catch {
+      setSaveState("error");
+    }
+  }
+
   function undo() {
     if (!detail || pastRef.current.length === 0) return;
     const previous = pastRef.current.at(-1);
@@ -1162,8 +1180,16 @@ export function ProjectEditorPage() {
 
         {assistantOpen && projectId ? (
           <AssistantPanel
+            canRun={saveState === "idle" || saveState === "saved"}
+            editorContext={{
+              selected_layer_id: selectedLayerId ?? null,
+              time_ms: Math.round(timeMs),
+              visible_start_ms: 0,
+              visible_end_ms: durationMs,
+            }}
             projectId={projectId}
             onCollapse={() => setAssistantOpen(false)}
+            onProjectChanged={() => void refreshProjectFromAssistant()}
             onWidthChange={setAssistantWidth}
             width={assistantWidth}
           />

@@ -20,6 +20,7 @@ from douga.modules.assistant.schemas import (
     AssistantThreadDetailResponse,
     AssistantThreadListResponse,
     AssistantThreadResponse,
+    AssistantUndoResponse,
 )
 from douga.modules.assistant.service import AssistantService, process_assistant_run
 from douga.modules.auth.dependencies import csrf_protected_auth, current_auth
@@ -75,6 +76,7 @@ async def get_thread(
     return AssistantThreadDetailResponse(
         thread=thread_response(detail.thread),
         messages=[message_response(item) for item in detail.messages],
+        runs=[run_response(item) for item in detail.runs],
     )
 
 
@@ -92,7 +94,11 @@ async def send_message(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantRunStartedResponse:
     result = await AssistantService(session).start_run(
-        project_id, thread_id, context.user.id, payload.content
+        project_id,
+        thread_id,
+        context.user.id,
+        payload.content,
+        payload.context.model_dump(mode="json") if payload.context else None,
     )
     background_tasks.add_task(process_assistant_run, result.run.id)
     return AssistantRunStartedResponse(
@@ -123,6 +129,21 @@ async def cancel_run(
 ) -> AssistantRunResponse:
     return run_response(
         await AssistantService(session).cancel_run(project_id, run_id, context.user.id)
+    )
+
+
+@router.post("/runs/{run_id}/undo", response_model=AssistantUndoResponse)
+async def undo_run(
+    project_id: UUID,
+    run_id: UUID,
+    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistantUndoResponse:
+    result = await AssistantService(session).undo_run(project_id, run_id, context.user.id)
+    return AssistantUndoResponse(
+        run_id=result.run_id,
+        revision_number=result.revision_number,
+        lock_version=result.lock_version,
     )
 
 

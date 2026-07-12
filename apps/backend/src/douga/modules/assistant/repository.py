@@ -95,6 +95,21 @@ class AssistantRepository:
             )
         )
 
+    async def list_runs(
+        self, thread_id: UUID, user_id: UUID, *, limit: int = 50
+    ) -> list[AssistantRun]:
+        return list(
+            await self.session.scalars(
+                select(AssistantRun)
+                .where(
+                    AssistantRun.thread_id == thread_id,
+                    AssistantRun.user_id == user_id,
+                )
+                .order_by(AssistantRun.created_at.desc())
+                .limit(limit)
+            )
+        )
+
     async def get_run(self, run_id: UUID, project_id: UUID, user_id: UUID) -> AssistantRun | None:
         return (
             await self.session.scalars(

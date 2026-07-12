@@ -17,14 +17,25 @@ import { CreativeDocumentCard } from "./CreativeDocumentCard";
 import { MarkdownMessage } from "./MarkdownMessage";
 
 interface AssistantPanelProps {
+  canRun: boolean;
+  editorContext: {
+    selected_layer_id: string | null;
+    time_ms: number;
+    visible_end_ms: number;
+    visible_start_ms: number;
+  };
   onCollapse: () => void;
+  onProjectChanged: () => void;
   onWidthChange: (width: number) => void;
   projectId: string;
   width: number;
 }
 
 export function AssistantPanel({
+  canRun,
+  editorContext,
   onCollapse,
+  onProjectChanged,
   onWidthChange,
   projectId,
   width,
@@ -35,6 +46,8 @@ export function AssistantPanel({
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
   const [documents, setDocuments] = useState<CreativeDocumentDto[]>([]);
   const [adoptingId, setAdoptingId] = useState<string>();
+  const [undoableRunId, setUndoableRunId] = useState<string>();
+  const [undoing, setUndoing] = useState(false);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -69,6 +82,14 @@ export function AssistantPanel({
         setThread(detail.thread);
         setMessages(detail.messages);
         setDocuments(documentList.items);
+        setUndoableRunId(
+          detail.runs.find(
+            (run) =>
+              run.status === "completed" &&
+              run.result_revision_number !== null &&
+              run.undo_revision_number === null,
+          )?.id,
+        );
       } catch (error) {
         if (active)
           setErrorKey(
@@ -106,7 +127,10 @@ export function AssistantPanel({
     try {
       const result = await apiRequest<AssistantRunStartedDto>(
         `/projects/${projectId}/assistant/threads/${thread.id}/messages`,
-        { method: "POST", body: JSON.stringify({ content }) },
+        {
+          method: "POST",
+          body: JSON.stringify({ content, context: editorContext }),
+        },
       );
       setMessages((current) => [
         ...current.filter((item) => item.id !== optimistic.id),
@@ -135,6 +159,14 @@ export function AssistantPanel({
       );
       setThread(detail.thread);
       setMessages(detail.messages);
+      setUndoableRunId(
+        detail.runs.find(
+          (run) =>
+            run.status === "completed" &&
+            run.result_revision_number !== null &&
+            run.undo_revision_number === null,
+        )?.id,
+      );
     } catch (error) {
       setErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
@@ -160,6 +192,7 @@ export function AssistantPanel({
       setThread(created);
       setMessages([]);
       setDraft("");
+      setUndoableRunId(undefined);
     } catch (error) {
       setErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
@@ -221,11 +254,20 @@ export function AssistantPanel({
       if (eventSourceRef.current === source) eventSourceRef.current = null;
       setSending(false);
     };
-    source.addEventListener("run.completed", finish);
+    source.addEventListener("run.completed", (event) => {
+      const result = JSON.parse(event.data) as {
+        result_revision_number: number | null;
+      };
+      if (result.result_revision_number !== null) setUndoableRunId(runId);
+      finish();
+    });
     source.addEventListener("run.cancelled", finish);
     source.addEventListener("run.failed", () => {
       setErrorKey("errors.assistantUnavailable");
       finish();
+    });
+    source.addEventListener("project.revision_created", () => {
+      onProjectChanged();
     });
     source.onopen = () => setErrorKey(undefined);
     source.onerror = () => {
@@ -273,6 +315,26 @@ export function AssistantPanel({
       );
     } finally {
       setAdoptingId(undefined);
+    }
+  }
+
+  async function undoRun() {
+    if (!undoableRunId || undoing) return;
+    setUndoing(true);
+    setErrorKey(undefined);
+    try {
+      await apiRequest(
+        `/projects/${projectId}/assistant/runs/${undoableRunId}/undo`,
+        { method: "POST" },
+      );
+      setUndoableRunId(undefined);
+      onProjectChanged();
+    } catch (error) {
+      setErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setUndoing(false);
     }
   }
 
@@ -382,6 +444,16 @@ export function AssistantPanel({
             onAdopt={(item) => void adoptDocument(item)}
           />
         ))}
+        {undoableRunId ? (
+          <button
+            type="button"
+            className="assistant-undo"
+            disabled={undoing}
+            onClick={() => void undoRun()}
+          >
+            {undoing ? t("assistant.undoing") : t("assistant.undoRun")}
+          </button>
+        ) : null}
         {sending ? (
           <div className="assistant-running">
             <p className="assistant-status">{t("assistant.thinking")}</p>
@@ -400,7 +472,7 @@ export function AssistantPanel({
       <form className="assistant-composer" onSubmit={submit}>
         <textarea
           aria-label={t("assistant.input")}
-          disabled={!thread || sending}
+          disabled={!thread || sending || !canRun}
           maxLength={10_000}
           placeholder={t("assistant.placeholder")}
           value={draft}
@@ -412,9 +484,17 @@ export function AssistantPanel({
             }
           }}
         />
-        <button type="submit" disabled={!draft.trim() || !thread || sending}>
+        <button
+          type="submit"
+          disabled={!draft.trim() || !thread || sending || !canRun}
+        >
           {t("assistant.send")}
         </button>
+        {!canRun ? (
+          <small className="assistant-save-required">
+            {t("assistant.saveRequired")}
+          </small>
+        ) : null}
       </form>
     </aside>
   );

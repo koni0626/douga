@@ -22,6 +22,7 @@ class ToolContext:
 class ToolExecutionResult:
     data: dict[str, Any]
     artifact: dict[str, Any] | None = None
+    revision_number: int | None = None
 
 
 ToolHandler = Callable[[ToolContext, dict[str, Any]], Awaitable[ToolExecutionResult]]

@@ -95,7 +95,11 @@ class AssistantRun(UuidPrimaryKeyMixin, Base):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="queued")
     model: Mapped[str] = mapped_column(String(100), nullable=False)
     base_revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    context_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
+    )
     result_revision_number: Mapped[int | None] = mapped_column(Integer)
+    undo_revision_number: Mapped[int | None] = mapped_column(Integer)
     provider_response_id: Mapped[str | None] = mapped_column(String(255))
     usage_json: Mapped[dict[str, Any]] = mapped_column(
         JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
