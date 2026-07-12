@@ -103,6 +103,7 @@ export interface VideoSettings {
   width: number;
   height: number;
   fps: number;
+  duration_ms?: number;
 }
 export interface CaptionStyle {
   x: number;
@@ -186,6 +187,7 @@ export interface AudioTrack {
   scene_id?: string | null;
   dialogue_id?: string | null;
   start_ms: number;
+  duration_ms?: number;
   trim_start_ms: number;
   volume: number;
   loop: boolean;

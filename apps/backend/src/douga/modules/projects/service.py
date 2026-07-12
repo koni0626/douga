@@ -305,11 +305,27 @@ class ProjectService:
 
     @staticmethod
     def _estimated_duration(document: dict[str, Any]) -> int:
-        total = 0
+        maximum = max(5000, int(document.get("video", {}).get("duration_ms", 0)))
         for scene in document["scenes"]:
+            dialogue_end = 0
             for dialogue in scene["dialogues"]:
-                total += int(dialogue.get("duration_ms") or max(1500, len(dialogue["text"]) * 100))
-        return total
+                dialogue_end += int(
+                    dialogue.get("duration_ms") or max(1500, len(dialogue["text"]) * 100)
+                )
+            maximum = max(maximum, dialogue_end)
+            for layer in scene["layers"]:
+                maximum = max(
+                    maximum,
+                    int(layer.get("start_ms", 0)),
+                    int(layer.get("end_ms", 0)),
+                    *(int(keyframe["time_ms"]) for keyframe in layer.get("keyframes", [])),
+                )
+        for track in document.get("audio_tracks", []):
+            maximum = max(
+                maximum,
+                int(track.get("start_ms", 0)) + int(track.get("duration_ms", 0)),
+            )
+        return ((maximum + 4999) // 5000) * 5000
 
     @staticmethod
     def _revision(

@@ -40,6 +40,7 @@ describe("validateProjectDocument", () => {
 
   it("accepts layer keyframes", () => {
     const project = validProject();
+    project.video.duration_ms = 15_000;
     project.scenes.push({
       id: "canvas",
       name: "Canvas",

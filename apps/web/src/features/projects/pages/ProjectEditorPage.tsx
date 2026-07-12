@@ -4,9 +4,13 @@ import { useParams } from "react-router-dom";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import {
+  MIN_VIDEO_DURATION_MS,
   resolveLayerAtTime,
+  resolveSceneDurationMs,
+  roundVideoDurationMs,
   SceneRenderer,
   type LayerEasing,
+  VIDEO_DURATION_STEP_MS,
 } from "@douga/scene-renderer";
 
 import {
@@ -46,8 +50,6 @@ type Dialogue = Scene["dialogues"][number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
 type LayerPreview = { layerId: string; patch: LayerTransformPatch };
-
-const SCENE_DURATION_MS = 5_000;
 
 function fitImageToCanvas(asset: AssetDto, video: ProjectDocument["video"]) {
   const sourceWidth = asset.width ?? 16;
@@ -126,6 +128,9 @@ export function ProjectEditorPage() {
   const futureRef = useRef<ProjectDocument[]>([]);
   const changeSequenceRef = useRef(0);
   const saveInFlightRef = useRef(false);
+  const durationMs = detail
+    ? resolveSceneDurationMs(detail.document, selectedSceneIndex)
+    : MIN_VIDEO_DURATION_MS;
 
   useEffect(() => {
     if (!projectId) return;
@@ -157,12 +162,16 @@ export function ProjectEditorPage() {
     const tick = (timestamp: number) => {
       const elapsed = previous === undefined ? 0 : timestamp - previous;
       previous = timestamp;
-      setTimeMs((current) => (current + elapsed) % SCENE_DURATION_MS);
+      setTimeMs((current) => (current + elapsed) % durationMs);
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing]);
+  }, [durationMs, playing]);
+
+  useEffect(() => {
+    setTimeMs((current) => Math.min(current, durationMs - 1));
+  }, [durationMs]);
 
   useEffect(() => {
     if (
@@ -295,7 +304,7 @@ export function ProjectEditorPage() {
       rotation: 0,
       opacity: 1,
       start_ms: 0,
-      end_ms: SCENE_DURATION_MS,
+      end_ms: durationMs,
     });
   }
 
@@ -314,7 +323,7 @@ export function ProjectEditorPage() {
         rotation: 0,
         opacity: 1,
         start_ms: 0,
-        end_ms: SCENE_DURATION_MS,
+        end_ms: durationMs,
       });
     });
     setSelectedLayerId(layerId);
@@ -380,7 +389,7 @@ export function ProjectEditorPage() {
         applyLayerPatchAtTime(
           layer,
           patch,
-          snapKeyframeTime(timeMs, SCENE_DURATION_MS),
+          snapKeyframeTime(timeMs, durationMs),
           () => crypto.randomUUID(),
         );
     });
@@ -389,20 +398,31 @@ export function ProjectEditorPage() {
   function applyAnimationPreset(
     layerId: string,
     preset: LayerAnimationPreset,
-    durationMs: number,
+    presetDurationMs: number,
   ) {
-    updateScene((scene) => {
-      const layer = scene.layers.find((item) => item.id === layerId);
+    mutate((document) => {
+      const requiredDuration = roundVideoDurationMs(timeMs + presetDurationMs);
+      if (
+        requiredDuration > resolveSceneDurationMs(document, selectedSceneIndex)
+      )
+        document.video.duration_ms = requiredDuration;
+      const actualDuration = resolveSceneDurationMs(
+        document,
+        selectedSceneIndex,
+      );
+      const layer = document.scenes[selectedSceneIndex]?.layers.find(
+        (item) => item.id === layerId,
+      );
       if (layer)
         applyLayerAnimationPreset(
           layer,
           preset,
-          snapKeyframeTime(timeMs, SCENE_DURATION_MS),
-          durationMs,
+          snapKeyframeTime(timeMs, actualDuration),
+          presetDurationMs,
           {
             width: detail?.document.video.width ?? 1920,
             height: detail?.document.video.height ?? 1080,
-            durationMs: SCENE_DURATION_MS,
+            durationMs: actualDuration,
           },
           () => crypto.randomUUID(),
         );
@@ -434,7 +454,7 @@ export function ProjectEditorPage() {
         duplicateLayerKeyframe(
           layer,
           keyframeId,
-          snapKeyframeTime(requestedTimeMs, SCENE_DURATION_MS),
+          snapKeyframeTime(requestedTimeMs, durationMs),
           () => crypto.randomUUID(),
         );
     });
@@ -475,6 +495,7 @@ export function ProjectEditorPage() {
         scene_id: null,
         dialogue_id: null,
         start_ms: 0,
+        duration_ms: asset.duration_ms ?? undefined,
         trim_start_ms: 0,
         volume: 0.7,
         loop: true,
@@ -482,6 +503,43 @@ export function ProjectEditorPage() {
         fade_out_ms: 0,
         ducking: true,
       });
+    });
+  }
+
+  function setManualDuration(requestedDurationMs: number) {
+    mutate((document) => {
+      document.video.duration_ms = Math.max(
+        MIN_VIDEO_DURATION_MS,
+        Math.min(3_600_000, Math.round(requestedDurationMs)),
+      );
+    });
+  }
+
+  function updateLayerRange(
+    layerId: string,
+    range: { startMs: number; endMs: number },
+  ) {
+    const currentLayer = documentRef.current?.scenes[
+      selectedSceneIndex
+    ]?.layers.find((item) => item.id === layerId);
+    const currentEndMs = currentLayer?.end_ms ?? durationMs;
+    if (range.endMs >= durationMs - 50 && currentEndMs < durationMs - 50) {
+      const expandedDuration = durationMs + VIDEO_DURATION_STEP_MS;
+      mutate((document) => {
+        document.video.duration_ms = expandedDuration;
+        const layer = document.scenes[selectedSceneIndex]?.layers.find(
+          (item) => item.id === layerId,
+        );
+        if (layer) {
+          layer.start_ms = range.startMs;
+          layer.end_ms = expandedDuration;
+        }
+      });
+      return;
+    }
+    updateLayer(layerId, {
+      start_ms: range.startMs,
+      end_ms: range.endMs,
     });
   }
 
@@ -680,7 +738,8 @@ export function ProjectEditorPage() {
           {scene ? (
             <ObjectTimeline
               collapseLabel={t("editor.collapseTimeline")}
-              durationMs={SCENE_DURATION_MS}
+              durationMs={durationMs}
+              extendLabel={t("editor.extendTimeline")}
               expandLabel={t("editor.expandTimeline")}
               labelFor={(layer) =>
                 layer.name?.trim()
@@ -710,15 +769,13 @@ export function ProjectEditorPage() {
               onPlay={() => setPlaying(true)}
               onRename={(layerId, name) => updateLayer(layerId, { name })}
               onReorder={reorderLayer}
-              onChange={(layerId, range) =>
-                updateLayer(layerId, {
-                  start_ms: range.startMs,
-                  end_ms: range.endMs,
-                })
+              onChange={updateLayerRange}
+              onExtend={() =>
+                setManualDuration(durationMs + VIDEO_DURATION_STEP_MS)
               }
               onSeek={(value) => {
                 setPlaying(false);
-                setTimeMs(value === SCENE_DURATION_MS ? value - 1 : value);
+                setTimeMs(value === durationMs ? value - 1 : value);
               }}
               onSelect={(layerId) => setSelectedLayerId(layerId)}
               onStop={() => {
@@ -756,6 +813,15 @@ export function ProjectEditorPage() {
             <>
               <details open hidden={activeTool !== "scene"}>
                 <summary>{t("editor.sceneSettings")}</summary>
+                <NumberField
+                  label={t("editor.videoDurationSeconds")}
+                  value={durationMs / 1000}
+                  min={5}
+                  max={3600}
+                  step={5}
+                  onChange={(value) => setManualDuration(value * 1000)}
+                />
+                <p className="field-hint">{t("editor.durationAutoHint")}</p>
                 <label>
                   <span>{t("editor.backgroundColor")}</span>
                   <input
@@ -875,7 +941,7 @@ export function ProjectEditorPage() {
                         rotation: 0,
                         opacity: 1,
                         start_ms: 0,
-                        end_ms: SCENE_DURATION_MS,
+                        end_ms: durationMs,
                       })
                     }
                   >
@@ -896,7 +962,7 @@ export function ProjectEditorPage() {
                         rotation: 0,
                         opacity: 1,
                         start_ms: 0,
-                        end_ms: SCENE_DURATION_MS,
+                        end_ms: durationMs,
                       })
                     }
                   >

@@ -1,6 +1,12 @@
 export { SceneRenderer } from "./SceneRenderer";
 export type { SceneRendererProps } from "./SceneRenderer";
 export {
+  MIN_VIDEO_DURATION_MS,
+  resolveSceneDurationMs,
+  roundVideoDurationMs,
+  VIDEO_DURATION_STEP_MS,
+} from "./duration";
+export {
   ANIMATABLE_LAYER_KEYS,
   captureLayerKeyframe,
   resolveLayerAtTime,

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { SceneRenderer } from "@douga/scene-renderer";
-import { buildSceneTimeline } from "@douga/scene-renderer";
+import { resolveSceneDurationMs, SceneRenderer } from "@douga/scene-renderer";
 import type { ProjectDocument } from "@douga/project-schema";
 
 import { changeLocale } from "../../../i18n";
@@ -37,14 +36,9 @@ export function RendererSpike({ renderMode }: { renderMode: boolean }) {
   const project = window.__DOUGA_RENDER_PROJECT__ ?? sampleProject;
   const assetMap = window.__DOUGA_RENDER_ASSETS__ ?? {};
   window.__DOUGA_RENDER_INFO__ = {
-    sceneDurationsMs: project.scenes.map((scene) => {
-      const timeline = buildSceneTimeline(
-        scene,
-        project.caption_style,
-        project.content_locale,
-      );
-      return Math.max(1000, timeline.at(-1)?.endMs ?? 0);
-    }),
+    sceneDurationsMs: project.scenes.map((_, index) =>
+      resolveSceneDurationMs(project, index),
+    ),
   };
 
   useEffect(() => {

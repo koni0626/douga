@@ -867,6 +867,14 @@ button,
   margin: 0;
 }
 
+.timeline-extend-button {
+  border-radius: 0.4rem;
+  font-size: 0.7rem;
+  height: 1.6rem;
+  margin-left: 0.45rem;
+  padding: 0 0.55rem;
+}
+
 .timeline-toggle-button {
   align-items: center;
   border: 0;

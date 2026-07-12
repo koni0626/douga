@@ -5,10 +5,11 @@ async function seekTimeline(page, timeMs) {
     .getByRole("slider", { name: "再生位置" })
     .evaluate((element, value) => {
       const bounds = element.getBoundingClientRect();
+      const durationMs = Number(element.getAttribute("aria-valuemax")) || 5_000;
       element.dispatchEvent(
         new globalThis.PointerEvent("pointerdown", {
           bubbles: true,
-          clientX: bounds.left + bounds.width * (value / 5_000),
+          clientX: bounds.left + bounds.width * (value / durationMs),
         }),
       );
     }, timeMs);
@@ -273,9 +274,12 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   });
   await objectNameInput.fill("メイン画像");
   await objectNameInput.press("Enter");
-  await expect(
-    page.getByRole("button", { name: "メイン画像", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /^メイン画像/ })).toBeVisible();
+  await page.getByRole("button", { name: "5秒延長" }).click();
+  await expect(page.getByRole("slider", { name: "再生位置" })).toHaveAttribute(
+    "aria-valuemax",
+    "10000",
+  );
   await page.getByRole("button", { name: "レイヤー" }).click();
   await expect(page.getByText("dropped.png")).toBeVisible();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
@@ -291,9 +295,11 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     .fill("ノベルゲームのように自動で送られるテロップです。");
   await savedRevision;
   await page.reload();
-  await expect(
-    page.getByRole("button", { name: "メイン画像", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("slider", { name: "再生位置" })).toHaveAttribute(
+    "aria-valuemax",
+    "10000",
+  );
+  await expect(page.getByRole("button", { name: /^メイン画像/ })).toBeVisible();
   await page.getByRole("button", { name: "台本・テロップ" }).click();
   await expect(page.getByLabel("テロップ本文")).toHaveValue(
     "ノベルゲームのように自動で送られるテロップです。",

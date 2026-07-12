@@ -77,6 +77,7 @@ export interface ObjectTimelineProps {
   timeMs: number;
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: Range) => void;
+  onExtend: () => void;
   onPlay: () => void;
   onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
   onDuplicateKeyframe: (
@@ -100,6 +101,7 @@ export interface ObjectTimelineProps {
   onStop: () => void;
   collapseLabel: string;
   expandLabel: string;
+  extendLabel: string;
   playLabel: string;
   seekLabel: string;
   stopLabel: string;
@@ -116,6 +118,7 @@ export function ObjectTimeline({
   timeMs,
   labelFor,
   onChange,
+  onExtend,
   onDeleteKeyframe,
   onDuplicateKeyframe,
   onKeyframeEasingChange,
@@ -127,6 +130,7 @@ export function ObjectTimeline({
   onStop,
   collapseLabel,
   expandLabel,
+  extendLabel,
   playLabel,
   seekLabel,
   stopLabel,
@@ -278,6 +282,15 @@ export function ObjectTimeline({
           </svg>
         </button>
         <h2>{title}</h2>
+        <button
+          type="button"
+          className="timeline-extend-button"
+          aria-label={extendLabel}
+          title={extendLabel}
+          onClick={onExtend}
+        >
+          +5s
+        </button>
         <div className="object-timeline-playback">
           <button
             type="button"
@@ -310,7 +323,12 @@ export function ObjectTimeline({
       </header>
       {expanded ? (
         <div className="object-timeline-scroll">
-          <div className="object-timeline-grid">
+          <div
+            className="object-timeline-grid"
+            style={{
+              minWidth: `${9 + Math.max(36, (durationMs / 1000) * 4)}rem`,
+            }}
+          >
             <div className="object-timeline-corner" />
             <div
               aria-label={seekLabel}
