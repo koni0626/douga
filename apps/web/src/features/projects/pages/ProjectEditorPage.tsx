@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import {
+  resolveCameraTransform,
   MIN_VIDEO_DURATION_MS,
   resolveLayerAtTime,
   resolveSceneDurationMs,
@@ -48,6 +49,8 @@ type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
 type Dialogue = Scene["dialogues"][number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
+type CameraEffect = NonNullable<ProjectDocument["camera_effects"]>[number];
+type CameraPreset = CameraEffect["preset"];
 type SaveState = "idle" | "dirty" | "saving" | "saved" | "conflict" | "error";
 type LayerPreview = { layerId: string; patch: LayerTransformPatch };
 
@@ -549,6 +552,37 @@ export function ProjectEditorPage() {
     });
   }
 
+  function addCameraEffect(preset: CameraPreset) {
+    mutate((document) => {
+      document.camera_effects ??= [];
+      document.camera_effects.push({
+        id: crypto.randomUUID(),
+        preset,
+        start_ms: 0,
+        end_ms: durationMs,
+        intensity: 1,
+        period_ms: preset === "handheld" ? 900 : preset === "walk" ? 700 : 4000,
+      });
+    });
+  }
+
+  function updateCameraEffect(effectId: string, patch: Partial<CameraEffect>) {
+    mutate((document) => {
+      const effect = document.camera_effects?.find(
+        (item) => item.id === effectId,
+      );
+      if (effect) Object.assign(effect, patch);
+    });
+  }
+
+  function deleteCameraEffect(effectId: string) {
+    mutate((document) => {
+      document.camera_effects = document.camera_effects?.filter(
+        (effect) => effect.id !== effectId,
+      );
+    });
+  }
+
   function setManualDuration(requestedDurationMs: number) {
     mutate((document) => {
       document.video.duration_ms = Math.max(
@@ -718,6 +752,10 @@ export function ProjectEditorPage() {
                         flash: t("editor.animation.presets.flash"),
                       },
                     }}
+                    cameraTransform={resolveCameraTransform(
+                      project.camera_effects ?? [],
+                      timeMs,
+                    )}
                     fillCanvasLabel={t("editor.fillCanvas")}
                     flipHorizontalLabel={t("editor.flipHorizontal")}
                     flipVerticalLabel={t("editor.flipVertical")}
@@ -770,6 +808,7 @@ export function ProjectEditorPage() {
                 scene: t("editor.tool.scene"),
                 dialogues: t("editor.tool.dialogues"),
                 layers: t("editor.tool.layers"),
+                camera: t("editor.tool.camera"),
                 audio: t("editor.tool.audio"),
                 caption: t("editor.tool.caption"),
               }}
@@ -794,6 +833,11 @@ export function ProjectEditorPage() {
                     : t(`editor.layerType.${layer.type}`)
               }
               layers={scene.layers}
+              cameraEffects={project.camera_effects ?? []}
+              cameraEffectLabel={(effect) =>
+                t(`editor.cameraPreset.${effect.preset}`)
+              }
+              cameraLabel={t("editor.cameraTrack")}
               mergeAboveLabel={t("editor.mergeTrackAbove")}
               mergeBelowLabel={t("editor.mergeTrackBelow")}
               keyframeLabels={{
@@ -1118,6 +1162,89 @@ export function ProjectEditorPage() {
                   </button>
                 </details>
               ) : null}
+
+              <details open hidden={activeTool !== "camera"}>
+                <summary>{t("editor.camera")}</summary>
+                <div className="camera-preset-grid">
+                  {(
+                    [
+                      "handheld",
+                      "walk",
+                      "breathe",
+                      "float",
+                      "sway",
+                      "slow_rotate",
+                      "zoom_pulse",
+                      "heartbeat",
+                    ] as CameraPreset[]
+                  ).map((preset) => (
+                    <button
+                      type="button"
+                      key={preset}
+                      onClick={() => addCameraEffect(preset)}
+                    >
+                      {t(`editor.cameraPreset.${preset}`)}
+                    </button>
+                  ))}
+                </div>
+                {(project.camera_effects ?? []).map((effect) => (
+                  <div className="camera-effect-editor" key={effect.id}>
+                    <strong>{t(`editor.cameraPreset.${effect.preset}`)}</strong>
+                    <div className="property-grid">
+                      <NumberField
+                        label={t("editor.startSeconds")}
+                        value={effect.start_ms / 1000}
+                        min={0}
+                        step={0.1}
+                        onChange={(value) =>
+                          updateCameraEffect(effect.id, {
+                            start_ms: Math.max(0, Math.round(value * 1000)),
+                          })
+                        }
+                      />
+                      <NumberField
+                        label={t("editor.endSeconds")}
+                        value={effect.end_ms / 1000}
+                        min={0.1}
+                        step={0.1}
+                        onChange={(value) =>
+                          updateCameraEffect(effect.id, {
+                            end_ms: Math.max(1, Math.round(value * 1000)),
+                          })
+                        }
+                      />
+                      <NumberField
+                        label={t("editor.intensity")}
+                        value={effect.intensity}
+                        min={0.1}
+                        max={3}
+                        step={0.1}
+                        onChange={(value) =>
+                          updateCameraEffect(effect.id, { intensity: value })
+                        }
+                      />
+                      <NumberField
+                        label={t("editor.periodSeconds")}
+                        value={effect.period_ms / 1000}
+                        min={0.1}
+                        step={0.1}
+                        onChange={(value) =>
+                          updateCameraEffect(effect.id, {
+                            period_ms: Math.max(100, Math.round(value * 1000)),
+                          })
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="danger"
+                      onClick={() => deleteCameraEffect(effect.id)}
+                    >
+                      {t("editor.delete")}
+                    </button>
+                  </div>
+                ))}
+              </details>
 
               <details open hidden={activeTool !== "audio"}>
                 <summary>{t("editor.audio")}</summary>

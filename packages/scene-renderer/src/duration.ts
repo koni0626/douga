@@ -41,6 +41,10 @@ export function resolveSceneDurationMs(
     if (track.scene_id && track.scene_id !== scene.id) return maximum;
     return Math.max(maximum, track.start_ms + (track.duration_ms ?? 0));
   }, 0);
+  const cameraEndMs = (project.camera_effects ?? []).reduce(
+    (maximum, effect) => Math.max(maximum, effect.end_ms),
+    0,
+  );
 
   return roundVideoDurationMs(
     Math.max(
@@ -48,6 +52,7 @@ export function resolveSceneDurationMs(
       captionEndMs,
       layerEndMs,
       audioEndMs,
+      cameraEndMs,
     ),
   );
 }

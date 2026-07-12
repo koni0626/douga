@@ -101,4 +101,20 @@ describe("resolveSceneDurationMs", () => {
 
     expect(resolveSceneDurationMs(value)).toBe(20_000);
   });
+
+  it("includes camera effects", () => {
+    const value = project();
+    value.camera_effects = [
+      {
+        id: "camera-1",
+        preset: "breathe",
+        start_ms: 0,
+        end_ms: 12_001,
+        intensity: 1,
+        period_ms: 4000,
+      },
+    ];
+
+    expect(resolveSceneDurationMs(value)).toBe(15_000);
+  });
 });

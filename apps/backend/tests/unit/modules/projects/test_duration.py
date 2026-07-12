@@ -26,3 +26,13 @@ def test_estimated_duration_has_a_five_second_minimum() -> None:
     document = {"video": {}, "scenes": [{"dialogues": [], "layers": []}]}
 
     assert ProjectService._estimated_duration(document) == 5000
+
+
+def test_estimated_duration_includes_camera_effects() -> None:
+    document = {
+        "video": {},
+        "scenes": [{"dialogues": [], "layers": []}],
+        "camera_effects": [{"end_ms": 12001}],
+    }
+
+    assert ProjectService._estimated_duration(document) == 15000

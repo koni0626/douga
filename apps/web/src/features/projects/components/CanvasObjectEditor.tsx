@@ -7,6 +7,10 @@ import {
 } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
+import {
+  cameraTransformValue,
+  type CameraTransform,
+} from "@douga/scene-renderer";
 
 import type { LayerAnimationPreset } from "../lib/layerKeyframes";
 import type { AnimationPresetLabels } from "./AnimationPresetMenu";
@@ -32,6 +36,7 @@ type Interaction = {
 
 export interface CanvasObjectEditorProps {
   animationLabels: AnimationPresetLabels;
+  cameraTransform: CameraTransform;
   flipHorizontalLabel: string;
   flipVerticalLabel: string;
   fillCanvasLabel: string;
@@ -87,6 +92,7 @@ function LockGlyph({ x, y, size }: { x: number; y: number; size: number }) {
 
 export function CanvasObjectEditor({
   animationLabels,
+  cameraTransform,
   flipHorizontalLabel,
   flipVerticalLabel,
   fillCanvasLabel,
@@ -116,9 +122,26 @@ export function CanvasObjectEditor({
   function clientPoint(clientX: number, clientY: number): Point {
     const bounds = svgRef.current?.getBoundingClientRect();
     if (!bounds) return { x: 0, y: 0 };
-    return {
+    const raw = {
       x: ((clientX - bounds.left) / bounds.width) * width,
       y: ((clientY - bounds.top) / bounds.height) * height,
+    };
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const translatedX =
+      (raw.x - centerX - cameraTransform.x) / cameraTransform.scale;
+    const translatedY =
+      (raw.y - centerY - cameraTransform.y) / cameraTransform.scale;
+    const radians = (-cameraTransform.rotation * Math.PI) / 180;
+    return {
+      x:
+        centerX +
+        translatedX * Math.cos(radians) -
+        translatedY * Math.sin(radians),
+      y:
+        centerY +
+        translatedX * Math.sin(radians) +
+        translatedY * Math.cos(radians),
     };
   }
 
@@ -188,7 +211,16 @@ export function CanvasObjectEditor({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
     };
-  }, [height, onCommit, onPreview, width]);
+  }, [
+    cameraTransform.rotation,
+    cameraTransform.scale,
+    cameraTransform.x,
+    cameraTransform.y,
+    height,
+    onCommit,
+    onPreview,
+    width,
+  ]);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -280,89 +312,97 @@ export function CanvasObjectEditor({
         viewBox={`0 0 ${width} ${height}`}
         aria-label="canvas objects"
       >
-        {layers.map((layer) => {
-          const selected = layer.id === selectedLayerId;
-          const rotateHandleY = Math.max(
-            handleSize,
-            layer.y - handleSize * 2.2,
-          );
-          return (
-            <g key={layer.id} transform={layerTransform(layer)}>
-              <rect
-                className="canvas-object-hitbox"
-                x={layer.x}
-                y={layer.y}
-                width={layer.width}
-                height={layer.height}
-                aria-label={layer.type}
-                onContextMenu={(event) => openContextMenu(event, layer)}
-                onPointerDown={(event) => begin(event, layer, "move")}
-              />
-              {selected ? (
-                <>
-                  <rect
-                    className={
-                      layer.locked
-                        ? "canvas-object-selection canvas-object-selection--locked"
-                        : "canvas-object-selection"
-                    }
-                    x={layer.x}
-                    y={layer.y}
-                    width={layer.width}
-                    height={layer.height}
-                  />
-                  {layer.locked ? (
-                    <g aria-label={lockedLabel}>
-                      <LockGlyph
-                        x={layer.x + layer.width - lockSize - 8}
-                        y={layer.y + 8}
-                        size={lockSize}
-                      />
-                    </g>
-                  ) : (
-                    <>
-                      <line
-                        className="canvas-object-rotate-line"
-                        x1={layer.x + layer.width / 2}
-                        y1={layer.y}
-                        x2={layer.x + layer.width / 2}
-                        y2={rotateHandleY}
-                      />
-                      <circle
-                        className="canvas-object-handle canvas-object-rotate-handle"
-                        cx={layer.x + layer.width / 2}
-                        cy={rotateHandleY}
-                        r={handleSize * 0.7}
-                        onPointerDown={(event) => begin(event, layer, "rotate")}
-                      />
-                      {(
-                        [
-                          ["nw", layer.x, layer.y],
-                          ["ne", layer.x + layer.width, layer.y],
-                          ["sw", layer.x, layer.y + layer.height],
-                          ["se", layer.x + layer.width, layer.y + layer.height],
-                        ] as const
-                      ).map(([anchor, x, y]) => (
-                        <rect
-                          key={anchor}
-                          className={`canvas-object-handle canvas-object-resize-handle canvas-object-resize-handle--${anchor}`}
-                          x={x - handleSize / 2}
-                          y={y - handleSize / 2}
-                          width={handleSize}
-                          height={handleSize}
-                          rx={handleSize * 0.18}
+        <g transform={cameraTransformValue(cameraTransform, width, height)}>
+          {layers.map((layer) => {
+            const selected = layer.id === selectedLayerId;
+            const rotateHandleY = Math.max(
+              handleSize,
+              layer.y - handleSize * 2.2,
+            );
+            return (
+              <g key={layer.id} transform={layerTransform(layer)}>
+                <rect
+                  className="canvas-object-hitbox"
+                  x={layer.x}
+                  y={layer.y}
+                  width={layer.width}
+                  height={layer.height}
+                  aria-label={layer.type}
+                  onContextMenu={(event) => openContextMenu(event, layer)}
+                  onPointerDown={(event) => begin(event, layer, "move")}
+                />
+                {selected ? (
+                  <>
+                    <rect
+                      className={
+                        layer.locked
+                          ? "canvas-object-selection canvas-object-selection--locked"
+                          : "canvas-object-selection"
+                      }
+                      x={layer.x}
+                      y={layer.y}
+                      width={layer.width}
+                      height={layer.height}
+                    />
+                    {layer.locked ? (
+                      <g aria-label={lockedLabel}>
+                        <LockGlyph
+                          x={layer.x + layer.width - lockSize - 8}
+                          y={layer.y + 8}
+                          size={lockSize}
+                        />
+                      </g>
+                    ) : (
+                      <>
+                        <line
+                          className="canvas-object-rotate-line"
+                          x1={layer.x + layer.width / 2}
+                          y1={layer.y}
+                          x2={layer.x + layer.width / 2}
+                          y2={rotateHandleY}
+                        />
+                        <circle
+                          className="canvas-object-handle canvas-object-rotate-handle"
+                          cx={layer.x + layer.width / 2}
+                          cy={rotateHandleY}
+                          r={handleSize * 0.7}
                           onPointerDown={(event) =>
-                            begin(event, layer, "resize", anchor)
+                            begin(event, layer, "rotate")
                           }
                         />
-                      ))}
-                    </>
-                  )}
-                </>
-              ) : null}
-            </g>
-          );
-        })}
+                        {(
+                          [
+                            ["nw", layer.x, layer.y],
+                            ["ne", layer.x + layer.width, layer.y],
+                            ["sw", layer.x, layer.y + layer.height],
+                            [
+                              "se",
+                              layer.x + layer.width,
+                              layer.y + layer.height,
+                            ],
+                          ] as const
+                        ).map(([anchor, x, y]) => (
+                          <rect
+                            key={anchor}
+                            className={`canvas-object-handle canvas-object-resize-handle canvas-object-resize-handle--${anchor}`}
+                            x={x - handleSize / 2}
+                            y={y - handleSize / 2}
+                            width={handleSize}
+                            height={handleSize}
+                            rx={handleSize * 0.18}
+                            onPointerDown={(event) =>
+                              begin(event, layer, "resize", anchor)
+                            }
+                          />
+                        ))}
+                      </>
+                    )}
+                  </>
+                ) : null}
+              </g>
+            );
+          })}
+        </g>
       </svg>
       {contextMenu && menuLayer ? (
         <CanvasObjectContextMenu

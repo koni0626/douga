@@ -325,6 +325,8 @@ class ProjectService:
                 maximum,
                 int(track.get("start_ms", 0)) + int(track.get("duration_ms", 0)),
             )
+        for effect in document.get("camera_effects", []):
+            maximum = max(maximum, int(effect["end_ms"]))
         return ((maximum + 4999) // 5000) * 5000
 
     @staticmethod

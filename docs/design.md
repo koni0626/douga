@@ -17,6 +17,7 @@
 - [機能設計書](functional-design.md)
 - [実装計画書](implementation-plan.md)
 - [キーフレームアニメーション設計](keyframe-animation-design.md)
+- [カメラアニメーション設計](camera-animation-design.md)
 
 ## 2. プロダクト概要
 

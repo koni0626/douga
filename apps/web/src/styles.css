@@ -670,6 +670,53 @@ button,
   outline: 2px solid #3ea6ff;
 }
 
+.camera-preset-grid {
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0.8rem;
+}
+
+.camera-preset-grid button {
+  font-size: 0.72rem;
+  padding: 0.55rem;
+}
+
+.camera-effect-editor {
+  border-top: 1px solid #29445e;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.75rem 0;
+}
+
+.camera-timeline-label {
+  color: #d8c7ff;
+}
+
+.camera-track-icon {
+  color: #a78bfa;
+  font-size: 0.6rem;
+}
+
+.camera-timeline-track {
+  background-color: rgb(92 58 140 / 12%);
+}
+
+.camera-timeline-clip {
+  background: linear-gradient(90deg, #6d4bb2, #8b5fd1);
+  border: 1px solid #c4a8ff;
+  border-radius: 0.35rem;
+  color: #fff;
+  font-size: 0.65rem;
+  inset-block: 0.18rem;
+  overflow: hidden;
+  padding: 0.12rem 0.4rem;
+  pointer-events: auto;
+  position: absolute;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .editor-preview {
   align-items: center;
   display: flex;

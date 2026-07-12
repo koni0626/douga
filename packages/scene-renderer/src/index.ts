@@ -1,4 +1,6 @@
 export { SceneRenderer } from "./SceneRenderer";
+export { cameraTransformValue, resolveCameraTransform } from "./camera";
+export type { CameraEffect, CameraTransform } from "./camera";
 export type { SceneRendererProps } from "./SceneRenderer";
 export {
   MIN_VIDEO_DURATION_MS,

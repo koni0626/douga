@@ -32,7 +32,18 @@ function validProject(): ProjectDocument {
 
 describe("validateProjectDocument", () => {
   it("accepts a minimal valid project", () => {
-    expect(validateProjectDocument(validProject())).toEqual({
+    const project = validProject();
+    project.camera_effects = [
+      {
+        id: "camera-1",
+        preset: "handheld",
+        start_ms: 0,
+        end_ms: 5000,
+        intensity: 1,
+        period_ms: 900,
+      },
+    ];
+    expect(validateProjectDocument(project)).toEqual({
       valid: true,
       errors: [],
     });

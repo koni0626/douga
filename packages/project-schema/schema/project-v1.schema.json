@@ -30,9 +30,47 @@
       "items": { "$ref": "#/$defs/audioTrack" },
       "maxItems": 1000,
       "default": []
+    },
+    "camera_effects": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/cameraEffect" },
+      "maxItems": 100,
+      "default": []
     }
   },
   "$defs": {
+    "cameraEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "preset",
+        "start_ms",
+        "end_ms",
+        "intensity",
+        "period_ms"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "preset": {
+          "type": "string",
+          "enum": [
+            "handheld",
+            "walk",
+            "breathe",
+            "float",
+            "sway",
+            "slow_rotate",
+            "zoom_pulse",
+            "heartbeat"
+          ]
+        },
+        "start_ms": { "type": "integer", "minimum": 0 },
+        "end_ms": { "type": "integer", "minimum": 1 },
+        "intensity": { "type": "number", "minimum": 0.1, "maximum": 3 },
+        "period_ms": { "type": "integer", "minimum": 100, "maximum": 60000 }
+      }
+    },
     "videoSettings": {
       "type": "object",
       "additionalProperties": false,

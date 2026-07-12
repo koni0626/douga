@@ -101,6 +101,10 @@ export interface ProjectDocument {
    * @maxItems 1000
    */
   audio_tracks?: AudioTrack[];
+  /**
+   * @maxItems 100
+   */
+  camera_effects?: CameraEffect[];
 }
 export interface VideoSettings {
   width: number;
@@ -198,4 +202,12 @@ export interface AudioTrack {
   fade_in_ms: number;
   fade_out_ms: number;
   ducking: boolean;
+}
+export interface CameraEffect {
+  id: string;
+  preset: "handheld" | "walk" | "breathe" | "float" | "sway" | "slow_rotate" | "zoom_pulse" | "heartbeat";
+  start_ms: number;
+  end_ms: number;
+  intensity: number;
+  period_ms: number;
 }

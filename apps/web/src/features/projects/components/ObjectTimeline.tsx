@@ -13,6 +13,7 @@ import { KeyframePopover, type KeyframeLabels } from "./KeyframePopover";
 import { TimelineLayerLabel } from "./TimelineLayerLabel";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
+type CameraEffect = NonNullable<ProjectDocument["camera_effects"]>[number];
 type Range = { startMs: number; endMs: number };
 type DragMode = "move" | "start" | "end";
 type DragState = {
@@ -98,6 +99,9 @@ function movedRange(
 
 export interface ObjectTimelineProps {
   durationMs: number;
+  cameraEffects: CameraEffect[];
+  cameraEffectLabel: (effect: CameraEffect) => string;
+  cameraLabel: string;
   layers: Layer[];
   playing: boolean;
   selectedLayerId?: string;
@@ -145,6 +149,9 @@ export interface ObjectTimelineProps {
 
 export function ObjectTimeline({
   durationMs,
+  cameraEffects,
+  cameraEffectLabel,
+  cameraLabel,
   layers,
   playing,
   selectedLayerId,
@@ -465,6 +472,31 @@ export function ObjectTimeline({
             {layers.length === 0 ? (
               <p className="object-timeline-empty">—</p>
             ) : null}
+            <div
+              className="object-timeline-label camera-timeline-label"
+              style={{ gridColumn: 1, gridRow: 2 }}
+            >
+              <span className="camera-track-icon">●</span>
+              {cameraLabel}
+            </div>
+            <div
+              className="object-timeline-track object-timeline-track--base camera-timeline-track"
+              style={{ gridColumn: 2, gridRow: 2 }}
+              onPointerDown={seek}
+            >
+              {cameraEffects.map((effect) => (
+                <div
+                  className="camera-timeline-clip"
+                  key={effect.id}
+                  style={{
+                    left: `${(effect.start_ms * 100) / durationMs}%`,
+                    width: `${((effect.end_ms - effect.start_ms) * 100) / durationMs}%`,
+                  }}
+                >
+                  {cameraEffectLabel(effect)}
+                </div>
+              ))}
+            </div>
             {displayLayers.map((layer) => {
               const layerTrackId = trackId(layer);
               const trackIndex = displayTrackIds.indexOf(layerTrackId);
@@ -510,7 +542,7 @@ export function ObjectTimeline({
                       onRename={(name) => onRename(layer.id, name)}
                       onSelect={() => onSelect(layer.id)}
                       renameLabel={renameLabel}
-                      style={{ gridColumn: 1, gridRow: trackIndex + 2 }}
+                      style={{ gridColumn: 1, gridRow: trackIndex + 3 }}
                     />
                   ) : null}
                   <div
@@ -524,7 +556,7 @@ export function ObjectTimeline({
                     onDragOver={(event) => orderDragOver(event, layer.id)}
                     onDrop={(event) => orderDrop(event, layer.id)}
                     onPointerDown={seek}
-                    style={{ gridColumn: 2, gridRow: trackIndex + 2 }}
+                    style={{ gridColumn: 2, gridRow: trackIndex + 3 }}
                   >
                     <div
                       className={[

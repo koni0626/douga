@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { ProjectDocument } from "@douga/project-schema";
 
 import { resolveLayerAtTime } from "./animation";
+import { cameraTransformValue, resolveCameraTransform } from "./camera";
 import { buildSceneTimeline, resolveCaptionAtTime } from "./layout";
 
 type Scene = ProjectDocument["scenes"][number];
@@ -125,6 +126,11 @@ export function SceneRenderer({
         ? caption.x + caption.width - caption.padding
         : caption.x + caption.padding;
   const firstBaseline = caption.y + caption.padding + caption.font_size;
+  const cameraTransform = cameraTransformValue(
+    resolveCameraTransform(project.camera_effects ?? [], timeMs),
+    width,
+    height,
+  );
 
   return (
     <svg
@@ -137,55 +143,63 @@ export function SceneRenderer({
       aria-label={project.name}
       data-render-canvas
     >
-      <rect x={0} y={0} width={width} height={height} fill={backgroundColor} />
-      {backgroundHref ? (
-        <image
-          href={backgroundHref}
+      <g transform={cameraTransform} data-camera-stage>
+        <rect
           x={0}
           y={0}
           width={width}
           height={height}
-          preserveAspectRatio="xMidYMid slice"
+          fill={backgroundColor}
         />
-      ) : null}
-      {scene.layers.map((layer) =>
-        timeMs >= (layer.start_ms ?? 0) &&
-        timeMs < (layer.end_ms ?? Number.POSITIVE_INFINITY)
-          ? renderLayer(resolveLayerAtTime(layer, timeMs), assetUrl)
-          : null,
-      )}
-      {resolved.page ? (
-        <g opacity={resolved.opacity}>
-          <rect
-            x={caption.x}
-            y={caption.y}
-            width={caption.width}
-            height={caption.height}
-            rx={caption.border_radius}
-            fill={caption.background_color}
-            fillOpacity={caption.background_opacity}
+        {backgroundHref ? (
+          <image
+            href={backgroundHref}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+            preserveAspectRatio="xMidYMid slice"
           />
-          <text
-            x={textX}
-            y={firstBaseline}
-            fill={caption.text_color}
-            fontFamily={caption.font_family}
-            fontSize={caption.font_size}
-            fontWeight={caption.font_weight ?? 600}
-            textAnchor={textAnchor}
-          >
-            {resolved.lines.map((line, index) => (
-              <tspan
-                key={`${index}-${line}`}
-                x={textX}
-                dy={index === 0 ? 0 : caption.font_size * caption.line_height}
-              >
-                {line}
-              </tspan>
-            ))}
-          </text>
-        </g>
-      ) : null}
+        ) : null}
+        {scene.layers.map((layer) =>
+          timeMs >= (layer.start_ms ?? 0) &&
+          timeMs < (layer.end_ms ?? Number.POSITIVE_INFINITY)
+            ? renderLayer(resolveLayerAtTime(layer, timeMs), assetUrl)
+            : null,
+        )}
+        {resolved.page ? (
+          <g opacity={resolved.opacity}>
+            <rect
+              x={caption.x}
+              y={caption.y}
+              width={caption.width}
+              height={caption.height}
+              rx={caption.border_radius}
+              fill={caption.background_color}
+              fillOpacity={caption.background_opacity}
+            />
+            <text
+              x={textX}
+              y={firstBaseline}
+              fill={caption.text_color}
+              fontFamily={caption.font_family}
+              fontSize={caption.font_size}
+              fontWeight={caption.font_weight ?? 600}
+              textAnchor={textAnchor}
+            >
+              {resolved.lines.map((line, index) => (
+                <tspan
+                  key={`${index}-${line}`}
+                  x={textX}
+                  dy={index === 0 ? 0 : caption.font_size * caption.line_height}
+                >
+                  {line}
+                </tspan>
+              ))}
+            </text>
+          </g>
+        ) : null}
+      </g>
     </svg>
   );
 }

@@ -72,6 +72,20 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await expect(renderedImage).toHaveAttribute("x", "420");
   await expect(renderedImage).toHaveAttribute("y", "0");
 
+  await page.getByRole("button", { name: "カメラ" }).click();
+  await page.getByRole("button", { name: "浮遊" }).click();
+  await expect(page.locator(".camera-timeline-clip")).toHaveText("浮遊");
+  await page.getByRole("button", { name: "設定を閉じる" }).click();
+  const cameraTransformAtStart = await page
+    .locator("[data-camera-stage]")
+    .getAttribute("transform");
+  await seekTimeline(page, 1000);
+  await expect(page.locator("[data-camera-stage]")).not.toHaveAttribute(
+    "transform",
+    cameraTransformAtStart ?? "",
+  );
+  await seekTimeline(page, 0);
+
   const objectHitbox = page.locator(".canvas-object-hitbox").first();
   await objectHitbox.click();
   await expect(page.locator(".canvas-object-toolbar")).toHaveCount(0);
@@ -147,20 +161,24 @@ test("create a project and auto-save its canvas", async ({ page }) => {
 
   await page.getByRole("button", { name: "レイヤー", exact: true }).click();
   await page.getByRole("button", { name: "図形", exact: true }).click();
-  const timelineLabels = page.locator(".object-timeline-label");
+  const timelineLabels = page.locator(
+    ".object-timeline-label:not(.camera-timeline-label)",
+  );
   // タイムライン上段がプレビューの最前面になる。
   await expect(timelineLabels).toHaveText(["図形", "画像"]);
-  await expect(page.locator("svg[data-render-canvas] > *")).toHaveCount(3);
+  await expect(page.locator("[data-camera-stage] > *")).toHaveCount(3);
   await timelineLabels.nth(1).dragTo(timelineLabels.nth(0), {
     targetPosition: { x: 30, y: 1 },
   });
   await expect(timelineLabels).toHaveText(["画像", "図形"]);
-  await expect(
-    page.locator("svg[data-render-canvas] > *").nth(1),
-  ).toHaveJSProperty("tagName", "rect");
-  await expect(
-    page.locator("svg[data-render-canvas] > *").nth(2),
-  ).toHaveJSProperty("tagName", "image");
+  await expect(page.locator("[data-camera-stage] > *").nth(1)).toHaveJSProperty(
+    "tagName",
+    "rect",
+  );
+  await expect(page.locator("[data-camera-stage] > *").nth(2)).toHaveJSProperty(
+    "tagName",
+    "image",
+  );
   await timelineLabels.nth(1).dragTo(timelineLabels.nth(0), {
     targetPosition: { x: 30, y: 1 },
   });
@@ -184,7 +202,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     3,
   );
   await seekTimeline(page, 2500);
-  const animatedShape = page.locator("svg[data-render-canvas] > rect").nth(1);
+  const animatedShape = page.locator("[data-camera-stage] > rect").nth(1);
   await expect(animatedShape).not.toHaveAttribute("x", "160");
   await expect(animatedShape).not.toHaveAttribute("x", "600");
 
