@@ -9,7 +9,12 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from douga.db.session import get_session, session_factory
-from douga.modules.assistant.models import AssistantMessage, AssistantRun, AssistantThread
+from douga.modules.assistant.models import (
+    AssistantMessage,
+    AssistantRun,
+    AssistantThread,
+    AssistantToolCall,
+)
 from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.assistant.schemas import (
     AssistantMessageCreateRequest,
@@ -20,6 +25,7 @@ from douga.modules.assistant.schemas import (
     AssistantThreadDetailResponse,
     AssistantThreadListResponse,
     AssistantThreadResponse,
+    AssistantToolCallResponse,
     AssistantUndoResponse,
 )
 from douga.modules.assistant.service import AssistantService, process_assistant_run
@@ -39,6 +45,10 @@ def message_response(message: AssistantMessage) -> AssistantMessageResponse:
 
 def run_response(run: AssistantRun) -> AssistantRunResponse:
     return AssistantRunResponse.model_validate(run, from_attributes=True)
+
+
+def tool_call_response(call: AssistantToolCall) -> AssistantToolCallResponse:
+    return AssistantToolCallResponse.model_validate(call, from_attributes=True)
 
 
 @router.get("/threads", response_model=AssistantThreadListResponse)
@@ -77,6 +87,7 @@ async def get_thread(
         thread=thread_response(detail.thread),
         messages=[message_response(item) for item in detail.messages],
         runs=[run_response(item) for item in detail.runs],
+        tool_calls=[tool_call_response(item) for item in detail.tool_calls],
     )
 
 
@@ -145,6 +156,32 @@ async def undo_run(
         revision_number=result.revision_number,
         lock_version=result.lock_version,
     )
+
+
+@router.post("/tool-calls/{call_id}/approve", response_model=AssistantRunResponse)
+async def approve_tool_call(
+    project_id: UUID,
+    call_id: UUID,
+    background_tasks: BackgroundTasks,
+    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistantRunResponse:
+    run = await AssistantService(session).approve_tool_call(project_id, call_id, context.user.id)
+    background_tasks.add_task(process_assistant_run, run.id)
+    return run_response(run)
+
+
+@router.post("/tool-calls/{call_id}/reject", response_model=AssistantRunResponse)
+async def reject_tool_call(
+    project_id: UUID,
+    call_id: UUID,
+    background_tasks: BackgroundTasks,
+    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistantRunResponse:
+    run = await AssistantService(session).reject_tool_call(project_id, call_id, context.user.id)
+    background_tasks.add_task(process_assistant_run, run.id)
+    return run_response(run)
 
 
 @router.get("/runs/{run_id}/events")

@@ -265,6 +265,19 @@
     "undoRun": "Undo AI changes",
     "undoing": "Undoing…",
     "saveRequired": "Save the current edit before sending a message to AI.",
+    "toolProgress": "{{progress}}%",
+    "approval": {
+      "required": "Confirmation required before running",
+      "quality": "Quality: {{quality}}",
+      "approve": "Run",
+      "reject": "Not this time"
+    },
+    "image": {
+      "generated": "Generated image"
+    },
+    "tools": {
+      "generate_image": "Generate a high-quality image"
+    },
     "history": "Conversation history",
     "newConversation": "Start a new conversation",
     "newConversationTitle": "New conversation",
@@ -311,6 +324,10 @@
     "projectCanvasNotFound": "The editing canvas could not be found.",
     "layerNotFound": "The target object could not be found.",
     "layerLocked": "A locked object cannot be changed.",
+    "assistantToolCallNotFound": "The AI tool approval request could not be found.",
+    "assistantToolCallNotWaiting": "This approval request was already handled.",
+    "assistantRunActive": "Another run is active in this conversation. Complete, approve, or stop it before retrying.",
+    "imageGenerationFailed": "Image generation failed.",
     "imageQuotaExceeded": "You have reached the hourly image generation limit.",
     "imageGenerationNotFound": "Image generation history was not found.",
     "exportFailed": "Video export failed.",

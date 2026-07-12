@@ -62,10 +62,24 @@ class AssistantRunResponse(BaseModel):
     created_at: datetime
 
 
+class AssistantToolCallResponse(BaseModel):
+    id: UUID
+    run_id: UUID
+    tool_name: str
+    arguments_json: dict[str, object]
+    result_json: dict[str, object] | None
+    status: str
+    approval_required: bool
+    approved_at: datetime | None
+    created_at: datetime
+    finished_at: datetime | None
+
+
 class AssistantThreadDetailResponse(BaseModel):
     thread: AssistantThreadResponse
     messages: list[AssistantMessageResponse]
     runs: list[AssistantRunResponse]
+    tool_calls: list[AssistantToolCallResponse]
 
 
 class AssistantUndoResponse(BaseModel):

@@ -33,6 +33,7 @@ class UpdateCreativeStatusArgs(BaseModel):
 
 def serialize_document(document: CreativeDocument) -> dict[str, Any]:
     return {
+        "artifact_type": "creative_document",
         "id": str(document.id),
         "project_id": str(document.project_id),
         "kind": document.kind,

@@ -265,6 +265,19 @@
     "undoRun": "AIの変更を取り消す",
     "undoing": "取り消し中…",
     "saveRequired": "編集中の変更を保存してからAIへ送信できます。",
+    "toolProgress": "{{progress}}%",
+    "approval": {
+      "required": "実行前の確認が必要です",
+      "quality": "品質: {{quality}}",
+      "approve": "実行する",
+      "reject": "今回はしない"
+    },
+    "image": {
+      "generated": "生成した画像"
+    },
+    "tools": {
+      "generate_image": "高品質画像を生成"
+    },
     "history": "会話履歴",
     "newConversation": "新しい会話を作成",
     "newConversationTitle": "新しい会話",
@@ -311,6 +324,10 @@
     "projectCanvasNotFound": "編集キャンバスが見つかりません。",
     "layerNotFound": "対象のオブジェクトが見つかりません。",
     "layerLocked": "ロック中のオブジェクトは変更できません。",
+    "assistantToolCallNotFound": "AIツールの確認要求が見つかりません。",
+    "assistantToolCallNotWaiting": "この確認要求はすでに処理されています。",
+    "assistantRunActive": "この会話では別の処理が実行中です。完了、承認、または停止してから再試行してください。",
+    "imageGenerationFailed": "画像生成に失敗しました。",
     "imageQuotaExceeded": "画像生成の1時間あたりの上限に達しました。",
     "imageGenerationNotFound": "画像生成履歴が見つかりません。",
     "exportFailed": "動画の書き出しに失敗しました。",

@@ -10,11 +10,29 @@ import {
   type AssistantThreadDto,
   type AssistantThreadListDto,
   type AssistantRunStartedDto,
+  type AssistantRunDto,
+  type AssistantToolCallDto,
   type CreativeDocumentDto,
   type CreativeDocumentListDto,
+  type ImageArtifactDto,
 } from "../../../shared/lib/api";
+import { ApprovalCard } from "./ApprovalCard";
 import { CreativeDocumentCard } from "./CreativeDocumentCard";
 import { MarkdownMessage } from "./MarkdownMessage";
+import { ImageArtifactCard } from "./ImageArtifactCard";
+
+function imageArtifact(value: unknown): ImageArtifactDto | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as Partial<ImageArtifactDto>;
+  return item.artifact_type === "image" &&
+    typeof item.asset_id === "string" &&
+    typeof item.request_id === "string" &&
+    typeof item.prompt === "string" &&
+    typeof item.size === "string" &&
+    typeof item.quality === "string"
+    ? (item as ImageArtifactDto)
+    : undefined;
+}
 
 interface AssistantPanelProps {
   canRun: boolean;
@@ -48,6 +66,10 @@ export function AssistantPanel({
   const [adoptingId, setAdoptingId] = useState<string>();
   const [undoableRunId, setUndoableRunId] = useState<string>();
   const [undoing, setUndoing] = useState(false);
+  const [approvals, setApprovals] = useState<AssistantToolCallDto[]>([]);
+  const [approvalBusyId, setApprovalBusyId] = useState<string>();
+  const [imageArtifacts, setImageArtifacts] = useState<ImageArtifactDto[]>([]);
+  const [toolProgress, setToolProgress] = useState<number>();
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -82,6 +104,17 @@ export function AssistantPanel({
         setThread(detail.thread);
         setMessages(detail.messages);
         setDocuments(documentList.items);
+        setApprovals(
+          detail.tool_calls.filter(
+            (call) => call.status === "waiting_approval",
+          ),
+        );
+        setImageArtifacts(
+          detail.tool_calls.flatMap((call) => {
+            const artifact = imageArtifact(call.result_json?.generation);
+            return artifact ? [artifact] : [];
+          }),
+        );
         setUndoableRunId(
           detail.runs.find(
             (run) =>
@@ -159,6 +192,15 @@ export function AssistantPanel({
       );
       setThread(detail.thread);
       setMessages(detail.messages);
+      setApprovals(
+        detail.tool_calls.filter((call) => call.status === "waiting_approval"),
+      );
+      setImageArtifacts(
+        detail.tool_calls.flatMap((call) => {
+          const artifact = imageArtifact(call.result_json?.generation);
+          return artifact ? [artifact] : [];
+        }),
+      );
       setUndoableRunId(
         detail.runs.find(
           (run) =>
@@ -193,6 +235,8 @@ export function AssistantPanel({
       setMessages([]);
       setDraft("");
       setUndoableRunId(undefined);
+      setApprovals([]);
+      setImageArtifacts([]);
     } catch (error) {
       setErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
@@ -241,14 +285,58 @@ export function AssistantPanel({
       ]);
     });
     source.addEventListener("artifact.created", (event) => {
-      const { artifact } = JSON.parse(event.data) as {
-        artifact: CreativeDocumentDto;
-      };
+      const { artifact } = JSON.parse(event.data) as { artifact: unknown };
+      const generated = imageArtifact(artifact);
+      if (generated) {
+        setImageArtifacts((current) => [
+          generated,
+          ...current.filter((item) => item.asset_id !== generated.asset_id),
+        ]);
+        return;
+      }
+      const document = artifact as CreativeDocumentDto;
       setDocuments((current) => [
-        artifact,
-        ...current.filter((item) => item.kind !== artifact.kind),
+        document,
+        ...current.filter((item) => item.kind !== document.kind),
       ]);
     });
+    source.addEventListener("tool.waiting_approval", (event) => {
+      const value = JSON.parse(event.data) as {
+        arguments: Record<string, unknown>;
+        call_id: string;
+        tool_name: string;
+      };
+      setApprovals((current) => [
+        {
+          id: value.call_id,
+          run_id: runId,
+          tool_name: value.tool_name,
+          arguments_json: value.arguments,
+          result_json: null,
+          status: "waiting_approval",
+          approval_required: true,
+          approved_at: null,
+          created_at: new Date().toISOString(),
+          finished_at: null,
+        },
+        ...current.filter((item) => item.id !== value.call_id),
+      ]);
+    });
+    source.addEventListener("tool.progress", (event) => {
+      const value = JSON.parse(event.data) as { progress?: number };
+      setToolProgress(value.progress);
+    });
+    const finishToolApproval = (event: Event) => {
+      const value = JSON.parse((event as MessageEvent).data) as {
+        call_id: string;
+      };
+      setApprovals((current) =>
+        current.filter((item) => item.id !== value.call_id),
+      );
+      setToolProgress(undefined);
+    };
+    source.addEventListener("tool.completed", finishToolApproval);
+    source.addEventListener("tool.rejected", finishToolApproval);
     const finish = () => {
       source.close();
       if (eventSourceRef.current === source) eventSourceRef.current = null;
@@ -261,8 +349,18 @@ export function AssistantPanel({
       if (result.result_revision_number !== null) setUndoableRunId(runId);
       finish();
     });
-    source.addEventListener("run.cancelled", finish);
+    source.addEventListener("run.cancelled", () => {
+      setApprovals((current) =>
+        current.filter((item) => item.run_id !== runId),
+      );
+      setToolProgress(undefined);
+      finish();
+    });
     source.addEventListener("run.failed", () => {
+      setApprovals((current) =>
+        current.filter((item) => item.run_id !== runId),
+      );
+      setToolProgress(undefined);
       setErrorKey("errors.assistantUnavailable");
       finish();
     });
@@ -335,6 +433,31 @@ export function AssistantPanel({
       );
     } finally {
       setUndoing(false);
+    }
+  }
+
+  async function resolveApproval(
+    call: AssistantToolCallDto,
+    action: "approve" | "reject",
+  ) {
+    if (approvalBusyId) return;
+    setApprovalBusyId(call.id);
+    setErrorKey(undefined);
+    try {
+      const run = await apiRequest<AssistantRunDto>(
+        `/projects/${projectId}/assistant/tool-calls/${call.id}/${action}`,
+        { method: "POST" },
+      );
+      if (!eventSourceRef.current) {
+        setSending(true);
+        listenToRun(run.id);
+      }
+    } catch (error) {
+      setErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setApprovalBusyId(undefined);
     }
   }
 
@@ -444,6 +567,18 @@ export function AssistantPanel({
             onAdopt={(item) => void adoptDocument(item)}
           />
         ))}
+        {imageArtifacts.map((artifact) => (
+          <ImageArtifactCard artifact={artifact} key={artifact.asset_id} />
+        ))}
+        {approvals.map((call) => (
+          <ApprovalCard
+            busy={approvalBusyId === call.id}
+            call={call}
+            key={call.id}
+            onApprove={() => void resolveApproval(call, "approve")}
+            onReject={() => void resolveApproval(call, "reject")}
+          />
+        ))}
         {undoableRunId ? (
           <button
             type="button"
@@ -457,6 +592,11 @@ export function AssistantPanel({
         {sending ? (
           <div className="assistant-running">
             <p className="assistant-status">{t("assistant.thinking")}</p>
+            {toolProgress !== undefined ? (
+              <span>
+                {t("assistant.toolProgress", { progress: toolProgress })}
+              </span>
+            ) : null}
             <button type="button" onClick={() => void cancelRun()}>
               {t("assistant.stop")}
             </button>
@@ -472,7 +612,7 @@ export function AssistantPanel({
       <form className="assistant-composer" onSubmit={submit}>
         <textarea
           aria-label={t("assistant.input")}
-          disabled={!thread || sending || !canRun}
+          disabled={!thread || sending || approvals.length > 0 || !canRun}
           maxLength={10_000}
           placeholder={t("assistant.placeholder")}
           value={draft}
@@ -486,7 +626,13 @@ export function AssistantPanel({
         />
         <button
           type="submit"
-          disabled={!draft.trim() || !thread || sending || !canRun}
+          disabled={
+            !draft.trim() ||
+            !thread ||
+            sending ||
+            approvals.length > 0 ||
+            !canRun
+          }
         >
           {t("assistant.send")}
         </button>

@@ -16,6 +16,7 @@ from douga.modules.assistant.models import (
     CreativeDocument,
 )
 from douga.modules.assistant.service import AssistantService
+from douga.modules.assistant.tools.animation_tools import animation_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.registry import ToolContext, ToolRegistry
 from douga.modules.assistant.tools.timeline_tools import timeline_tool_definitions
@@ -148,7 +149,11 @@ async def test_project_read_and_edit_tools_create_owned_revisions() -> None:
                 project_id=project_id,
                 user_id=user.id,
             )
-            tools = ToolRegistry(project_read_tool_definitions() + timeline_tool_definitions())
+            tools = ToolRegistry(
+                project_read_tool_definitions()
+                + timeline_tool_definitions()
+                + animation_tool_definitions()
+            )
 
             summary = await tools.execute("get_project_context", context, {})
             assert summary.data["project"]["layer_count"] == 0
@@ -266,11 +271,45 @@ async def test_project_read_and_edit_tools_create_owned_revisions() -> None:
                     "z_index": 1,
                 },
             )
+            await tools.execute(
+                "apply_animation",
+                context,
+                {
+                    "clip_id": image_id,
+                    "preset": "spin",
+                    "time_ms": 0,
+                    "duration_ms": 2000,
+                },
+            )
+            await tools.execute(
+                "apply_effect",
+                context,
+                {
+                    "clip_id": image_id,
+                    "preset": "fade_out",
+                    "time_ms": 3000,
+                    "duration_ms": 1000,
+                },
+            )
+            await tools.execute(
+                "apply_camera_effect",
+                context,
+                {
+                    "preset": "handheld",
+                    "start_ms": 0,
+                    "end_ms": 5000,
+                    "intensity": 1,
+                    "period_ms": 900,
+                },
+            )
             timeline = await tools.execute(
                 "get_timeline_summary", context, {"start_ms": 0, "end_ms": 5000}
             )
             assert len(timeline.data["layers"]) == 2
             assert len(timeline.data["captions"]) == 1
+            assert len(timeline.data["camera_effects"]) == 1
+            image_clip = next(item for item in timeline.data["layers"] if item["id"] == image_id)
+            assert len(image_clip["keyframes"]) >= 3
             with pytest.raises(NotFoundError):
                 await tools.execute(
                     "add_audio_clip",
@@ -292,7 +331,7 @@ async def test_project_read_and_edit_tools_create_owned_revisions() -> None:
             await tools.execute("extend_timeline", context, {"duration_ms": 10_000})
 
         detail = await client.get(f"/api/v1/projects/{project_id}")
-        assert detail.json()["project"]["current_revision_number"] == 10
+        assert detail.json()["project"]["current_revision_number"] == 13
         scene = detail.json()["document"]["scenes"][0]
         assert [layer["type"] for layer in scene["layers"]] == ["image"]
         assert scene["dialogues"][0]["text"] == "A timed caption"

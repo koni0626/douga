@@ -784,6 +784,73 @@ button,
   font-size: 0.68rem;
 }
 
+.assistant-image-card {
+  background: #0d263a;
+  border: 1px solid #35617f;
+  border-radius: 0.8rem;
+  overflow: hidden;
+}
+
+.assistant-image-card img {
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.assistant-image-card div {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.65rem;
+}
+
+.assistant-image-card p {
+  color: #c7d7e3;
+  font-size: 0.7rem;
+  margin: 0;
+}
+
+.assistant-image-card small {
+  color: #8eabc1;
+  font-size: 0.62rem;
+}
+
+.assistant-approval-card {
+  background: #2b2212;
+  border: 1px solid #9b722a;
+  border-radius: 0.8rem;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+}
+
+.assistant-approval-card > span {
+  color: #ffc766;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.assistant-approval-card p {
+  font-size: 0.72rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.assistant-approval-card small {
+  color: #d0b989;
+  font-size: 0.64rem;
+}
+
+.assistant-approval-card div {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.assistant-approval-card button {
+  font-size: 0.68rem;
+  padding: 0.35rem 0.6rem;
+}
+
 .assistant-status {
   color: #8fb4d1;
   font-size: 0.75rem;
@@ -793,6 +860,11 @@ button,
   align-items: center;
   display: flex;
   justify-content: space-between;
+}
+
+.assistant-running span {
+  color: #70c7ff;
+  font-size: 0.68rem;
 }
 
 .assistant-running p {

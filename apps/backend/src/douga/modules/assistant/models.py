@@ -98,6 +98,9 @@ class AssistantRun(UuidPrimaryKeyMixin, Base):
     context_json: Mapped[dict[str, Any]] = mapped_column(
         JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
     )
+    continuation_json: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False, default=list
+    )
     result_revision_number: Mapped[int | None] = mapped_column(Integer)
     undo_revision_number: Mapped[int | None] = mapped_column(Integer)
     provider_response_id: Mapped[str | None] = mapped_column(String(255))

@@ -86,6 +86,7 @@ class OpenAIResponsesProvider:
                 input=input_items,
                 store=False,
                 tools=provider_tools,
+                parallel_tool_calls=False,
             ) as stream:
                 async for event in stream:
                     if event.type == "response.output_text.delta":
@@ -99,6 +100,7 @@ class OpenAIResponsesProvider:
             input=input_items,
             store=False,
             tools=provider_tools,
+            parallel_tool_calls=False,
         )
         return self._result(response)
 
@@ -158,8 +160,43 @@ class FakeAssistantProvider:
             return AssistantProviderResult(content=content, response_id="fake-response-final")
         requested = any(
             word in prompt.casefold()
-            for word in ("保存", "作って", "作成", "追加", "add", "create", "save")
+            for word in (
+                "保存",
+                "作って",
+                "作成",
+                "追加",
+                "生成",
+                "add",
+                "create",
+                "save",
+            )
         )
+        arguments: dict[str, Any]
+        if requested and ("画像" in prompt or "image" in prompt.casefold()):
+            high_quality = "高品質" in prompt or "high quality" in prompt.casefold()
+            arguments = {
+                "prompt": prompt[:4000],
+                "quality": "high" if high_quality else "low",
+                "size": "1536x1024",
+            }
+            output_item = {
+                "type": "function_call",
+                "call_id": "fake-generate-image",
+                "name": "generate_image",
+                "arguments": json.dumps(arguments, ensure_ascii=False),
+            }
+            return AssistantProviderResult(
+                content="",
+                response_id="fake-response-tool",
+                tool_calls=(
+                    AssistantProviderToolCall(
+                        call_id="fake-generate-image",
+                        name="generate_image",
+                        arguments=arguments,
+                    ),
+                ),
+                output_items=(output_item,),
+            )
         if requested and ("テキスト" in prompt or "text" in prompt.casefold()):
             match = re.search(r"[「\"]([^」\"]+)[」\"]", prompt)
             text = match.group(1) if match else "AIで追加したテキスト"

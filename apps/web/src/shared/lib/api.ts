@@ -128,6 +128,7 @@ export interface AssistantThreadDetailDto {
   thread: AssistantThreadDto;
   messages: AssistantMessageDto[];
   runs: AssistantRunDto[];
+  tool_calls: AssistantToolCallDto[];
 }
 
 export interface AssistantRunDto {
@@ -144,6 +145,34 @@ export interface AssistantRunDto {
   result_revision_number: number | null;
   undo_revision_number: number | null;
   created_at: string;
+}
+
+export interface AssistantToolCallDto {
+  id: string;
+  run_id: string;
+  tool_name: string;
+  arguments_json: Record<string, unknown>;
+  result_json: Record<string, unknown> | null;
+  status:
+    | "requested"
+    | "waiting_approval"
+    | "running"
+    | "completed"
+    | "failed"
+    | "cancelled";
+  approval_required: boolean;
+  approved_at: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface ImageArtifactDto {
+  artifact_type: "image";
+  request_id: string;
+  asset_id: string;
+  prompt: string;
+  size: string;
+  quality: string;
 }
 
 export interface AssistantRunStartedDto {

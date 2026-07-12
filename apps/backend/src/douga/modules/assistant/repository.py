@@ -95,6 +95,56 @@ class AssistantRepository:
             )
         )
 
+    async def list_thread_tool_calls(
+        self, thread_id: UUID, user_id: UUID, *, limit: int = 100
+    ) -> list[AssistantToolCall]:
+        return list(
+            await self.session.scalars(
+                select(AssistantToolCall)
+                .join(AssistantRun, AssistantRun.id == AssistantToolCall.run_id)
+                .where(
+                    AssistantRun.thread_id == thread_id,
+                    AssistantRun.user_id == user_id,
+                    AssistantToolCall.user_id == user_id,
+                )
+                .order_by(AssistantToolCall.created_at.desc())
+                .limit(limit)
+            )
+        )
+
+    async def get_tool_call(
+        self, call_id: UUID, project_id: UUID, user_id: UUID
+    ) -> AssistantToolCall | None:
+        return (
+            await self.session.scalars(
+                select(AssistantToolCall)
+                .join(AssistantRun, AssistantRun.id == AssistantToolCall.run_id)
+                .where(
+                    AssistantToolCall.id == call_id,
+                    AssistantToolCall.user_id == user_id,
+                    AssistantRun.project_id == project_id,
+                    AssistantRun.user_id == user_id,
+                )
+            )
+        ).one_or_none()
+
+    async def get_resumable_tool_call(
+        self, run_id: UUID, user_id: UUID
+    ) -> AssistantToolCall | None:
+        return (
+            await self.session.scalars(
+                select(AssistantToolCall)
+                .where(
+                    AssistantToolCall.run_id == run_id,
+                    AssistantToolCall.user_id == user_id,
+                    AssistantToolCall.approval_required.is_(True),
+                    AssistantToolCall.status.in_(("requested", "cancelled")),
+                )
+                .order_by(AssistantToolCall.created_at.desc())
+                .limit(1)
+            )
+        ).one_or_none()
+
     async def list_runs(
         self, thread_id: UUID, user_id: UUID, *, limit: int = 50
     ) -> list[AssistantRun]:
@@ -109,6 +159,20 @@ class AssistantRepository:
                 .limit(limit)
             )
         )
+
+    async def get_active_run(self, thread_id: UUID, user_id: UUID) -> AssistantRun | None:
+        return (
+            await self.session.scalars(
+                select(AssistantRun)
+                .where(
+                    AssistantRun.thread_id == thread_id,
+                    AssistantRun.user_id == user_id,
+                    AssistantRun.status.in_(("queued", "running", "waiting_approval")),
+                )
+                .order_by(AssistantRun.created_at.desc())
+                .limit(1)
+            )
+        ).one_or_none()
 
     async def get_run(self, run_id: UUID, project_id: UUID, user_id: UUID) -> AssistantRun | None:
         return (

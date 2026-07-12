@@ -16,6 +16,7 @@ class ToolContext:
     run_id: UUID
     project_id: UUID
     user_id: UUID
+    emit_progress: Callable[[dict[str, Any]], Awaitable[None]] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class ToolExecutionResult:
 
 
 ToolHandler = Callable[[ToolContext, dict[str, Any]], Awaitable[ToolExecutionResult]]
+ApprovalPolicy = Callable[[dict[str, Any]], bool]
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +37,12 @@ class ToolDefinition:
     parameters: dict[str, Any]
     handler: ToolHandler
     approval_required: bool = False
+    approval_policy: ApprovalPolicy | None = None
+
+    def requires_approval(self, arguments: dict[str, Any]) -> bool:
+        return self.approval_required or bool(
+            self.approval_policy and self.approval_policy(arguments)
+        )
 
 
 class ToolRegistry:

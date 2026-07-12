@@ -15,6 +15,8 @@ from douga.integrations.openai_responses import (
 )
 from douga.modules.assistant.models import AssistantMessage, AssistantRun, AssistantToolCall
 from douga.modules.assistant.repository import AssistantRepository
+from douga.modules.assistant.tools.animation_tools import animation_tool_definitions
+from douga.modules.assistant.tools.asset_tools import asset_tool_definitions
 from douga.modules.assistant.tools.creative_tools import creative_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.registry import ToolContext, ToolRegistry
@@ -25,6 +27,10 @@ from douga.modules.projects.repository import ProjectRepository
 
 class AssistantRunCancelled(Exception):
     """Stop an in-flight provider stream after the user cancels its run."""
+
+
+class AssistantApprovalPending(Exception):
+    """Pause a run until its requested tool call is approved or rejected."""
 
 
 class AssistantOrchestrator:
@@ -42,6 +48,8 @@ class AssistantOrchestrator:
         self.uow = UnitOfWork(session)
         self.tools = ToolRegistry(
             creative_tool_definitions()
+            + asset_tool_definitions()
+            + animation_tool_definitions()
             + project_read_tool_definitions()
             + timeline_tool_definitions()
         )
@@ -50,9 +58,13 @@ class AssistantOrchestrator:
         run = await self.repository.get_run_internal(run_id)
         if run is None or run.status != "queued":
             return
+        resuming = run.started_at is not None
         run.status = "running"
-        run.started_at = datetime.now(UTC)
-        await self.repository.add_event(run, "run.started", {"run_id": str(run.id)})
+        if resuming:
+            await self.repository.add_event(run, "run.resumed", {"run_id": str(run.id)})
+        else:
+            run.started_at = datetime.now(UTC)
+            await self.repository.add_event(run, "run.started", {"run_id": str(run.id)})
         await self.uow.commit()
 
         project = await self.projects.get_owned(run.project_id, run.user_id)
@@ -70,8 +82,22 @@ class AssistantOrchestrator:
             if item.role in {"user", "assistant"}
         ]
         instructions = self._instructions(project)
-        continuation: list[dict[str, Any]] = []
-        aggregate_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        continuation = list(run.continuation_json)
+        aggregate_usage = {
+            key: int(run.usage_json.get(key, 0))
+            for key in ("input_tokens", "output_tokens", "total_tokens")
+        }
+
+        if continuation:
+            pending = await self.repository.get_resumable_tool_call(run.id, run.user_id)
+            if pending is not None:
+                if pending.status == "cancelled":
+                    output = pending.result_json or {"error": {"code": "USER_REJECTED"}}
+                else:
+                    output = await self._run_tool(run, pending)
+                continuation.append(self._tool_output(pending.provider_call_id, output))
+                run.continuation_json = []
+                await self.uow.commit()
 
         try:
             final_result = await self._run_model_loop(
@@ -82,6 +108,10 @@ class AssistantOrchestrator:
                 aggregate_usage,
             )
         except AssistantRunCancelled:
+            return
+        except AssistantApprovalPending:
+            run.usage_json = aggregate_usage
+            await self.uow.commit()
             return
         except Exception as error:
             del error
@@ -115,6 +145,7 @@ class AssistantOrchestrator:
         run.status = "completed"
         run.provider_response_id = final_result.response_id
         run.usage_json = aggregate_usage
+        run.continuation_json = []
         run.finished_at = datetime.now(UTC)
         await self.repository.add_event(
             run,
@@ -137,7 +168,7 @@ class AssistantOrchestrator:
         continuation: list[dict[str, Any]],
         aggregate_usage: dict[str, int],
     ) -> AssistantProviderResult:
-        total_calls = 0
+        total_calls = len(await self.repository.list_tool_calls(run.id, run.user_id))
 
         async def record_delta(delta: str) -> None:
             await self.session.refresh(run)
@@ -164,20 +195,19 @@ class AssistantOrchestrator:
                 raise ApplicationError(
                     "ASSISTANT_TOOL_LIMIT_EXCEEDED", "errors.assistantToolLimitExceeded", 429
                 )
-            for provider_call in result.tool_calls:
+            provider_call = result.tool_calls[0]
+            try:
                 output = await self._execute_tool(
                     run,
                     provider_call.call_id,
                     provider_call.name,
                     provider_call.arguments,
                 )
-                continuation.append(
-                    {
-                        "type": "function_call_output",
-                        "call_id": provider_call.call_id,
-                        "output": json.dumps(output, ensure_ascii=False),
-                    }
-                )
+            except AssistantApprovalPending:
+                run.continuation_json = continuation
+                await self.uow.commit()
+                raise
+            continuation.append(self._tool_output(provider_call.call_id, output))
 
     async def _execute_tool(
         self,
@@ -187,6 +217,7 @@ class AssistantOrchestrator:
         arguments: dict[str, Any],
     ) -> dict[str, Any]:
         definition = self.tools.definition(tool_name)
+        approval_required = definition.requires_approval(arguments)
         call = AssistantToolCall(
             run_id=run.id,
             user_id=run.user_id,
@@ -194,7 +225,7 @@ class AssistantOrchestrator:
             tool_name=tool_name,
             arguments_json=arguments,
             status="requested",
-            approval_required=definition.approval_required,
+            approval_required=approval_required,
         )
         await self.repository.add_tool_call(call)
         await self.repository.add_event(
@@ -202,23 +233,56 @@ class AssistantOrchestrator:
             "tool.requested",
             {"call_id": str(call.id), "tool_name": tool_name},
         )
+        if approval_required:
+            call.status = "waiting_approval"
+            run.status = "waiting_approval"
+            await self.repository.add_event(
+                run,
+                "tool.waiting_approval",
+                {
+                    "call_id": str(call.id),
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                },
+            )
+            await self.uow.commit()
+            raise AssistantApprovalPending
+        return await self._run_tool(run, call)
+
+    async def _run_tool(self, run: AssistantRun, call: AssistantToolCall) -> dict[str, Any]:
+        call_id = str(call.id)
+        tool_name = call.tool_name
+        arguments = dict(call.arguments_json)
         call.status = "running"
         await self.repository.add_event(
             run,
             "tool.started",
-            {"call_id": str(call.id), "tool_name": tool_name},
+            {"call_id": call_id, "tool_name": tool_name},
         )
         await self.uow.commit()
+
+        async def emit_progress(data: dict[str, Any]) -> None:
+            await self.session.refresh(run)
+            if run.status == "cancelled":
+                raise AssistantRunCancelled
+            await self.repository.add_event(
+                run,
+                "tool.progress",
+                {"call_id": call_id, "tool_name": tool_name, **data},
+            )
+            await self.uow.commit()
 
         context = ToolContext(
             session=self.session,
             run_id=run.id,
             project_id=run.project_id,
             user_id=run.user_id,
+            emit_progress=emit_progress,
         )
         try:
             result = await self.tools.execute(tool_name, context, arguments)
         except ApplicationError as error:
+            await self.session.refresh(call)
             output: dict[str, Any] = {"error": {"code": error.code}}
             call.status = "failed"
             call.result_json = output
@@ -226,36 +290,49 @@ class AssistantOrchestrator:
             await self.repository.add_event(
                 run,
                 "tool.failed",
-                {"call_id": str(call.id), "tool_name": tool_name, "error_code": error.code},
+                {
+                    "call_id": call_id,
+                    "tool_name": tool_name,
+                    "error_code": error.code,
+                },
             )
             await self.uow.commit()
             return output
 
+        await self.session.refresh(call)
         call.status = "completed"
         call.result_json = result.data
         call.finished_at = datetime.now(UTC)
         await self.repository.add_event(
             run,
             "tool.completed",
-            {"call_id": str(call.id), "tool_name": tool_name, "result": result.data},
+            {"call_id": call_id, "tool_name": tool_name, "result": result.data},
         )
         if result.artifact is not None:
             await self.repository.add_event(
                 run,
                 "artifact.created",
-                {"call_id": str(call.id), "artifact": result.artifact},
+                {"call_id": call_id, "artifact": result.artifact},
             )
         if result.revision_number is not None:
             await self.repository.add_event(
                 run,
                 "project.revision_created",
                 {
-                    "call_id": str(call.id),
+                    "call_id": call_id,
                     "revision_number": result.revision_number,
                 },
             )
         await self.uow.commit()
         return result.data
+
+    @staticmethod
+    def _tool_output(call_id: str, output: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "type": "function_call_output",
+            "call_id": call_id,
+            "output": json.dumps(output, ensure_ascii=False),
+        }
 
     async def _fail_run(self, run: AssistantRun, error_code: str) -> None:
         run.status = "failed"

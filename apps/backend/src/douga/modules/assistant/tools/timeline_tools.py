@@ -315,13 +315,19 @@ async def extend_timeline(context: ToolContext, arguments: dict[str, Any]) -> To
 
 
 def definition(
-    name: str, description: str, model: type[BaseModel], handler: ToolHandler
+    name: str,
+    description: str,
+    model: type[BaseModel],
+    handler: ToolHandler,
+    *,
+    approval_required: bool = False,
 ) -> ToolDefinition:
     return ToolDefinition(
         name=name,
         description=description,
         parameters=model_parameters(model),
         handler=handler,
+        approval_required=approval_required,
     )
 
 
@@ -371,7 +377,11 @@ def timeline_tool_definitions() -> tuple[ToolDefinition, ...]:
             update_clip_content,
         ),
         definition(
-            "delete_clip", "Delete one clip after an explicit request.", DeleteClipArgs, delete_clip
+            "delete_clip",
+            "Delete one clip after an explicit request and user approval.",
+            DeleteClipArgs,
+            delete_clip,
+            approval_required=True,
         ),
         definition(
             "extend_timeline",

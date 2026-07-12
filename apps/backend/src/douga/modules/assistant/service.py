@@ -10,7 +10,12 @@ from douga.core.errors import ConflictError, NotFoundError
 from douga.db.session import session_factory
 from douga.db.unit_of_work import UnitOfWork
 from douga.integrations.openai_responses import AssistantProvider, build_assistant_provider
-from douga.modules.assistant.models import AssistantMessage, AssistantRun, AssistantThread
+from douga.modules.assistant.models import (
+    AssistantMessage,
+    AssistantRun,
+    AssistantThread,
+    AssistantToolCall,
+)
 from douga.modules.assistant.orchestrator import AssistantOrchestrator
 from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.projects.models import Project
@@ -23,6 +28,7 @@ class AssistantThreadDetail:
     thread: AssistantThread
     messages: list[AssistantMessage]
     runs: list[AssistantRun]
+    tool_calls: list[AssistantToolCall]
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,7 +86,10 @@ class AssistantService:
             raise NotFoundError("ASSISTANT_THREAD_NOT_FOUND", "errors.assistantThreadNotFound")
         messages = await self.repository.list_messages(thread_id, user_id)
         runs = await self.repository.list_runs(thread_id, user_id)
-        return AssistantThreadDetail(thread=thread, messages=messages, runs=runs)
+        tool_calls = await self.repository.list_thread_tool_calls(thread_id, user_id)
+        return AssistantThreadDetail(
+            thread=thread, messages=messages, runs=runs, tool_calls=tool_calls
+        )
 
     async def start_run(
         self,
@@ -94,6 +103,8 @@ class AssistantService:
         thread = await self.repository.get_thread(thread_id, project_id, user_id)
         if thread is None:
             raise NotFoundError("ASSISTANT_THREAD_NOT_FOUND", "errors.assistantThreadNotFound")
+        if await self.repository.get_active_run(thread.id, user_id) is not None:
+            raise ConflictError("ASSISTANT_RUN_ACTIVE", "errors.assistantRunActive")
 
         user_message = AssistantMessage(
             thread_id=thread.id, user_id=user_id, role="user", content=content
@@ -139,6 +150,57 @@ class AssistantService:
         run.finished_at = datetime.now(UTC)
         await self.repository.add_event(
             run, "run.cancelled", {"run_id": str(run.id), "status": run.status}
+        )
+        for call in await self.repository.list_tool_calls(run.id, user_id):
+            if call.status in {"requested", "waiting_approval", "running"}:
+                call.status = "cancelled"
+                call.finished_at = datetime.now(UTC)
+        await self.uow.commit()
+        return run
+
+    async def approve_tool_call(
+        self, project_id: UUID, call_id: UUID, user_id: UUID
+    ) -> AssistantRun:
+        await self._owned_project(project_id, user_id)
+        call = await self.repository.get_tool_call(call_id, project_id, user_id)
+        if call is None:
+            raise NotFoundError("ASSISTANT_TOOL_CALL_NOT_FOUND", "errors.assistantToolCallNotFound")
+        run = await self.get_run(project_id, call.run_id, user_id)
+        if call.status != "waiting_approval" or run.status != "waiting_approval":
+            raise ConflictError(
+                "ASSISTANT_TOOL_CALL_NOT_WAITING", "errors.assistantToolCallNotWaiting"
+            )
+        call.status = "requested"
+        call.approved_at = datetime.now(UTC)
+        run.status = "queued"
+        await self.repository.add_event(
+            run,
+            "tool.approved",
+            {"call_id": str(call.id), "tool_name": call.tool_name},
+        )
+        await self.uow.commit()
+        return run
+
+    async def reject_tool_call(
+        self, project_id: UUID, call_id: UUID, user_id: UUID
+    ) -> AssistantRun:
+        await self._owned_project(project_id, user_id)
+        call = await self.repository.get_tool_call(call_id, project_id, user_id)
+        if call is None:
+            raise NotFoundError("ASSISTANT_TOOL_CALL_NOT_FOUND", "errors.assistantToolCallNotFound")
+        run = await self.get_run(project_id, call.run_id, user_id)
+        if call.status != "waiting_approval" or run.status != "waiting_approval":
+            raise ConflictError(
+                "ASSISTANT_TOOL_CALL_NOT_WAITING", "errors.assistantToolCallNotWaiting"
+            )
+        call.status = "cancelled"
+        call.result_json = {"error": {"code": "USER_REJECTED"}}
+        call.finished_at = datetime.now(UTC)
+        run.status = "queued"
+        await self.repository.add_event(
+            run,
+            "tool.rejected",
+            {"call_id": str(call.id), "tool_name": call.tool_name},
         )
         await self.uow.commit()
         return run
