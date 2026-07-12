@@ -692,49 +692,51 @@ export function ProjectEditorPage() {
                   timeMs={timeMs}
                   assetUrl={assetContentUrl}
                 />
-                <CanvasObjectEditor
-                  animationLabels={{
-                    animation: t("editor.animation.title"),
-                    back: t("editor.animation.back"),
-                    duration: t("editor.animation.duration"),
-                    effect: t("editor.animation.effect"),
-                    remove: t("editor.animation.remove"),
-                    presets: {
-                      slide_left: t("editor.animation.presets.slideLeft"),
-                      slide_right: t("editor.animation.presets.slideRight"),
-                      slide_up: t("editor.animation.presets.slideUp"),
-                      slide_down: t("editor.animation.presets.slideDown"),
-                      zoom_in: t("editor.animation.presets.zoomIn"),
-                      pop: t("editor.animation.presets.pop"),
-                      bounce: t("editor.animation.presets.bounce"),
-                      shake: t("editor.animation.presets.shake"),
-                      spin: t("editor.animation.presets.spin"),
-                      pulse: t("editor.animation.presets.pulse"),
-                      float: t("editor.animation.presets.float"),
-                      fade_in: t("editor.animation.presets.fadeIn"),
-                      fade_out: t("editor.animation.presets.fadeOut"),
-                      blink: t("editor.animation.presets.blink"),
-                      flash: t("editor.animation.presets.flash"),
-                    },
-                  }}
-                  fillCanvasLabel={t("editor.fillCanvas")}
-                  flipHorizontalLabel={t("editor.flipHorizontal")}
-                  flipVerticalLabel={t("editor.flipVertical")}
-                  height={project.video.height}
-                  layers={previewScene?.layers ?? []}
-                  lockLabel={t("editor.lock")}
-                  lockedLabel={t("editor.locked")}
-                  onApplyAnimation={applyAnimationPreset}
-                  onClearAnimation={clearAnimation}
-                  onCommit={(layerId, patch) => updateLayer(layerId, patch)}
-                  onPreview={(layerId, patch) =>
-                    setLayerPreview(patch ? { layerId, patch } : undefined)
-                  }
-                  onSelect={setSelectedLayerId}
-                  selectedLayerId={selectedLayerId}
-                  unlockLabel={t("editor.unlock")}
-                  width={project.video.width}
-                />
+                {!playing ? (
+                  <CanvasObjectEditor
+                    animationLabels={{
+                      animation: t("editor.animation.title"),
+                      back: t("editor.animation.back"),
+                      duration: t("editor.animation.duration"),
+                      effect: t("editor.animation.effect"),
+                      remove: t("editor.animation.remove"),
+                      presets: {
+                        slide_left: t("editor.animation.presets.slideLeft"),
+                        slide_right: t("editor.animation.presets.slideRight"),
+                        slide_up: t("editor.animation.presets.slideUp"),
+                        slide_down: t("editor.animation.presets.slideDown"),
+                        zoom_in: t("editor.animation.presets.zoomIn"),
+                        pop: t("editor.animation.presets.pop"),
+                        bounce: t("editor.animation.presets.bounce"),
+                        shake: t("editor.animation.presets.shake"),
+                        spin: t("editor.animation.presets.spin"),
+                        pulse: t("editor.animation.presets.pulse"),
+                        float: t("editor.animation.presets.float"),
+                        fade_in: t("editor.animation.presets.fadeIn"),
+                        fade_out: t("editor.animation.presets.fadeOut"),
+                        blink: t("editor.animation.presets.blink"),
+                        flash: t("editor.animation.presets.flash"),
+                      },
+                    }}
+                    fillCanvasLabel={t("editor.fillCanvas")}
+                    flipHorizontalLabel={t("editor.flipHorizontal")}
+                    flipVerticalLabel={t("editor.flipVertical")}
+                    height={project.video.height}
+                    layers={previewScene?.layers ?? []}
+                    lockLabel={t("editor.lock")}
+                    lockedLabel={t("editor.locked")}
+                    onApplyAnimation={applyAnimationPreset}
+                    onClearAnimation={clearAnimation}
+                    onCommit={(layerId, patch) => updateLayer(layerId, patch)}
+                    onPreview={(layerId, patch) =>
+                      setLayerPreview(patch ? { layerId, patch } : undefined)
+                    }
+                    onSelect={setSelectedLayerId}
+                    selectedLayerId={selectedLayerId}
+                    unlockLabel={t("editor.unlock")}
+                    width={project.video.width}
+                  />
+                ) : null}
               </div>
             ) : (
               <p>{t("editor.noScenes")}</p>

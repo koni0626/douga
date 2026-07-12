@@ -247,9 +247,12 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   await page.getByRole("button", { name: "タイムラインを開く" }).click();
   await expect(page.locator(".object-timeline-scroll")).toBeVisible();
   await expect(page.locator(".preview-controls")).toHaveCount(0);
+  await expect(page.locator(".canvas-object-selection")).toBeVisible();
   await page.getByRole("button", { name: "再生", exact: true }).click();
   await expect(page.locator(".timeline-icon-button--active")).toBeVisible();
+  await expect(page.locator(".canvas-object-overlay")).toHaveCount(0);
   await page.getByRole("button", { name: "停止", exact: true }).click();
+  await expect(page.locator(".canvas-object-selection")).toBeVisible();
   await expect(page.getByRole("slider", { name: "再生位置" })).toHaveAttribute(
     "aria-valuenow",
     "0",
