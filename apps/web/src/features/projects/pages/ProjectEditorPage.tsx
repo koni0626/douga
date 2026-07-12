@@ -805,7 +805,6 @@ export function ProjectEditorPage() {
             <FloatingEditorTools
               activeTool={activeTool}
               labels={{
-                scene: t("editor.tool.scene"),
                 dialogues: t("editor.tool.dialogues"),
                 layers: t("editor.tool.layers"),
                 camera: t("editor.tool.camera"),
@@ -906,38 +905,6 @@ export function ProjectEditorPage() {
               </button>
             </div>
             <>
-              <details open hidden={activeTool !== "scene"}>
-                <summary>{t("editor.sceneSettings")}</summary>
-                <NumberField
-                  label={t("editor.videoDurationSeconds")}
-                  value={durationMs / 1000}
-                  min={5}
-                  max={3600}
-                  step={5}
-                  onChange={(value) => setManualDuration(value * 1000)}
-                />
-                <p className="field-hint">{t("editor.durationAutoHint")}</p>
-                <label>
-                  <span>{t("editor.backgroundColor")}</span>
-                  <input
-                    type="color"
-                    value={
-                      scene.background.type === "color"
-                        ? scene.background.color
-                        : "#16324f"
-                    }
-                    onChange={(event) =>
-                      updateScene((item) => {
-                        item.background = {
-                          type: "color",
-                          color: event.target.value,
-                        };
-                      })
-                    }
-                  />
-                </label>
-              </details>
-
               <details open hidden={activeTool !== "dialogues"}>
                 <summary>{t("editor.dialogues")}</summary>
                 <button type="button" onClick={addDialogue}>

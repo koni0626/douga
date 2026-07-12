@@ -1,22 +1,13 @@
 export type EditorTool =
-  "scene" | "dialogues" | "layers" | "camera" | "audio" | "caption";
+  "dialogues" | "layers" | "camera" | "audio" | "caption";
 
 type ToolDefinition = {
   id: EditorTool;
   label: string;
-  icon: "scene" | "dialogue" | "layers" | "camera" | "audio" | "caption";
+  icon: "dialogue" | "layers" | "camera" | "audio" | "caption";
 };
 
 function ToolIcon({ icon }: { icon: ToolDefinition["icon"] }) {
-  if (icon === "scene") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <circle cx="8" cy="9" r="2" />
-        <path d="m5 17 4-4 3 3 3-4 4 5" />
-      </svg>
-    );
-  }
   if (icon === "dialogue") {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -71,7 +62,6 @@ export function FloatingEditorTools({
   toolbarLabel: string;
 }) {
   const tools: ToolDefinition[] = [
-    { id: "scene", label: labels.scene, icon: "scene" },
     { id: "dialogues", label: labels.dialogues, icon: "dialogue" },
     { id: "layers", label: labels.layers, icon: "layers" },
     { id: "camera", label: labels.camera, icon: "camera" },
