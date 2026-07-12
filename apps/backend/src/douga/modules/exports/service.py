@@ -36,7 +36,15 @@ class ExportService:
         self.projects = ProjectRepository(session)
         self.uow = UnitOfWork(session)
 
-    async def create(self, project_id: UUID, user_id: UUID) -> ExportResponse:
+    async def create(
+        self,
+        project_id: UUID,
+        user_id: UUID,
+        *,
+        kind: str = "export",
+        range_start_ms: int | None = None,
+        range_end_ms: int | None = None,
+    ) -> ExportResponse:
         if await self.jobs.recent_count(user_id, "export") >= get_settings().export_limit_per_hour:
             raise ApplicationError("EXPORT_QUOTA_EXCEEDED", "errors.exportQuotaExceeded", 429)
         project = await self.projects.get_owned(project_id, user_id)
@@ -48,6 +56,17 @@ class ExportService:
         if revision is None:
             raise ConflictError("PROJECT_REVISION_MISSING", "errors.exportFailed")
         video = revision.document["video"]
+        duration_ms = int(video.get("duration_ms") or 5_000)
+        if kind == "preview":
+            start_ms = int(range_start_ms or 0)
+            end_ms = int(range_end_ms or min(duration_ms, start_ms + 15_000))
+            if start_ms < 0 or end_ms <= start_ms or end_ms > duration_ms:
+                raise ApplicationError("PREVIEW_RANGE_INVALID", "errors.previewRangeInvalid", 422)
+            if end_ms - start_ms > 15_000:
+                raise ApplicationError("PREVIEW_RANGE_TOO_LONG", "errors.previewRangeTooLong", 422)
+        else:
+            start_ms = None
+            end_ms = None
         job = Job(user_id=user_id, kind="export", payload={})
         await self.jobs.add(job)
         export = Export(
@@ -55,7 +74,10 @@ class ExportService:
             project_id=project.id,
             project_revision_id=revision.id,
             job_id=job.id,
-            name=f"{project.name}.mp4",
+            name=(f"{project.name}-preview.mp4" if kind == "preview" else f"{project.name}.mp4"),
+            kind=kind,
+            range_start_ms=start_ms,
+            range_end_ms=end_ms,
             width=int(video["width"]),
             height=int(video["height"]),
             fps=round(float(video["fps"])),
@@ -70,9 +92,9 @@ class ExportService:
         return self._response(*row)
 
     async def list(
-        self, user_id: UUID, *, limit: int, offset: int
+        self, user_id: UUID, *, kind: str | None = "export", limit: int, offset: int
     ) -> tuple[list[ExportResponse], int]:
-        rows, total = await self.exports.list_owned(user_id, limit=limit, offset=offset)
+        rows, total = await self.exports.list_owned(user_id, kind=kind, limit=limit, offset=offset)
         return [self._response(*row) for row in rows], total
 
     async def content_path(self, export_id: UUID, user_id: UUID) -> tuple[Path, str, str]:
@@ -107,6 +129,9 @@ class ExportService:
             project_revision_id=export.project_revision_id,
             job_id=job.id,
             name=export.name,
+            kind=export.kind,
+            range_start_ms=export.range_start_ms,
+            range_end_ms=export.range_end_ms,
             status=job.status,
             progress=job.progress,
             width=export.width,
@@ -146,19 +171,31 @@ async def _render_input(session: AsyncSession, export: Export) -> dict[str, obje
                 f"data:{asset.mime_type or 'image/png'};base64,{base64.b64encode(content).decode()}"
             )
     audio_inputs: list[dict[str, object]] = []
+    range_start_ms = export.range_start_ms or 0
+    range_end_ms = export.range_end_ms
     for track in revision.document.get("audio_tracks", []):
         try:
             asset = assets[UUID(track["asset_id"])]
         except KeyError, ValueError:
             continue
+        track_start_ms = int(track.get("start_ms", 0))
+        track_duration_ms = int(track.get("duration_ms") or asset.duration_ms or 0)
+        track_end_ms = track_start_ms + track_duration_ms
+        if range_end_ms is not None and (
+            track_end_ms <= range_start_ms or track_start_ms >= range_end_ms
+        ):
+            continue
         if asset.kind == "audio" and asset.storage_key:
+            clipped_start_ms = max(track_start_ms, range_start_ms)
+            clipped_end_ms = min(track_end_ms, range_end_ms or track_end_ms)
             audio_inputs.append(
                 {
                     "path": str(storage.require_path(asset.storage_key)),
                     "volume": float(track.get("volume", 1)),
-                    "start_ms": int(track.get("start_ms", 0)),
-                    "duration_ms": int(track.get("duration_ms") or asset.duration_ms or 0),
-                    "trim_start_ms": int(track.get("trim_start_ms", 0)),
+                    "start_ms": max(0, track_start_ms - range_start_ms),
+                    "duration_ms": clipped_end_ms - clipped_start_ms,
+                    "trim_start_ms": int(track.get("trim_start_ms", 0))
+                    + max(0, range_start_ms - track_start_ms),
                     "fade_in_ms": int(track.get("fade_in_ms", 0)),
                     "fade_out_ms": int(track.get("fade_out_ms", 0)),
                     "loop": bool(track.get("loop", False)),
@@ -172,6 +209,8 @@ async def _render_input(session: AsyncSession, export: Export) -> dict[str, obje
         "audio_inputs": audio_inputs,
         "output_path": str(storage.path_for(storage_key)),
         "ffmpeg_path": settings.ffmpeg_path,
+        "range_start_ms": export.range_start_ms,
+        "range_end_ms": export.range_end_ms,
     }
 
 

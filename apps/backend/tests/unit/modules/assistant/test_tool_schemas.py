@@ -3,6 +3,7 @@ from typing import Any
 from douga.modules.assistant.tools.animation_tools import animation_tool_definitions
 from douga.modules.assistant.tools.asset_tools import asset_tool_definitions
 from douga.modules.assistant.tools.creative_tools import creative_tool_definitions
+from douga.modules.assistant.tools.output_tools import output_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.timeline_tools import timeline_tool_definitions
 
@@ -31,6 +32,7 @@ def test_creative_tool_json_schemas_are_strict() -> None:
         creative_tool_definitions()
         + asset_tool_definitions()
         + animation_tool_definitions()
+        + output_tool_definitions()
         + project_read_tool_definitions()
         + timeline_tool_definitions()
     )
@@ -41,7 +43,54 @@ def test_creative_tool_json_schemas_are_strict() -> None:
 def test_high_cost_and_destructive_tools_require_approval() -> None:
     image = {item.name: item for item in asset_tool_definitions()}["generate_image"]
     delete = {item.name: item for item in timeline_tool_definitions()}["delete_clip"]
+    export = {item.name: item for item in output_tool_definitions()}["export_video"]
 
     assert image.requires_approval({"quality": "high"})
     assert not image.requires_approval({"quality": "medium"})
     assert delete.requires_approval({"clip_id": "00000000-0000-0000-0000-000000000000"})
+    assert export.requires_approval({})
+
+
+def test_design_tool_catalog_is_implemented() -> None:
+    definitions = (
+        creative_tool_definitions()
+        + asset_tool_definitions()
+        + animation_tool_definitions()
+        + project_read_tool_definitions()
+        + timeline_tool_definitions()
+        + output_tool_definitions()
+    )
+    names = {item.name for item in definitions}
+    assert {
+        "get_project_context",
+        "get_timeline_summary",
+        "get_clip_details",
+        "list_assets",
+        "inspect_frame",
+        "get_creative_document",
+        "save_project_brief",
+        "save_plot",
+        "save_script",
+        "save_storyboard",
+        "update_creative_status",
+        "generate_image",
+        "list_generation_status",
+        "add_text_clip",
+        "add_caption_clip",
+        "add_shape_clip",
+        "add_audio_clip",
+        "add_asset_to_timeline",
+        "replace_clip_asset",
+        "update_clip_timing",
+        "update_clip_transform",
+        "update_clip_content",
+        "delete_clip",
+        "extend_timeline",
+        "apply_animation",
+        "apply_effect",
+        "clear_animation",
+        "apply_camera_effect",
+        "render_preview",
+        "validate_timeline",
+        "export_video",
+    } <= names

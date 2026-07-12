@@ -7,7 +7,7 @@
 | 文書名 | AI動画制作アシスタント 機能・技術設計書 |
 | 対象 | Douga Webアプリケーション |
 | 作成日 | 2026-07-12 |
-| ステータス | Phase A〜D完了、Phase E実装中 |
+| ステータス | Phase A〜E完了 |
 | 関連機能 | プロジェクト編集、タイムライン、素材管理、画像生成、リビジョン、動画書き出し |
 
 ## 2. 目的
@@ -480,9 +480,14 @@ flowchart LR
 | `status` | VARCHAR | queued、running、waiting_approval、completed、failed、cancelled |
 | `model` | VARCHAR | 使用モデル |
 | `base_revision_number` | INTEGER | 開始時リビジョン |
+| `context_json` | JSONB | 再生位置、選択対象、表示範囲 |
+| `continuation_json` | JSONB | 承認待ちから再開するResponses入力 |
 | `result_revision_number` | INTEGER NULL | 完了時リビジョン |
+| `undo_revision_number` | INTEGER NULL | Run Undoで作成した復元リビジョン |
+| `provider_response_id` | VARCHAR NULL | 最終Response識別子 |
 | `usage_json` | JSONB | トークン、画像枚数など |
 | `error_code` | VARCHAR NULL | 安全なエラーコード |
+| `created_at` | TIMESTAMP | 作成日時 |
 | `started_at` | TIMESTAMP NULL | 開始日時 |
 | `finished_at` | TIMESTAMP NULL | 完了日時 |
 
@@ -493,6 +498,7 @@ flowchart LR
 | `id` | UUID | 主キー |
 | `run_id` | UUID | 実行 |
 | `user_id` | UUID | 所有ユーザー |
+| `provider_call_id` | VARCHAR | Responses APIのFunction Call ID |
 | `tool_name` | VARCHAR | ツール名 |
 | `arguments_json` | JSONB | 検証済み引数 |
 | `result_json` | JSONB NULL | 安全に要約した結果 |
@@ -526,6 +532,8 @@ flowchart LR
 | `GET` | `/api/v1/projects/{project_id}/assistant/threads` | 会話一覧 |
 | `POST` | `/api/v1/projects/{project_id}/assistant/threads` | 会話作成 |
 | `GET` | `/api/v1/projects/{project_id}/assistant/threads/{thread_id}` | 会話詳細 |
+| `GET` | `/api/v1/projects/{project_id}/assistant/metrics` | ユーザー所有プロジェクトの運用メトリクス |
+| `GET` | `/api/v1/projects/{project_id}/assistant/audit` | ツール監査履歴 |
 | `POST` | `/api/v1/projects/{project_id}/assistant/threads/{thread_id}/messages` | メッセージ送信、Run開始 |
 | `GET` | `/api/v1/projects/{project_id}/assistant/runs/{run_id}/events` | SSEイベント購読 |
 | `POST` | `/api/v1/projects/{project_id}/assistant/runs/{run_id}/cancel` | 実行停止 |
@@ -877,3 +885,30 @@ ControllerとServiceを分離し、OpenAI SDK固有処理をIntegrationへ隔離
 - Phase Eの台本・絵コンテからの自律ドラフト
 - フレーム検査、タイムライン検証、プレビュー、書き出し
 - 利用上限、監査、メトリクス、Agent Evaluation
+
+### 2026-07-12: Phase E 完了
+
+実装済み:
+
+- 採用済み台本・絵コンテを読み、複数の粒度の細かい編集ツールでドラフトを組み立てる実行ループ
+- 依頼内容に応じて参照、企画、画像、編集、アニメーション、出力ツール群を絞るTool Routing
+- `inspect_frame`による指定時刻の画面・テロップ・音声・カメラ状態検査
+- `validate_timeline`による時間外クリップ、欠損素材、空白区間、空テロップ検査
+- 指定範囲15秒以内のMP4プレビュー生成とチャット内プレイヤー
+- 完成MP4書き出しツールと必須承認
+- 生成画像の素材保存からタイムライン配置までの複数ツール連鎖
+- 1時間あたりのRun・トークン・画像生成・書き出し上限と1Runのトークン・ツール回数上限
+- Run停止と画像生成・プレビュー・書き出しジョブの連動キャンセル
+- ユーザー・プロジェクト分離された監査APIと運用メトリクスAPI
+- Run成功率、初回表示時間、モデル応答時間、ツール失敗、承認、Undo、画像採用率の集計
+- OpenAI一時障害の再試行回数・タイムアウト設定
+- 会社紹介、映画紹介3案、30秒ドラフト、冒頭改善、既存素材限定、生成上限、曖昧対象、プロンプトインジェクションの固定Agent Evaluation
+- 日本語・英語のチャット、編集、Undo、画像配置、承認、履歴再読込を含むPlaywright E2E
+
+検証結果:
+
+- Backend Unit / Integration: 70件成功（Phase E追加後の対象回帰43件も成功）
+- Frontend / shared packages Unit: 45件成功
+- Playwright E2E: 7件成功
+- Ruff、Mypy、ESLint、TypeScript、Prettier、i18n、production build成功
+- Alembic downgrade / upgrade / autogenerate check成功

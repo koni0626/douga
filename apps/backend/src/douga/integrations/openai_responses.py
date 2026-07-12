@@ -54,7 +54,11 @@ class OpenAIResponsesProvider:
     def __init__(self, settings: Settings) -> None:
         if settings.openai_api_key is None:
             raise RuntimeError("OPENAI_API_KEY is required for the OpenAI assistant provider")
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
+        self.client = AsyncOpenAI(
+            api_key=settings.openai_api_key.get_secret_value(),
+            max_retries=settings.openai_max_retries,
+            timeout=settings.openai_timeout_seconds,
+        )
         self.model = settings.openai_assistant_model
 
     async def respond(
@@ -144,7 +148,59 @@ class FakeAssistantProvider:
     ) -> AssistantProviderResult:
         del instructions, tools
         prompt = messages[-1].content if messages else ""
-        if any(item.get("type") == "function_call_output" for item in continuation):
+        arguments: dict[str, Any]
+        function_outputs = [
+            item for item in continuation if item.get("type") == "function_call_output"
+        ]
+        called_tools = {
+            str(item.get("name")) for item in continuation if item.get("type") == "function_call"
+        }
+        place_generated = any(
+            term in prompt.casefold() for term in ("配置", "タイムライン", "place")
+        )
+        if (
+            function_outputs
+            and place_generated
+            and "generate_image" in called_tools
+            and "add_asset_to_timeline" not in called_tools
+        ):
+            try:
+                generated = json.loads(str(function_outputs[-1].get("output", "{}")))["generation"]
+                asset_id = str(generated["asset_id"])
+            except KeyError, TypeError, ValueError, json.JSONDecodeError:
+                asset_id = ""
+            if asset_id:
+                arguments = {
+                    "asset_id": asset_id,
+                    "name": "AI generated image",
+                    "x": 0,
+                    "y": 0,
+                    "width": 1920,
+                    "height": 1080,
+                    "rotation": 0,
+                    "opacity": 1,
+                    "start_ms": 0,
+                    "end_ms": 5000,
+                }
+                output_item = {
+                    "type": "function_call",
+                    "call_id": "fake-place-generated-image",
+                    "name": "add_asset_to_timeline",
+                    "arguments": json.dumps(arguments, ensure_ascii=False),
+                }
+                return AssistantProviderResult(
+                    content="",
+                    response_id="fake-response-place-image",
+                    tool_calls=(
+                        AssistantProviderToolCall(
+                            call_id="fake-place-generated-image",
+                            name="add_asset_to_timeline",
+                            arguments=arguments,
+                        ),
+                    ),
+                    output_items=(output_item,),
+                )
+        if function_outputs:
             failed = any(
                 '"error"' in str(item.get("output", ""))
                 for item in continuation
@@ -158,6 +214,15 @@ class FakeAssistantProvider:
             if on_delta is not None:
                 await on_delta(content)
             return AssistantProviderResult(content=content, response_id="fake-response-final")
+        if "映画紹介" in prompt and ("3案" in prompt or "three" in prompt.casefold()):
+            content = (
+                "1. ストーリー重視：主人公の変化を軸に紹介します。\n"
+                "2. 世界観重視：印象的な舞台と映像美を軸に紹介します。\n"
+                "3. テーマ重視：作品が投げかける問いを軸に紹介します。"
+            )
+            if on_delta is not None:
+                await on_delta(content)
+            return AssistantProviderResult(content=content, response_id="fake-response-movie")
         requested = any(
             word in prompt.casefold()
             for word in (
@@ -166,12 +231,52 @@ class FakeAssistantProvider:
                 "作成",
                 "追加",
                 "生成",
+                "書き出",
                 "add",
                 "create",
                 "save",
             )
         )
-        arguments: dict[str, Any]
+        if requested and (
+            "書き出" in prompt or "export" in prompt.casefold() or "mp4" in prompt.casefold()
+        ):
+            arguments = {}
+            output_item = {
+                "type": "function_call",
+                "call_id": "fake-export-video",
+                "name": "export_video",
+                "arguments": "{}",
+            }
+            return AssistantProviderResult(
+                content="",
+                response_id="fake-response-tool",
+                tool_calls=(
+                    AssistantProviderToolCall(
+                        call_id="fake-export-video", name="export_video", arguments=arguments
+                    ),
+                ),
+                output_items=(output_item,),
+            )
+        if requested and ("プレビュー" in prompt or "preview" in prompt.casefold()):
+            arguments = {"start_ms": 0, "end_ms": 5_000}
+            output_item = {
+                "type": "function_call",
+                "call_id": "fake-render-preview",
+                "name": "render_preview",
+                "arguments": json.dumps(arguments),
+            }
+            return AssistantProviderResult(
+                content="",
+                response_id="fake-response-tool",
+                tool_calls=(
+                    AssistantProviderToolCall(
+                        call_id="fake-render-preview",
+                        name="render_preview",
+                        arguments=arguments,
+                    ),
+                ),
+                output_items=(output_item,),
+            )
         if requested and ("画像" in prompt or "image" in prompt.casefold()):
             high_quality = "高品質" in prompt or "high quality" in prompt.casefold()
             arguments = {

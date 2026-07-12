@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from douga.core.config import get_settings
-from douga.core.errors import ApplicationError, NotFoundError
+from douga.core.errors import ApplicationError, ConflictError, NotFoundError
 from douga.db.session import session_factory
 from douga.db.unit_of_work import UnitOfWork
 from douga.integrations.openai_images import ImageQuality, ImageSize, build_image_provider
@@ -64,6 +64,20 @@ class ImageGenerationService:
         rows, total = await self.requests.list_owned(user_id, limit=limit, offset=offset)
         return [self._response(*row) for row in rows], total
 
+    async def cancel(self, request_id: UUID, user_id: UUID) -> None:
+        row = await self.requests.get_owned(request_id, user_id)
+        if row is None:
+            raise NotFoundError("IMAGE_GENERATION_NOT_FOUND", "errors.imageGenerationNotFound")
+        _, job = row
+        if job.status not in {"queued", "running"}:
+            raise ConflictError(
+                "IMAGE_GENERATION_NOT_CANCELLABLE",
+                "errors.imageGenerationNotCancellable",
+            )
+        job.status = "cancelled"
+        job.finished_at = datetime.now(UTC)
+        await self.uow.commit()
+
     @staticmethod
     def _response(request: ImageGenerationRequest, job: Job) -> ImageGenerationResponse:
         return ImageGenerationResponse(
@@ -103,6 +117,12 @@ async def process_image_generation_job(job_id: UUID) -> None:
                 quality=request.quality,  # type: ignore[arg-type]
                 size=request.size,  # type: ignore[arg-type]
             )
+            job = await jobs.get(job_id)
+            if job is None:
+                raise RuntimeError("Job is missing")
+            await session.refresh(job)
+            if job.status == "cancelled":
+                return
             asset_id = uuid4()
             storage_key = f"users/{request.user_id}/assets/{asset_id}/generated.png"
             storage = LocalStorage(settings.local_storage_path, settings.max_upload_bytes)
@@ -126,9 +146,6 @@ async def process_image_generation_job(job_id: UUID) -> None:
             )
             await AssetRepository(session).add(asset)
             request.output_asset_id = asset.id
-            job = await jobs.get(job_id)
-            if job is None:
-                raise RuntimeError("Job is missing")
             job.status = "succeeded"
             job.progress = 100
             job.finished_at = datetime.now(UTC)

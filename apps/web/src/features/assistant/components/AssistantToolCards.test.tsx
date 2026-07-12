@@ -7,9 +7,11 @@ import { i18n } from "../../../i18n";
 import type {
   AssistantToolCallDto,
   ImageArtifactDto,
+  VideoArtifactDto,
 } from "../../../shared/lib/api";
 import { ApprovalCard } from "./ApprovalCard";
 import { ImageArtifactCard } from "./ImageArtifactCard";
+import { VideoArtifactCard } from "./VideoArtifactCard";
 
 afterEach(cleanup);
 
@@ -64,5 +66,24 @@ describe("assistant tool cards", () => {
       expect.stringContaining("/assets/asset-1/content"),
     );
     expect(screen.getByText("生成した画像")).toBeInTheDocument();
+  });
+
+  it("renders a playable preview artifact", () => {
+    const artifact: VideoArtifactDto = {
+      artifact_type: "video_preview",
+      export_id: "export-1",
+      name: "preview.mp4",
+      status: "succeeded",
+      duration_ms: 5_000,
+      range_start_ms: 0,
+      range_end_ms: 5_000,
+      error_code: null,
+    };
+    const { container } = render(<VideoArtifactCard artifact={artifact} />);
+    expect(screen.getByText("確認用プレビュー")).toBeInTheDocument();
+    expect(container.querySelector("video")).toHaveAttribute(
+      "src",
+      expect.stringContaining("/exports/export-1/content"),
+    );
   });
 });

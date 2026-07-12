@@ -78,7 +78,10 @@ try {
   const info = await page.evaluate(() => window.__DOUGA_RENDER_INFO__);
   if (!info) throw new Error("Renderer did not expose timeline information");
 
+  const rangeStartMs = input.range_start_ms ?? 0;
+  const rangeEndMs = input.range_end_ms ?? Number.POSITIVE_INFINITY;
   let frameNumber = 0;
+  let sceneOffsetMs = 0;
   for (
     let sceneIndex = 0;
     sceneIndex < info.sceneDurationsMs.length;
@@ -87,12 +90,15 @@ try {
     const durationMs = info.sceneDurationsMs[sceneIndex];
     const sceneFrames = Math.max(1, Math.ceil((durationMs / 1000) * fps));
     for (let frame = 0; frame < sceneFrames; frame += 1) {
+      const timeMs = Math.round((frame * 1000) / fps);
+      const globalTimeMs = sceneOffsetMs + timeMs;
+      if (globalTimeMs < rangeStartMs || globalTimeMs >= rangeEndMs) continue;
       await page.evaluate(
         ({ sceneIndex, timeMs }) => {
           window.__DOUGA_SET_RENDER_SCENE__?.(sceneIndex);
           window.__DOUGA_SET_RENDER_TIME__?.(timeMs);
         },
-        { sceneIndex, timeMs: Math.round((frame * 1000) / fps) },
+        { sceneIndex, timeMs },
       );
       await page.evaluate(
         () => new Promise((resolve) => requestAnimationFrame(() => resolve())),
@@ -105,7 +111,9 @@ try {
       });
       frameNumber += 1;
     }
+    sceneOffsetMs += durationMs;
   }
+  if (frameNumber === 0) throw new Error("Render range produced no frames");
 
   const args = [
     "-hide_banner",

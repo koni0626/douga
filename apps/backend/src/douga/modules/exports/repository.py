@@ -31,18 +31,16 @@ class ExportRepository:
         return (row[0], row[1]) if row else None
 
     async def list_owned(
-        self, user_id: UUID, *, limit: int, offset: int
+        self, user_id: UUID, *, kind: str | None, limit: int, offset: int
     ) -> tuple[list[tuple[Export, Job]], int]:
-        total = int(
-            await self.session.scalar(
-                select(func.count(Export.id)).where(Export.user_id == user_id)
-            )
-            or 0
-        )
+        filters = [Export.user_id == user_id]
+        if kind is not None:
+            filters.append(Export.kind == kind)
+        total = int(await self.session.scalar(select(func.count(Export.id)).where(*filters)) or 0)
         rows = await self.session.execute(
             select(Export, Job)
             .join(Job, Job.id == Export.job_id)
-            .where(Export.user_id == user_id, Job.user_id == user_id)
+            .where(*filters, Job.user_id == user_id)
             .order_by(Export.created_at.desc())
             .limit(limit)
             .offset(offset)

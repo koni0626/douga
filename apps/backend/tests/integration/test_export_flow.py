@@ -1,15 +1,26 @@
 import os
+from uuid import UUID
 
 import pytest
 from douga.api_main import create_app
 from douga.db.session import session_factory
+from douga.modules.assets.models import Asset, AssetDerivative, AssetTag, Tag
+from douga.modules.assistant.models import (
+    AssistantMessage,
+    AssistantRun,
+    AssistantRunEvent,
+    AssistantThread,
+    AssistantToolCall,
+    CreativeDocument,
+)
 from douga.modules.auth.models import User, UserSession
 from douga.modules.exports.models import Export
+from douga.modules.exports.service import ExportService, process_export_job
 from douga.modules.image_generations.models import ImageGenerationRequest
 from douga.modules.jobs.models import Job
 from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TEST_DATABASE_URL"), reason="integration database not configured"
@@ -18,14 +29,27 @@ pytestmark = pytest.mark.skipif(
 
 async def clear_data() -> None:
     async with session_factory() as session:
-        await session.execute(delete(ImageGenerationRequest))
-        await session.execute(delete(Export))
-        await session.execute(delete(Job))
-        await session.execute(delete(ProjectAsset))
-        await session.execute(delete(ProjectRevision))
-        await session.execute(delete(Project))
-        await session.execute(delete(UserSession))
-        await session.execute(delete(User))
+        for model in (
+            CreativeDocument,
+            AssistantToolCall,
+            AssistantRunEvent,
+            AssistantMessage,
+            AssistantRun,
+            AssistantThread,
+            ImageGenerationRequest,
+            Export,
+            Job,
+            ProjectAsset,
+            ProjectRevision,
+            Project,
+            AssetDerivative,
+            AssetTag,
+            Tag,
+            Asset,
+            UserSession,
+            User,
+        ):
+            await session.execute(delete(model))
         await session.commit()
 
 
@@ -105,5 +129,23 @@ async def test_fixed_revision_export_download_and_tenant_isolation() -> None:
         assert video.content[4:8] == b"ftyp"
         assert (await outsider.get(f"/api/v1/exports/{export_id}")).status_code == 404
         assert (await outsider.get(f"/api/v1/exports/{export_id}/content")).status_code == 404
+
+        async with session_factory() as session:
+            user = (
+                await session.scalars(select(User).where(User.email == "export-owner@example.com"))
+            ).one()
+            preview = await ExportService(session).create(
+                UUID(project_id),
+                user.id,
+                kind="preview",
+                range_start_ms=1_000,
+                range_end_ms=2_500,
+            )
+        await process_export_job(preview.job_id)
+        async with session_factory() as session:
+            completed = await ExportService(session).get(preview.id, user.id)
+            assert completed.status == "succeeded"
+            assert completed.kind == "preview"
+            assert completed.duration_ms == 1_500
 
     await clear_data()

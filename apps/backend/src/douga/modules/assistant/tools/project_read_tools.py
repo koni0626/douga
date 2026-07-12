@@ -2,6 +2,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
+from douga.core.errors import ApplicationError
 from douga.modules.assets.service import AssetService
 from douga.modules.assistant.creative_service import CreativeDocumentService
 from douga.modules.assistant.tools.project_tool_service import (
@@ -33,6 +34,10 @@ class TimelineArgs(StrictToolArgs):
 
 class ClipDetailsArgs(StrictToolArgs):
     clip_id: str = Field(min_length=1, max_length=100)
+
+
+class InspectFrameArgs(StrictToolArgs):
+    time_ms: int = Field(ge=0, le=3_600_000)
 
 
 async def get_project_context(
@@ -153,6 +158,36 @@ async def list_assets(context: ToolContext, arguments: dict[str, Any]) -> ToolEx
     )
 
 
+async def inspect_frame(context: ToolContext, arguments: dict[str, Any]) -> ToolExecutionResult:
+    values = InspectFrameArgs.model_validate(arguments)
+    detail = await ProjectToolService(context).detail()
+    document = detail.document
+    duration_ms = int(document["video"].get("duration_ms", 5_000))
+    if values.time_ms >= duration_ms:
+        raise ApplicationError("FRAME_TIME_OUT_OF_RANGE", "errors.frameTimeOutOfRange", 422)
+    scene = canvas(document)
+
+    def active(item: dict[str, Any]) -> bool:
+        start_ms = int(item.get("start_ms", 0))
+        end_ms = int(item.get("end_ms", start_ms + int(item.get("duration_ms") or duration_ms)))
+        return start_ms <= values.time_ms < end_ms
+
+    return ToolExecutionResult(
+        data={
+            "time_ms": values.time_ms,
+            "canvas": {
+                "width": document["video"]["width"],
+                "height": document["video"]["height"],
+                "background": scene["background"],
+            },
+            "layers_back_to_front": [item for item in scene["layers"] if active(item)],
+            "captions": [item for item in scene["dialogues"] if active(item)],
+            "audio_tracks": [item for item in document.get("audio_tracks", []) if active(item)],
+            "camera_effects": [item for item in document.get("camera_effects", []) if active(item)],
+        }
+    )
+
+
 def project_read_tool_definitions() -> tuple[ToolDefinition, ...]:
     return (
         ToolDefinition(
@@ -183,5 +218,14 @@ def project_read_tool_definitions() -> tuple[ToolDefinition, ...]:
             description="List the current user's ready assets before placing or replacing media.",
             parameters=model_parameters(ListAssetsArgs),
             handler=list_assets,
+        ),
+        ToolDefinition(
+            name="inspect_frame",
+            description=(
+                "Inspect the exact visible layers, captions, audio and camera state at one time. "
+                "Use this before claiming a draft frame is complete."
+            ),
+            parameters=model_parameters(InspectFrameArgs),
+            handler=inspect_frame,
         ),
     )

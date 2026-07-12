@@ -17,8 +17,10 @@ from douga.modules.assistant.models import (
 )
 from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.assistant.schemas import (
+    AssistantAuditResponse,
     AssistantMessageCreateRequest,
     AssistantMessageResponse,
+    AssistantMetricsResponse,
     AssistantRunResponse,
     AssistantRunStartedResponse,
     AssistantThreadCreateRequest,
@@ -49,6 +51,27 @@ def run_response(run: AssistantRun) -> AssistantRunResponse:
 
 def tool_call_response(call: AssistantToolCall) -> AssistantToolCallResponse:
     return AssistantToolCallResponse.model_validate(call, from_attributes=True)
+
+
+@router.get("/metrics", response_model=AssistantMetricsResponse)
+async def get_metrics(
+    project_id: UUID,
+    context: Annotated[AuthContext, Depends(current_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AssistantMetricsResponse:
+    result = await AssistantService(session).metrics(project_id, context.user.id)
+    return AssistantMetricsResponse.model_validate(result)
+
+
+@router.get("/audit", response_model=AssistantAuditResponse)
+async def get_audit_log(
+    project_id: UUID,
+    context: Annotated[AuthContext, Depends(current_auth)],
+    session: Annotated[AsyncSession, Depends(get_session)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> AssistantAuditResponse:
+    items = await AssistantService(session).audit_log(project_id, context.user.id, limit=limit)
+    return AssistantAuditResponse(items=[tool_call_response(item) for item in items])
 
 
 @router.get("/threads", response_model=AssistantThreadListResponse)

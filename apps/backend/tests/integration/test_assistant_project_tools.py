@@ -17,6 +17,7 @@ from douga.modules.assistant.models import (
 )
 from douga.modules.assistant.service import AssistantService
 from douga.modules.assistant.tools.animation_tools import animation_tool_definitions
+from douga.modules.assistant.tools.output_tools import output_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.registry import ToolContext, ToolRegistry
 from douga.modules.assistant.tools.timeline_tools import timeline_tool_definitions
@@ -153,6 +154,7 @@ async def test_project_read_and_edit_tools_create_owned_revisions() -> None:
                 project_read_tool_definitions()
                 + timeline_tool_definitions()
                 + animation_tool_definitions()
+                + output_tool_definitions()
             )
 
             summary = await tools.execute("get_project_context", context, {})
@@ -310,6 +312,14 @@ async def test_project_read_and_edit_tools_create_owned_revisions() -> None:
             assert len(timeline.data["camera_effects"]) == 1
             image_clip = next(item for item in timeline.data["layers"] if item["id"] == image_id)
             assert len(image_clip["keyframes"]) >= 3
+            frame = await tools.execute("inspect_frame", context, {"time_ms": 1500})
+            assert [item["type"] for item in frame.data["layers_back_to_front"]] == [
+                "image",
+                "shape",
+            ]
+            validation = await tools.execute("validate_timeline", context, {})
+            assert validation.data["valid"] is True
+            assert validation.data["issues"] == []
             with pytest.raises(NotFoundError):
                 await tools.execute(
                     "add_audio_clip",

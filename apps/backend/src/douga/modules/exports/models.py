@@ -11,6 +11,12 @@ class Export(UuidPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint("width > 0 AND height > 0", name="dimensions_positive"),
         CheckConstraint("fps > 0", name="fps_positive"),
+        CheckConstraint("kind IN ('export', 'preview')", name="kind"),
+        CheckConstraint(
+            "(range_start_ms IS NULL AND range_end_ms IS NULL) OR "
+            "(range_start_ms >= 0 AND range_end_ms > range_start_ms)",
+            name="range_valid",
+        ),
         Index("ix_exports_user_id_created_at", "user_id", "created_at"),
         Index("ix_exports_project_id_created_at", "project_id", "created_at"),
     )
@@ -28,6 +34,9 @@ class Export(UuidPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="export")
+    range_start_ms: Mapped[int | None] = mapped_column(BigInteger)
+    range_end_ms: Mapped[int | None] = mapped_column(BigInteger)
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
     fps: Mapped[int] = mapped_column(Integer, nullable=False)

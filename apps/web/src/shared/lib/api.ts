@@ -18,6 +18,9 @@ export interface SettingsDto {
 export interface ProjectSummaryDto {
   id: string;
   name: string;
+  kind: "export" | "preview";
+  range_start_ms: number | null;
+  range_end_ms: number | null;
   status: "draft" | "editing" | "rendered" | "archived";
   content_locale: "ja" | "en";
   current_revision_number: number;
@@ -173,6 +176,17 @@ export interface ImageArtifactDto {
   prompt: string;
   size: string;
   quality: string;
+}
+
+export interface VideoArtifactDto {
+  artifact_type: "video_preview" | "video_export";
+  export_id: string;
+  name: string;
+  status: string;
+  duration_ms: number | null;
+  range_start_ms: number | null;
+  range_end_ms: number | null;
+  error_code: string | null;
 }
 
 export interface AssistantRunStartedDto {

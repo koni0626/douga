@@ -15,11 +15,13 @@ import {
   type CreativeDocumentDto,
   type CreativeDocumentListDto,
   type ImageArtifactDto,
+  type VideoArtifactDto,
 } from "../../../shared/lib/api";
 import { ApprovalCard } from "./ApprovalCard";
 import { CreativeDocumentCard } from "./CreativeDocumentCard";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageArtifactCard } from "./ImageArtifactCard";
+import { VideoArtifactCard } from "./VideoArtifactCard";
 
 function imageArtifact(value: unknown): ImageArtifactDto | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -33,6 +35,27 @@ function imageArtifact(value: unknown): ImageArtifactDto | undefined {
     ? (item as ImageArtifactDto)
     : undefined;
 }
+
+function videoArtifact(value: unknown): VideoArtifactDto | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const item = value as Partial<VideoArtifactDto>;
+  return (item.artifact_type === "video_preview" ||
+    item.artifact_type === "video_export") &&
+    typeof item.export_id === "string" &&
+    typeof item.name === "string" &&
+    typeof item.status === "string"
+    ? (item as VideoArtifactDto)
+    : undefined;
+}
+
+const runErrorKeys: Record<string, string> = {
+  ASSISTANT_RUN_QUOTA_EXCEEDED: "errors.assistantRunQuotaExceeded",
+  ASSISTANT_TOKEN_LIMIT_EXCEEDED: "errors.assistantTokenLimitExceeded",
+  ASSISTANT_TOKEN_QUOTA_EXCEEDED: "errors.assistantTokenQuotaExceeded",
+  ASSISTANT_TOOL_LIMIT_EXCEEDED: "errors.assistantToolLimitExceeded",
+  ASSISTANT_TOOL_CORRECTION_EXCEEDED: "errors.assistantToolCorrectionExceeded",
+  ASSISTANT_PROJECT_CONFLICT: "errors.assistantProjectConflict",
+};
 
 interface AssistantPanelProps {
   canRun: boolean;
@@ -69,6 +92,7 @@ export function AssistantPanel({
   const [approvals, setApprovals] = useState<AssistantToolCallDto[]>([]);
   const [approvalBusyId, setApprovalBusyId] = useState<string>();
   const [imageArtifacts, setImageArtifacts] = useState<ImageArtifactDto[]>([]);
+  const [videoArtifacts, setVideoArtifacts] = useState<VideoArtifactDto[]>([]);
   const [toolProgress, setToolProgress] = useState<number>();
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -112,6 +136,12 @@ export function AssistantPanel({
         setImageArtifacts(
           detail.tool_calls.flatMap((call) => {
             const artifact = imageArtifact(call.result_json?.generation);
+            return artifact ? [artifact] : [];
+          }),
+        );
+        setVideoArtifacts(
+          detail.tool_calls.flatMap((call) => {
+            const artifact = videoArtifact(call.result_json?.export);
             return artifact ? [artifact] : [];
           }),
         );
@@ -201,6 +231,12 @@ export function AssistantPanel({
           return artifact ? [artifact] : [];
         }),
       );
+      setVideoArtifacts(
+        detail.tool_calls.flatMap((call) => {
+          const artifact = videoArtifact(call.result_json?.export);
+          return artifact ? [artifact] : [];
+        }),
+      );
       setUndoableRunId(
         detail.runs.find(
           (run) =>
@@ -237,6 +273,7 @@ export function AssistantPanel({
       setUndoableRunId(undefined);
       setApprovals([]);
       setImageArtifacts([]);
+      setVideoArtifacts([]);
     } catch (error) {
       setErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
@@ -291,6 +328,14 @@ export function AssistantPanel({
         setImageArtifacts((current) => [
           generated,
           ...current.filter((item) => item.asset_id !== generated.asset_id),
+        ]);
+        return;
+      }
+      const video = videoArtifact(artifact);
+      if (video) {
+        setVideoArtifacts((current) => [
+          video,
+          ...current.filter((item) => item.export_id !== video.export_id),
         ]);
         return;
       }
@@ -356,12 +401,17 @@ export function AssistantPanel({
       setToolProgress(undefined);
       finish();
     });
-    source.addEventListener("run.failed", () => {
+    source.addEventListener("run.failed", (event) => {
       setApprovals((current) =>
         current.filter((item) => item.run_id !== runId),
       );
       setToolProgress(undefined);
-      setErrorKey("errors.assistantUnavailable");
+      const { error_code: errorCode } = JSON.parse(event.data) as {
+        error_code?: string;
+      };
+      setErrorKey(
+        (errorCode && runErrorKeys[errorCode]) ?? "errors.assistantUnavailable",
+      );
       finish();
     });
     source.addEventListener("project.revision_created", () => {
@@ -566,6 +616,9 @@ export function AssistantPanel({
             key={document.id}
             onAdopt={(item) => void adoptDocument(item)}
           />
+        ))}
+        {videoArtifacts.map((artifact) => (
+          <VideoArtifactCard key={artifact.export_id} artifact={artifact} />
         ))}
         {imageArtifacts.map((artifact) => (
           <ImageArtifactCard artifact={artifact} key={artifact.asset_id} />

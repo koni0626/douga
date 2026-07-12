@@ -7,10 +7,14 @@ from douga.modules.assets.models import Asset
 from douga.modules.auth.models import User, UserSession
 from douga.modules.exports.models import Export
 from douga.modules.image_generations.models import ImageGenerationRequest
+from douga.modules.image_generations.service import (
+    ImageGenerationService,
+    process_image_generation_job,
+)
 from douga.modules.jobs.models import Job
 from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TEST_DATABASE_URL"), reason="integration database not configured"
@@ -72,5 +76,30 @@ async def test_fake_generation_creates_private_asset_and_history() -> None:
         assert (await outsider.get(f"/api/v1/image-generations/{request_id}")).status_code == 404
         history = await owner.get("/api/v1/image-generations")
         assert history.json()["items"][0]["prompt"] == "青い空と白い雲"
+
+    await clear_data()
+
+
+async def test_cancelled_generation_does_not_create_an_asset() -> None:
+    await clear_data()
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        await register(client, "image-cancel@example.com")
+
+    async with session_factory() as session:
+        user = (
+            await session.scalars(select(User).where(User.email == "image-cancel@example.com"))
+        ).one()
+        service = ImageGenerationService(session)
+        created = await service.create(user.id, prompt="cancel me", quality="low", size="1024x1024")
+        await service.cancel(created.id, user.id)
+    await process_image_generation_job(created.job_id)
+    async with session_factory() as session:
+        result = await ImageGenerationService(session).get(created.id, user.id)
+        assets = await session.scalar(
+            select(func.count()).select_from(Asset).where(Asset.user_id == user.id)
+        )
+        assert result.status == "cancelled"
+        assert assets == 0
 
     await clear_data()

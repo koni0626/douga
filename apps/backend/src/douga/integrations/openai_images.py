@@ -28,7 +28,11 @@ class OpenAIImageProvider:
     def __init__(self, settings: Settings) -> None:
         if settings.openai_api_key is None:
             raise RuntimeError("OPENAI_API_KEY is required when IMAGE_PROVIDER=openai")
-        self.client = AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
+        self.client = AsyncOpenAI(
+            api_key=settings.openai_api_key.get_secret_value(),
+            max_retries=settings.openai_max_retries,
+            timeout=settings.openai_timeout_seconds,
+        )
         self.model = settings.openai_image_model
 
     async def generate(

@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -85,6 +86,12 @@ class AssistantRun(UuidPrimaryKeyMixin, Base):
         ),
         UniqueConstraint("id", "user_id", name="uq_assistant_runs_id_user"),
         Index("ix_assistant_runs_user_thread_created", "user_id", "thread_id", "created_at"),
+        Index(
+            "uq_assistant_runs_thread_active",
+            "thread_id",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'running', 'waiting_approval')"),
+        ),
     )
 
     thread_id: Mapped[UUID] = mapped_column(nullable=False)

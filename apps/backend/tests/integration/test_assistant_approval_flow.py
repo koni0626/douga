@@ -151,3 +151,37 @@ async def test_high_cost_image_approval_rejection_and_tenant_isolation() -> None
         generation = (await owner.get("/api/v1/image-generations")).json()
         assert generation["total"] == 1
         assert generation["items"][0]["output_asset_id"]
+
+        export_turn = await owner.post(
+            f"/api/v1/projects/{project_id}/assistant/threads/{thread_id}/messages",
+            json={"content": "MP4を書き出して"},
+            headers={"X-CSRF-Token": csrf},
+        )
+        export_run_id = export_turn.json()["run_id"]
+        detail = await owner.get(f"/api/v1/projects/{project_id}/assistant/threads/{thread_id}")
+        export_call = next(
+            item for item in detail.json()["tool_calls"] if item["run_id"] == export_run_id
+        )
+        assert export_call["tool_name"] == "export_video"
+        assert export_call["status"] == "waiting_approval"
+        rejected_export = await owner.post(
+            f"/api/v1/projects/{project_id}/assistant/tool-calls/{export_call['id']}/reject",
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert rejected_export.status_code == 200
+        assert (await owner.get("/api/v1/exports")).json()["total"] == 0
+
+        placed_turn = await owner.post(
+            f"/api/v1/projects/{project_id}/assistant/threads/{thread_id}/messages",
+            json={"content": "朝の工場の画像を生成してタイムラインに配置して"},
+            headers={"X-CSRF-Token": csrf},
+        )
+        placed_run = await owner.get(
+            f"/api/v1/projects/{project_id}/assistant/runs/{placed_turn.json()['run_id']}"
+        )
+        assert placed_run.json()["status"] == "completed"
+        placed_project = await owner.get(f"/api/v1/projects/{project_id}")
+        placed_layer = placed_project.json()["document"]["scenes"][0]["layers"][0]
+        assert placed_layer["type"] == "image"
+        assert placed_layer["name"] == "AI generated image"
+        assert (await owner.get("/api/v1/image-generations")).json()["total"] == 2

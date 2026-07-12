@@ -14,6 +14,9 @@ class ExportResponse(BaseModel):
     project_revision_id: UUID
     job_id: UUID
     name: str
+    kind: str
+    range_start_ms: int | None
+    range_end_ms: int | None
     status: str
     progress: int
     width: int

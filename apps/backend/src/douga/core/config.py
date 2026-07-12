@@ -30,9 +30,14 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_image_model: str = "gpt-image-2"
     openai_assistant_model: str = "gpt-5.6"
+    openai_max_retries: int = Field(default=2, ge=0, le=5)
+    openai_timeout_seconds: float = Field(default=120, ge=5, le=600)
     assistant_provider: Literal["auto", "fake", "openai"] = "auto"
     assistant_history_limit: int = Field(default=30, ge=1, le=100)
     assistant_max_tool_calls: int = Field(default=30, ge=1, le=100)
+    assistant_run_limit_per_hour: int = Field(default=60, ge=1, le=1000)
+    assistant_token_limit_per_run: int = Field(default=200_000, ge=1_000, le=10_000_000)
+    assistant_token_limit_per_hour: int = Field(default=1_000_000, ge=1_000, le=100_000_000)
     image_provider: Literal["fake", "openai"] = "fake"
     image_generation_limit_per_hour: int = Field(default=20, ge=1, le=1000)
     export_timeout_seconds: int = Field(default=900, ge=30, le=7200)

@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
@@ -31,10 +31,13 @@ async def create_export(
 async def list_exports(
     context: Annotated[AuthContext, Depends(current_auth)],
     session: Annotated[AsyncSession, Depends(get_session)],
+    kind: Literal["export", "preview"] = "export",
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ExportListResponse:
-    items, total = await ExportService(session).list(context.user.id, limit=limit, offset=offset)
+    items, total = await ExportService(session).list(
+        context.user.id, kind=kind, limit=limit, offset=offset
+    )
     return ExportListResponse(items=items, total=total)
 
 

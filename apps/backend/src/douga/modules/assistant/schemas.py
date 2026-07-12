@@ -86,3 +86,23 @@ class AssistantUndoResponse(BaseModel):
     run_id: UUID
     revision_number: int
     lock_version: int
+
+
+class AssistantMetricsResponse(BaseModel):
+    run_count: int
+    run_statuses: dict[str, int]
+    tool_call_count: int
+    tool_statuses: dict[str, int]
+    total_tokens: int
+    waiting_approval_count: int
+    run_success_rate: float | None
+    undo_rate: float | None
+    approval_rate: float | None
+    image_adoption_rate: float | None
+    average_provider_duration_ms: int | None
+    average_first_delta_ms: int | None
+    tool_metrics: dict[str, dict[str, int]]
+
+
+class AssistantAuditResponse(BaseModel):
+    items: list[AssistantToolCallResponse]

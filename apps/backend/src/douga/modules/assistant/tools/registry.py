@@ -49,7 +49,7 @@ class ToolRegistry:
     def __init__(self, definitions: tuple[ToolDefinition, ...]) -> None:
         self._definitions = {definition.name: definition for definition in definitions}
 
-    def provider_tools(self) -> tuple[AssistantProviderTool, ...]:
+    def provider_tools(self, names: set[str] | None = None) -> tuple[AssistantProviderTool, ...]:
         return tuple(
             AssistantProviderTool(
                 name=item.name,
@@ -57,7 +57,11 @@ class ToolRegistry:
                 parameters=item.parameters,
             )
             for item in self._definitions.values()
+            if names is None or item.name in names
         )
+
+    def names(self) -> set[str]:
+        return set(self._definitions)
 
     def definition(self, name: str) -> ToolDefinition:
         definition = self._definitions.get(name)

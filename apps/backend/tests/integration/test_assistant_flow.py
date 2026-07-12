@@ -210,6 +210,23 @@ async def test_project_assistant_conversation_and_tenant_isolation() -> None:
         )
         assert persisted_edit_run["undo_revision_number"] == 3
 
+        metrics = await owner.get(f"/api/v1/projects/{project_id}/assistant/metrics")
+        assert metrics.status_code == 200
+        assert metrics.json()["run_count"] >= 3
+        assert metrics.json()["tool_call_count"] >= 2
+        audit = await owner.get(f"/api/v1/projects/{project_id}/assistant/audit")
+        assert audit.status_code == 200
+        assert {item["tool_name"] for item in audit.json()["items"]} >= {
+            "save_plot",
+            "add_text_clip",
+        }
+        assert (
+            await outsider.get(f"/api/v1/projects/{project_id}/assistant/metrics")
+        ).status_code == 404
+        assert (
+            await outsider.get(f"/api/v1/projects/{project_id}/assistant/audit")
+        ).status_code == 404
+
         conflicting_turn = await owner.post(
             f"/api/v1/projects/{project_id}/assistant/threads/{second_thread.json()['id']}/messages",
             json={"content": "テキスト「Will conflict」を追加して"},

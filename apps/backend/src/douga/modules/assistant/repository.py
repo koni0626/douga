@@ -174,6 +174,76 @@ class AssistantRepository:
             )
         ).one_or_none()
 
+    async def recent_run_count(self, user_id: UUID, since: datetime) -> int:
+        return int(
+            await self.session.scalar(
+                select(func.count())
+                .select_from(AssistantRun)
+                .where(AssistantRun.user_id == user_id, AssistantRun.created_at >= since)
+            )
+            or 0
+        )
+
+    async def recent_token_usage(
+        self, user_id: UUID, since: datetime, *, exclude_run_id: UUID | None = None
+    ) -> int:
+        statement = select(AssistantRun.usage_json).where(
+            AssistantRun.user_id == user_id, AssistantRun.created_at >= since
+        )
+        if exclude_run_id is not None:
+            statement = statement.where(AssistantRun.id != exclude_run_id)
+        rows = await self.session.scalars(statement)
+        return sum(int((usage or {}).get("total_tokens", 0)) for usage in rows)
+
+    async def list_project_runs(
+        self, project_id: UUID, user_id: UUID, *, limit: int = 500
+    ) -> list[AssistantRun]:
+        return list(
+            await self.session.scalars(
+                select(AssistantRun)
+                .where(
+                    AssistantRun.project_id == project_id,
+                    AssistantRun.user_id == user_id,
+                )
+                .order_by(AssistantRun.created_at.desc())
+                .limit(limit)
+            )
+        )
+
+    async def list_project_tool_calls(
+        self, project_id: UUID, user_id: UUID, *, limit: int = 500
+    ) -> list[AssistantToolCall]:
+        return list(
+            await self.session.scalars(
+                select(AssistantToolCall)
+                .join(AssistantRun, AssistantRun.id == AssistantToolCall.run_id)
+                .where(
+                    AssistantRun.project_id == project_id,
+                    AssistantRun.user_id == user_id,
+                    AssistantToolCall.user_id == user_id,
+                )
+                .order_by(AssistantToolCall.created_at.desc())
+                .limit(limit)
+            )
+        )
+
+    async def list_project_events(
+        self, project_id: UUID, user_id: UUID, *, limit: int = 5_000
+    ) -> list[AssistantRunEvent]:
+        return list(
+            await self.session.scalars(
+                select(AssistantRunEvent)
+                .join(AssistantRun, AssistantRun.id == AssistantRunEvent.run_id)
+                .where(
+                    AssistantRun.project_id == project_id,
+                    AssistantRun.user_id == user_id,
+                    AssistantRunEvent.user_id == user_id,
+                )
+                .order_by(AssistantRunEvent.created_at.desc())
+                .limit(limit)
+            )
+        )
+
     async def get_run(self, run_id: UUID, project_id: UUID, user_id: UUID) -> AssistantRun | None:
         return (
             await self.session.scalars(

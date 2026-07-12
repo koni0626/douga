@@ -50,13 +50,13 @@ function renderLayer(
 
   if (layer.type === "shape") {
     const common = {
-      key: layer.id,
       fill: layer.fill,
       opacity: layer.opacity,
       transform: layerTransform(layer),
     };
     return layer.shape === "ellipse" ? (
       <ellipse
+        key={layer.id}
         {...common}
         cx={layer.x + layer.width / 2}
         cy={layer.y + layer.height / 2}
@@ -65,6 +65,7 @@ function renderLayer(
       />
     ) : (
       <rect
+        key={layer.id}
         {...common}
         x={layer.x}
         y={layer.y}

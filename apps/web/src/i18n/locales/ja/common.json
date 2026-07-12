@@ -275,8 +275,15 @@
     "image": {
       "generated": "生成した画像"
     },
+    "video": {
+      "preview": "確認用プレビュー",
+      "export": "完成動画",
+      "open": "動画を開く"
+    },
     "tools": {
-      "generate_image": "高品質画像を生成"
+      "generate_image": "高品質画像を生成",
+      "delete_clip": "クリップを削除",
+      "export_video": "MP4を書き出し"
     },
     "history": "会話履歴",
     "newConversation": "新しい会話を作成",
@@ -317,6 +324,7 @@
     "assistantToolNotFound": "指定されたAIツールは利用できません。",
     "assistantToolArgumentsInvalid": "AIツールへ渡された内容が正しくありません。",
     "assistantToolLimitExceeded": "1回の処理で利用できるAIツール数を超えました。",
+    "assistantToolCorrectionExceeded": "AIツールの入力修正に繰り返し失敗したため処理を停止しました。",
     "assistantProjectConflict": "編集中にプロジェクトが更新されました。最新状態を読み込んでください。",
     "assistantRunHasNoChanges": "このAI処理には取り消せる変更がありません。",
     "assistantRunAlreadyUndone": "このAI処理の変更はすでに取り消されています。",
@@ -327,13 +335,20 @@
     "assistantToolCallNotFound": "AIツールの確認要求が見つかりません。",
     "assistantToolCallNotWaiting": "この確認要求はすでに処理されています。",
     "assistantRunActive": "この会話では別の処理が実行中です。完了、承認、または停止してから再試行してください。",
+    "assistantRunQuotaExceeded": "AIアシスタントの1時間あたりの実行上限に達しました。",
+    "assistantTokenLimitExceeded": "1回のAI処理で利用できるトークン上限に達しました。",
+    "assistantTokenQuotaExceeded": "AIアシスタントの1時間あたりのトークン上限に達しました。",
     "imageGenerationFailed": "画像生成に失敗しました。",
     "imageQuotaExceeded": "画像生成の1時間あたりの上限に達しました。",
     "imageGenerationNotFound": "画像生成履歴が見つかりません。",
+    "imageGenerationNotCancellable": "この画像生成はキャンセルできません。",
     "exportFailed": "動画の書き出しに失敗しました。",
     "exportNotFound": "完成動画が見つかりません。",
     "exportNotCancellable": "この書き出しはキャンセルできません。",
     "exportQuotaExceeded": "動画書き出しの1時間あたりの上限に達しました。",
+    "previewRangeInvalid": "プレビューの時間範囲が正しくありません。",
+    "previewRangeTooLong": "プレビューは15秒以内にしてください。",
+    "frameTimeOutOfRange": "指定時刻は動画の範囲外です。",
     "authRequired": "ログインが必要です。",
     "emailAlreadyRegistered": "このメールアドレスは登録済みです。",
     "invalidCredentials": "メールアドレスまたはパスワードが違います。",
