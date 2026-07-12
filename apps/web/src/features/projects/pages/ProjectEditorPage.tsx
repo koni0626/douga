@@ -123,6 +123,8 @@ export function ProjectEditorPage() {
   const [playing, setPlaying] = useState(false);
   const [dropActive, setDropActive] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [audioDropActive, setAudioDropActive] = useState(false);
   const [uploadErrorKey, setUploadErrorKey] = useState<string>();
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
   const [layerPreview, setLayerPreview] = useState<LayerPreview>();
@@ -531,7 +533,7 @@ export function ProjectEditorPage() {
     });
   }
 
-  function addAudioTrack(asset: AssetDto) {
+  function addAudioTrack(asset: AssetDto, startMs = 0) {
     mutate((document) => {
       document.audio_tracks ??= [];
       document.audio_tracks.push({
@@ -540,16 +542,76 @@ export function ProjectEditorPage() {
         role: "bgm",
         scene_id: null,
         dialogue_id: null,
-        start_ms: 0,
+        start_ms: startMs,
         duration_ms: asset.duration_ms ?? undefined,
         trim_start_ms: 0,
         volume: 0.7,
-        loop: true,
+        loop: false,
         fade_in_ms: 0,
         fade_out_ms: 0,
         ducking: true,
       });
     });
+  }
+
+  async function uploadDroppedAudio(file: File, startMs: number) {
+    const isMp3 =
+      file.type === "audio/mpeg" || file.name.toLowerCase().endsWith(".mp3");
+    if (!isMp3) {
+      setUploadErrorKey("errors.audioUploadOnly");
+      return;
+    }
+    setUploadingAudio(true);
+    setUploadErrorKey(undefined);
+    try {
+      const target = await apiRequest<UploadTargetDto>("/assets/uploads", {
+        method: "POST",
+        body: JSON.stringify({
+          name: file.name,
+          original_filename: file.name,
+          kind: "audio",
+        }),
+      });
+      await apiUpload(target.upload_path, file);
+      const completed = await apiRequest<AssetDto>(
+        `/assets/${target.asset.id}/complete`,
+        { method: "POST" },
+      );
+      setAssets((current) => [completed, ...current]);
+      addAudioTrack(completed, startMs);
+      setActiveTool("audio");
+    } catch (error) {
+      setUploadErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setUploadingAudio(false);
+      setAudioDropActive(false);
+    }
+  }
+
+  function dropAudioOnTimeline(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    setAudioDropActive(false);
+    if (uploadingAudio) return;
+    const file = event.dataTransfer.files.item(0);
+    if (!file) return;
+    const ruler = event.currentTarget.querySelector<HTMLElement>(
+      ".object-timeline-ruler",
+    );
+    const bounds = ruler?.getBoundingClientRect();
+    const startMs = bounds
+      ? Math.max(
+          0,
+          Math.min(
+            durationMs - 1,
+            Math.round(
+              ((event.clientX - bounds.left) / bounds.width) * durationMs,
+            ),
+          ),
+        )
+      : timeMs;
+    void uploadDroppedAudio(file, startMs);
   }
 
   function addCameraEffect(preset: CameraPreset) {
@@ -817,7 +879,24 @@ export function ProjectEditorPage() {
           ) : null}
         </section>
 
-        <section className="editor-timeline-area">
+        <section
+          className="editor-timeline-area"
+          onDragEnter={(event) => {
+            event.preventDefault();
+            if (!uploadingAudio) setAudioDropActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+          }}
+          onDragLeave={(event) => {
+            if (
+              !event.currentTarget.contains(event.relatedTarget as Node | null)
+            )
+              setAudioDropActive(false);
+          }}
+          onDrop={dropAudioOnTimeline}
+        >
           {scene ? (
             <ObjectTimeline
               collapseLabel={t("editor.collapseTimeline")}
@@ -837,6 +916,12 @@ export function ProjectEditorPage() {
                 t(`editor.cameraPreset.${effect.preset}`)
               }
               cameraLabel={t("editor.cameraTrack")}
+              audioLabel={t("editor.audioTrack")}
+              audioTracks={project.audio_tracks ?? []}
+              audioTrackLabel={(track) =>
+                assets.find((asset) => asset.id === track.asset_id)?.name ??
+                t("editor.audioTrack")
+              }
               mergeAboveLabel={t("editor.mergeTrackAbove")}
               mergeBelowLabel={t("editor.mergeTrackBelow")}
               keyframeLabels={{
@@ -854,6 +939,9 @@ export function ProjectEditorPage() {
                 keyframe: t("editor.keyframe.label"),
               }}
               onDeleteKeyframe={deleteKeyframe}
+              onAudioStartChange={(trackId, startMs) =>
+                updateAudioTrack(trackId, { start_ms: startMs })
+              }
               onDuplicateKeyframe={duplicateKeyframe}
               onKeyframeEasingChange={updateKeyframeEasing}
               onMergeTrack={mergeLayerTrack}
@@ -885,6 +973,15 @@ export function ProjectEditorPage() {
               timeMs={timeMs}
               title={t("editor.objectTimeline")}
             />
+          ) : null}
+          {audioDropActive || uploadingAudio ? (
+            <div className="timeline-audio-drop-overlay" role="status">
+              {t(
+                uploadingAudio
+                  ? "editor.audioUploading"
+                  : "editor.audioDropHere",
+              )}
+            </div>
           ) : null}
         </section>
 
@@ -1243,6 +1340,41 @@ export function ProjectEditorPage() {
                         <option value="effect">Effect</option>
                       </select>
                     </label>
+                    <div className="property-grid">
+                      <NumberField
+                        label={t("editor.audioStartSeconds")}
+                        value={track.start_ms / 1000}
+                        min={0}
+                        step={0.1}
+                        onChange={(value) =>
+                          updateAudioTrack(track.id, {
+                            start_ms: Math.max(0, Math.round(value * 1000)),
+                          })
+                        }
+                      />
+                      <NumberField
+                        label={t("editor.fadeInSeconds")}
+                        value={track.fade_in_ms / 1000}
+                        min={0}
+                        step={0.1}
+                        onChange={(value) =>
+                          updateAudioTrack(track.id, {
+                            fade_in_ms: Math.max(0, Math.round(value * 1000)),
+                          })
+                        }
+                      />
+                      <NumberField
+                        label={t("editor.fadeOutSeconds")}
+                        value={track.fade_out_ms / 1000}
+                        min={0}
+                        step={0.1}
+                        onChange={(value) =>
+                          updateAudioTrack(track.id, {
+                            fade_out_ms: Math.max(0, Math.round(value * 1000)),
+                          })
+                        }
+                      />
+                    </div>
                     <NumberField
                       label={t("editor.volume")}
                       value={track.volume}

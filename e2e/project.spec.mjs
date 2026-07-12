@@ -15,6 +15,57 @@ async function seekTimeline(page, timeMs) {
     }, timeMs);
 }
 
+async function dragTimelineLayer(page, sourceIndex, targetIndex) {
+  await page.evaluate(
+    ({ sourceIndex, targetIndex }) => {
+      const labels = Array.from(
+        globalThis.document.querySelectorAll(
+          ".object-timeline-label:not(.camera-timeline-label):not(.audio-timeline-label)",
+        ),
+      );
+      const source = labels[sourceIndex];
+      const target = labels[targetIndex];
+      if (
+        !(source instanceof globalThis.HTMLElement) ||
+        !(target instanceof globalThis.HTMLElement)
+      )
+        throw new Error("Timeline labels are unavailable");
+      const transfer = new globalThis.DataTransfer();
+      source.dispatchEvent(
+        new globalThis.DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: transfer,
+        }),
+      );
+      const bounds = target.getBoundingClientRect();
+      target.dispatchEvent(
+        new globalThis.DragEvent("dragover", {
+          bubbles: true,
+          cancelable: true,
+          clientY: bounds.top + 1,
+          dataTransfer: transfer,
+        }),
+      );
+      target.dispatchEvent(
+        new globalThis.DragEvent("drop", {
+          bubbles: true,
+          cancelable: true,
+          clientY: bounds.top + 1,
+          dataTransfer: transfer,
+        }),
+      );
+      source.dispatchEvent(
+        new globalThis.DragEvent("dragend", {
+          bubbles: true,
+          dataTransfer: transfer,
+        }),
+      );
+    },
+    { sourceIndex, targetIndex },
+  );
+}
+
 test("create a project and auto-save its canvas", async ({ page }) => {
   const email = `project-e2e-${Date.now()}@example.com`;
   await page.goto("/register");
@@ -167,9 +218,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
   // タイムライン上段がプレビューの最前面になる。
   await expect(timelineLabels).toHaveText(["図形", "画像"]);
   await expect(page.locator("[data-camera-stage] > *")).toHaveCount(3);
-  await timelineLabels.nth(1).dragTo(timelineLabels.nth(0), {
-    targetPosition: { x: 30, y: 1 },
-  });
+  await dragTimelineLayer(page, 1, 0);
   await expect(timelineLabels).toHaveText(["画像", "図形"]);
   await expect(page.locator("[data-camera-stage] > *").nth(1)).toHaveJSProperty(
     "tagName",
@@ -179,9 +228,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
     "tagName",
     "image",
   );
-  await timelineLabels.nth(1).dragTo(timelineLabels.nth(0), {
-    targetPosition: { x: 30, y: 1 },
-  });
+  await dragTimelineLayer(page, 1, 0);
   await expect(timelineLabels).toHaveText(["図形", "画像"]);
 
   const shapeTimelineRow = page

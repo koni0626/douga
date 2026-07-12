@@ -81,6 +81,8 @@
     "imageDropZone": "Canvas image drop zone",
     "imageDropHere": "Drop an image here to add it to the canvas",
     "imageUploading": "Uploading image…",
+    "audioDropHere": "Drop an MP3 to add an audio track",
+    "audioUploading": "Uploading MP3…",
     "toolbarLabel": "Editor tools",
     "closeTools": "Close settings",
     "tool": {
@@ -191,6 +193,10 @@
     "textColor": "Text color",
     "audio": "Narration, BGM, and effects",
     "audioRole": "Role",
+    "audioTrack": "Audio",
+    "audioStartSeconds": "Playback start (seconds)",
+    "fadeInSeconds": "Fade in (seconds)",
+    "fadeOutSeconds": "Fade out (seconds)",
     "volume": "Volume",
     "saveState": {
       "idle": "Unchanged",
@@ -253,6 +259,7 @@
     "projectDocumentInvalid": "The project data is invalid.",
     "uploadInvalid": "The file format could not be validated.",
     "imageUploadOnly": "Drop a PNG, JPEG, or WebP image.",
+    "audioUploadOnly": "Drop an MP3 file.",
     "uploadTooLarge": "The file exceeds the upload size limit.",
     "assetNotFound": "The asset was not found."
   }

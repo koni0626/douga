@@ -717,6 +717,58 @@ button,
   white-space: nowrap;
 }
 
+.audio-timeline-label {
+  color: #b7f7dc;
+}
+
+.audio-track-icon {
+  color: #34d399;
+}
+
+.audio-timeline-track {
+  background-color: rgb(16 120 90 / 10%);
+}
+
+.audio-timeline-clip {
+  background: linear-gradient(90deg, #087f5b, #10a77a);
+  border: 1px solid #6ee7b7;
+  border-radius: 0.35rem;
+  color: #ecfff8;
+  cursor: grab;
+  font-size: 0.65rem;
+  inset-block: 0.18rem;
+  min-width: 0.8rem;
+  overflow: hidden;
+  padding: 0.12rem 0.4rem;
+  pointer-events: auto;
+  position: absolute;
+  text-overflow: ellipsis;
+  touch-action: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.audio-timeline-clip:active {
+  cursor: grabbing;
+  overflow: visible;
+  z-index: 8;
+}
+
+.timeline-audio-drop-overlay {
+  align-items: center;
+  background: rgb(5 46 38 / 88%);
+  border: 2px dashed #34d399;
+  color: #d7fff0;
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 700;
+  inset: 0;
+  justify-content: center;
+  pointer-events: none;
+  position: absolute;
+  z-index: 30;
+}
+
 .editor-preview {
   align-items: center;
   display: flex;
@@ -932,6 +984,7 @@ button,
   grid-column: 1;
   min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .timeline-resize-handle {

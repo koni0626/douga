@@ -157,6 +157,10 @@ async def _render_input(session: AsyncSession, export: Export) -> dict[str, obje
                     "path": str(storage.require_path(asset.storage_key)),
                     "volume": float(track.get("volume", 1)),
                     "start_ms": int(track.get("start_ms", 0)),
+                    "duration_ms": int(track.get("duration_ms") or asset.duration_ms or 0),
+                    "trim_start_ms": int(track.get("trim_start_ms", 0)),
+                    "fade_in_ms": int(track.get("fade_in_ms", 0)),
+                    "fade_out_ms": int(track.get("fade_out_ms", 0)),
                     "loop": bool(track.get("loop", False)),
                 }
             )

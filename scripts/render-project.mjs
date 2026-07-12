@@ -122,10 +122,24 @@ try {
     args.push("-i", track.path);
   }
   if (audio.length) {
-    const filters = audio.map(
-      (track, index) =>
-        `[${index + 1}:a]volume=${Math.max(0, Math.min(2, track.volume))},adelay=${Math.max(0, track.start_ms)}|${Math.max(0, track.start_ms)}[a${index}]`,
-    );
+    const filters = audio.map((track, index) => {
+      const chain = [];
+      if (track.trim_start_ms > 0)
+        chain.push(
+          `atrim=start=${track.trim_start_ms / 1000}`,
+          "asetpts=PTS-STARTPTS",
+        );
+      chain.push(`volume=${Math.max(0, Math.min(2, track.volume))}`);
+      if (track.fade_in_ms > 0)
+        chain.push(`afade=t=in:st=0:d=${track.fade_in_ms / 1000}`);
+      if (track.fade_out_ms > 0 && track.duration_ms > 0)
+        chain.push(
+          `afade=t=out:st=${Math.max(0, track.duration_ms - track.fade_out_ms) / 1000}:d=${track.fade_out_ms / 1000}`,
+        );
+      const delay = Math.max(0, track.start_ms);
+      chain.push(`adelay=${delay}|${delay}`);
+      return `[${index + 1}:a]${chain.join(",")}[a${index}]`;
+    });
     filters.push(
       `${audio.map((_, index) => `[a${index}]`).join("")}amix=inputs=${audio.length}:normalize=0[aout]`,
     );

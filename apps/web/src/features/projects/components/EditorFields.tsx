@@ -6,6 +6,26 @@ import { assetContentUrl } from "../../../shared/lib/api";
 
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 
+export function audioVolumeAtTime(
+  track: AudioTrack,
+  timeMs: number,
+  mediaDurationMs?: number,
+): number {
+  const elapsedMs = timeMs - track.start_ms;
+  if (elapsedMs < 0) return 0;
+  const durationMs = track.duration_ms ?? mediaDurationMs;
+  if (durationMs && !track.loop && elapsedMs >= durationMs) return 0;
+  const playbackMs =
+    durationMs && track.loop ? elapsedMs % durationMs : elapsedMs;
+  const fadeIn =
+    track.fade_in_ms > 0 ? Math.min(1, playbackMs / track.fade_in_ms) : 1;
+  const fadeOut =
+    durationMs && track.fade_out_ms > 0
+      ? Math.min(1, Math.max(0, durationMs - playbackMs) / track.fade_out_ms)
+      : 1;
+  return Math.max(0, Math.min(1, track.volume * fadeIn * fadeOut));
+}
+
 export function NumberField({
   label,
   value,
@@ -51,9 +71,18 @@ export function AudioPreview({
       const audio = refs.current[track.id];
       if (!audio) continue;
       const localMs = timeMs - track.start_ms + track.trim_start_ms;
-      audio.volume = Math.min(1, track.volume);
+      const mediaDurationMs = Number.isFinite(audio.duration)
+        ? Math.max(0, audio.duration * 1000 - track.trim_start_ms)
+        : undefined;
+      audio.volume = audioVolumeAtTime(track, timeMs, mediaDurationMs);
       audio.loop = track.loop;
-      if (localMs < 0) {
+      if (
+        localMs < 0 ||
+        (!track.loop &&
+          (track.duration_ms ?? mediaDurationMs) !== undefined &&
+          timeMs - track.start_ms >=
+            (track.duration_ms ?? mediaDurationMs ?? 0))
+      ) {
         audio.pause();
         continue;
       }

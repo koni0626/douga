@@ -14,6 +14,7 @@ import { TimelineLayerLabel } from "./TimelineLayerLabel";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type CameraEffect = NonNullable<ProjectDocument["camera_effects"]>[number];
+type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 type Range = { startMs: number; endMs: number };
 type DragMode = "move" | "start" | "end";
 type DragState = {
@@ -25,6 +26,12 @@ type DragState = {
 };
 type ResizeState = { originHeight: number; originY: number };
 type ClipMenu = { layerId: string; x: number; y: number };
+type AudioDrag = {
+  trackId: string;
+  originX: number;
+  startMs: number;
+  trackWidth: number;
+};
 
 const MIN_DURATION_MS = 250;
 const DEFAULT_TIMELINE_HEIGHT_PX = 180;
@@ -102,12 +109,16 @@ export interface ObjectTimelineProps {
   cameraEffects: CameraEffect[];
   cameraEffectLabel: (effect: CameraEffect) => string;
   cameraLabel: string;
+  audioLabel: string;
+  audioTracks: AudioTrack[];
+  audioTrackLabel: (track: AudioTrack) => string;
   layers: Layer[];
   playing: boolean;
   selectedLayerId?: string;
   timeMs: number;
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: Range) => void;
+  onAudioStartChange: (trackId: string, startMs: number) => void;
   onExtend: () => void;
   onPlay: () => void;
   onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
@@ -152,12 +163,16 @@ export function ObjectTimeline({
   cameraEffects,
   cameraEffectLabel,
   cameraLabel,
+  audioLabel,
+  audioTracks,
+  audioTrackLabel,
   layers,
   playing,
   selectedLayerId,
   timeMs,
   labelFor,
   onChange,
+  onAudioStartChange,
   onExtend,
   onDeleteKeyframe,
   onDuplicateKeyframe,
@@ -204,6 +219,8 @@ export function ObjectTimeline({
     y: number;
   }>();
   const [clipMenu, setClipMenu] = useState<ClipMenu>();
+  const [audioDrag, setAudioDrag] = useState<AudioDrag>();
+  const [audioDraftStart, setAudioDraftStart] = useState<number>();
   const displayTrackIds = Array.from(
     new Set(displayLayers.map((layer) => trackId(layer))),
   );
@@ -244,6 +261,35 @@ export function ObjectTimeline({
       window.removeEventListener("pointerup", finish);
     };
   }, [drag, durationMs, onChange]);
+
+  useEffect(() => {
+    if (!audioDrag) return;
+    const startAt = (clientX: number) =>
+      Math.max(
+        0,
+        Math.min(
+          durationMs - 50,
+          audioDrag.startMs +
+            ((clientX - audioDrag.originX) / audioDrag.trackWidth) * durationMs,
+        ),
+      );
+    const move = (event: globalThis.PointerEvent) =>
+      setAudioDraftStart(startAt(event.clientX));
+    const finish = (event: globalThis.PointerEvent) => {
+      onAudioStartChange(
+        audioDrag.trackId,
+        Math.round(startAt(event.clientX) / 50) * 50,
+      );
+      setAudioDrag(undefined);
+      setAudioDraftStart(undefined);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+    };
+  }, [audioDrag, durationMs, onAudioStartChange]);
 
   function beginDrag(
     event: PointerEvent<HTMLDivElement>,
@@ -497,6 +543,67 @@ export function ObjectTimeline({
                 </div>
               ))}
             </div>
+            {audioTracks.map((track, audioIndex) => {
+              const startMs =
+                audioDrag?.trackId === track.id && audioDraftStart !== undefined
+                  ? audioDraftStart
+                  : track.start_ms;
+              const endMs = Math.min(
+                durationMs,
+                track.loop || !track.duration_ms
+                  ? durationMs
+                  : startMs + track.duration_ms,
+              );
+              return (
+                <div className="object-timeline-row" key={track.id}>
+                  <div
+                    className="object-timeline-label audio-timeline-label"
+                    style={{ gridColumn: 1, gridRow: audioIndex + 3 }}
+                  >
+                    <span className="audio-track-icon">♪</span>
+                    {audioIndex === 0 ? audioLabel : audioTrackLabel(track)}
+                  </div>
+                  <div
+                    className="object-timeline-track object-timeline-track--base audio-timeline-track"
+                    style={{ gridColumn: 2, gridRow: audioIndex + 3 }}
+                    onPointerDown={seek}
+                  >
+                    <div
+                      className="audio-timeline-clip"
+                      style={{
+                        left: `${(startMs * 100) / durationMs}%`,
+                        width: `${(Math.max(50, endMs - startMs) * 100) / durationMs}%`,
+                      }}
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const timelineTrack = event.currentTarget.parentElement;
+                        if (!timelineTrack) return;
+                        setAudioDraftStart(track.start_ms);
+                        setAudioDrag({
+                          trackId: track.id,
+                          originX: event.clientX,
+                          startMs: track.start_ms,
+                          trackWidth:
+                            timelineTrack.getBoundingClientRect().width,
+                        });
+                      }}
+                    >
+                      {audioTrackLabel(track)}
+                      {audioDrag?.trackId === track.id ? (
+                        <output
+                          className="timeline-drag-time"
+                          aria-live="polite"
+                        >
+                          {formatTimelineTime(startMs)} –{" "}
+                          {formatTimelineTime(endMs)}
+                        </output>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
             {displayLayers.map((layer) => {
               const layerTrackId = trackId(layer);
               const trackIndex = displayTrackIds.indexOf(layerTrackId);
@@ -542,7 +649,10 @@ export function ObjectTimeline({
                       onRename={(name) => onRename(layer.id, name)}
                       onSelect={() => onSelect(layer.id)}
                       renameLabel={renameLabel}
-                      style={{ gridColumn: 1, gridRow: trackIndex + 3 }}
+                      style={{
+                        gridColumn: 1,
+                        gridRow: trackIndex + audioTracks.length + 3,
+                      }}
                     />
                   ) : null}
                   <div
@@ -556,7 +666,10 @@ export function ObjectTimeline({
                     onDragOver={(event) => orderDragOver(event, layer.id)}
                     onDrop={(event) => orderDrop(event, layer.id)}
                     onPointerDown={seek}
-                    style={{ gridColumn: 2, gridRow: trackIndex + 3 }}
+                    style={{
+                      gridColumn: 2,
+                      gridRow: trackIndex + audioTracks.length + 3,
+                    }}
                   >
                     <div
                       className={[

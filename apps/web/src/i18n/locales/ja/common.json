@@ -81,6 +81,8 @@
     "imageDropZone": "キャンバス画像のドロップ領域",
     "imageDropHere": "ここに画像をドロップしてキャンバスへ追加",
     "imageUploading": "画像をアップロード中…",
+    "audioDropHere": "MP3をドロップして音声トラックへ追加",
+    "audioUploading": "MP3をアップロード中…",
     "toolbarLabel": "編集ツール",
     "closeTools": "設定を閉じる",
     "tool": {
@@ -191,6 +193,10 @@
     "textColor": "文字色",
     "audio": "ナレーション・BGM・効果音",
     "audioRole": "用途",
+    "audioTrack": "音声",
+    "audioStartSeconds": "再生開始（秒）",
+    "fadeInSeconds": "フェードイン（秒）",
+    "fadeOutSeconds": "フェードアウト（秒）",
     "volume": "音量",
     "saveState": {
       "idle": "未変更",
@@ -253,6 +259,7 @@
     "projectDocumentInvalid": "プロジェクトデータの形式が正しくありません。",
     "uploadInvalid": "ファイルの形式を確認できませんでした。",
     "imageUploadOnly": "PNG、JPEG、WebP画像をドロップしてください。",
+    "audioUploadOnly": "MP3ファイルをドロップしてください。",
     "uploadTooLarge": "ファイルサイズが上限を超えています。",
     "assetNotFound": "素材が見つかりません。"
   }
