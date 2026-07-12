@@ -10,7 +10,10 @@ import {
   type AssistantThreadDto,
   type AssistantThreadListDto,
   type AssistantRunStartedDto,
+  type CreativeDocumentDto,
+  type CreativeDocumentListDto,
 } from "../../../shared/lib/api";
+import { CreativeDocumentCard } from "./CreativeDocumentCard";
 import { MarkdownMessage } from "./MarkdownMessage";
 
 interface AssistantPanelProps {
@@ -30,6 +33,8 @@ export function AssistantPanel({
   const [threads, setThreads] = useState<AssistantThreadDto[]>([]);
   const [thread, setThread] = useState<AssistantThreadDto>();
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
+  const [documents, setDocuments] = useState<CreativeDocumentDto[]>([]);
+  const [adoptingId, setAdoptingId] = useState<string>();
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -41,9 +46,14 @@ export function AssistantPanel({
     let active = true;
     async function load() {
       try {
-        const list = await apiRequest<AssistantThreadListDto>(
-          `/projects/${projectId}/assistant/threads`,
-        );
+        const [list, documentList] = await Promise.all([
+          apiRequest<AssistantThreadListDto>(
+            `/projects/${projectId}/assistant/threads`,
+          ),
+          apiRequest<CreativeDocumentListDto>(
+            `/projects/${projectId}/creative-documents`,
+          ),
+        ]);
         if (!active) return;
         const selected =
           list.items[0] ??
@@ -58,6 +68,7 @@ export function AssistantPanel({
         setThreads(list.items.length ? list.items : [selected]);
         setThread(detail.thread);
         setMessages(detail.messages);
+        setDocuments(documentList.items);
       } catch (error) {
         if (active)
           setErrorKey(
@@ -196,6 +207,15 @@ export function AssistantPanel({
         message,
       ]);
     });
+    source.addEventListener("artifact.created", (event) => {
+      const { artifact } = JSON.parse(event.data) as {
+        artifact: CreativeDocumentDto;
+      };
+      setDocuments((current) => [
+        artifact,
+        ...current.filter((item) => item.kind !== artifact.kind),
+      ]);
+    });
     const finish = () => {
       source.close();
       if (eventSourceRef.current === source) eventSourceRef.current = null;
@@ -231,6 +251,28 @@ export function AssistantPanel({
       setErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
       );
+    }
+  }
+
+  async function adoptDocument(document: CreativeDocumentDto) {
+    if (adoptingId) return;
+    setAdoptingId(document.id);
+    setErrorKey(undefined);
+    try {
+      const adopted = await apiRequest<CreativeDocumentDto>(
+        `/projects/${projectId}/creative-documents/${document.id}/adopt`,
+        { method: "POST" },
+      );
+      setDocuments((current) => [
+        adopted,
+        ...current.filter((item) => item.kind !== adopted.kind),
+      ]);
+    } catch (error) {
+      setErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setAdoptingId(undefined);
     }
   }
 
@@ -331,6 +373,14 @@ export function AssistantPanel({
             </span>
             <MarkdownMessage content={message.content} />
           </article>
+        ))}
+        {documents.map((document) => (
+          <CreativeDocumentCard
+            adopting={adoptingId === document.id}
+            document={document}
+            key={document.id}
+            onAdopt={(item) => void adoptDocument(item)}
+          />
         ))}
         {sending ? (
           <div className="assistant-running">

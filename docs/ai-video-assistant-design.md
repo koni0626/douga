@@ -7,7 +7,7 @@
 | 文書名 | AI動画制作アシスタント 機能・技術設計書 |
 | 対象 | Douga Webアプリケーション |
 | 作成日 | 2026-07-12 |
-| ステータス | Phase A完了・Phase B実装中 |
+| ステータス | Phase A・B完了、Phase C実装中 |
 | 関連機能 | プロジェクト編集、タイムライン、素材管理、画像生成、リビジョン、動画書き出し |
 
 ## 2. 目的
@@ -823,5 +823,18 @@ ControllerとServiceを分離し、OpenAI SDK固有処理をIntegrationへ隔離
 
 次の作業:
 
-- Phase BのCreative Documentと構造化カード表示
-- 企画概要、プロット、台本、絵コンテの保存・採用・差し替え
+- Phase Cのプロジェクト・素材・タイムライン参照および基本編集ツール
+- Run単位リビジョン、Undo、競合処理
+
+### 2026-07-12: Phase B 完了
+
+実装済み:
+
+- `assistant_tool_calls`、`creative_documents`テーブルとAlembic migration
+- 企画概要、プロット、台本、絵コンテのstrict JSON Schema検証
+- Creative Documentの版管理、提案、差し替え、採用API
+- Responses API Function Callingの複数ターン実行ループ
+- ツール要求、開始、完了、失敗、成果物イベントの永続化
+- 相談中は変更ツールを使用しないシステムポリシー
+- 構造化カードの表示と利用者による採用操作
+- ユーザー・プロジェクト所有権、CSRF、無効SchemaのIntegration Test

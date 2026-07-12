@@ -9,6 +9,8 @@ from douga.modules.assistant.models import (
     AssistantRun,
     AssistantRunEvent,
     AssistantThread,
+    AssistantToolCall,
+    CreativeDocument,
 )
 from douga.modules.assistant.service import AssistantService
 from douga.modules.auth.models import User, UserSession
@@ -17,7 +19,7 @@ from douga.modules.image_generations.models import ImageGenerationRequest
 from douga.modules.jobs.models import Job
 from douga.modules.projects.models import Project, ProjectAsset, ProjectRevision
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 
 pytestmark = pytest.mark.skipif(
     not os.getenv("TEST_DATABASE_URL"), reason="integration database not configured"
@@ -27,6 +29,8 @@ pytestmark = pytest.mark.skipif(
 async def clear_data() -> None:
     async with session_factory() as session:
         for model in (
+            CreativeDocument,
+            AssistantToolCall,
             AssistantRunEvent,
             AssistantMessage,
             AssistantRun,
@@ -131,6 +135,36 @@ async def test_project_assistant_conversation_and_tenant_isolation() -> None:
         assert second_thread.json()["id"] != thread_id
         thread_list = await owner.get(f"/api/v1/projects/{project_id}/assistant/threads")
         assert len(thread_list.json()["items"]) == 2
+
+        creative_turn = await owner.post(
+            f"/api/v1/projects/{project_id}/assistant/threads/{second_thread.json()['id']}/messages",
+            json={"content": "プロットを作って保存して"},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert creative_turn.status_code == 202
+        creative_run_id = creative_turn.json()["run_id"]
+        creative_run = await owner.get(
+            f"/api/v1/projects/{project_id}/assistant/runs/{creative_run_id}"
+        )
+        assert creative_run.json()["status"] == "completed"
+        creative_events = await owner.get(
+            f"/api/v1/projects/{project_id}/assistant/runs/{creative_run_id}/events"
+        )
+        assert "event: tool.requested" in creative_events.text
+        assert "event: tool.completed" in creative_events.text
+        assert "event: artifact.created" in creative_events.text
+        documents = await owner.get(f"/api/v1/projects/{project_id}/creative-documents")
+        assert documents.status_code == 200
+        assert documents.json()["items"][0]["kind"] == "plot"
+        assert documents.json()["items"][0]["status"] == "proposed"
+
+        async with session_factory() as session:
+            consultation_tool_calls = await session.scalar(
+                select(func.count())
+                .select_from(AssistantToolCall)
+                .where(AssistantToolCall.run_id == run_id)
+            )
+        assert consultation_tool_calls == 0
 
         hidden_run = await outsider.get(f"/api/v1/projects/{project_id}/assistant/runs/{run_id}")
         assert hidden_run.status_code == 404

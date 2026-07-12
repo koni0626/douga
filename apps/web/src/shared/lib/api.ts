@@ -135,6 +135,24 @@ export interface AssistantRunStartedDto {
   user_message: AssistantMessageDto;
 }
 
+export type CreativeDocumentKind = "brief" | "plot" | "script" | "storyboard";
+
+export interface CreativeDocumentDto {
+  id: string;
+  project_id: string;
+  kind: CreativeDocumentKind;
+  status: "draft" | "proposed" | "approved" | "superseded";
+  version: number;
+  content: Record<string, unknown>;
+  source_run_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreativeDocumentListDto {
+  items: CreativeDocumentDto[];
+}
+
 interface ErrorResponse {
   error?: { code?: string; message_key?: string };
 }

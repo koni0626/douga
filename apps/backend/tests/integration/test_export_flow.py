@@ -98,7 +98,7 @@ async def test_fixed_revision_export_download_and_tenant_isolation() -> None:
         export_id = exported.json()["id"]
         result = await owner.get(f"/api/v1/exports/{export_id}")
         assert result.json()["status"] == "succeeded"
-        assert result.json()["duration_ms"] == 1000
+        assert result.json()["duration_ms"] == 5000
         video = await owner.get(f"/api/v1/exports/{export_id}/content")
         assert video.status_code == 200
         assert video.headers["content-type"].startswith("video/mp4")

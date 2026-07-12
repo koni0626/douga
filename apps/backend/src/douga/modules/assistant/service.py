@@ -8,12 +8,9 @@ from douga.core.config import get_settings
 from douga.core.errors import ConflictError, NotFoundError
 from douga.db.session import session_factory
 from douga.db.unit_of_work import UnitOfWork
-from douga.integrations.openai_responses import (
-    AssistantProvider,
-    AssistantProviderMessage,
-    build_assistant_provider,
-)
+from douga.integrations.openai_responses import AssistantProvider, build_assistant_provider
 from douga.modules.assistant.models import AssistantMessage, AssistantRun, AssistantThread
+from douga.modules.assistant.orchestrator import AssistantOrchestrator
 from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.projects.models import Project
 from douga.modules.projects.repository import ProjectRepository
@@ -31,12 +28,9 @@ class AssistantRunStarted:
     user_message: AssistantMessage
 
 
-class AssistantRunCancelled(Exception):
-    """Stop an in-flight provider stream after the user cancels its run."""
-
-
 class AssistantService:
     def __init__(self, session: AsyncSession, provider: AssistantProvider | None = None) -> None:
+        self.session = session
         self.repository = AssistantRepository(session)
         self.projects = ProjectRepository(session)
         self.provider = provider or build_assistant_provider()
@@ -109,84 +103,7 @@ class AssistantService:
         return AssistantRunStarted(run, user_message)
 
     async def process_run(self, run_id: UUID) -> None:
-        run = await self.repository.get_run_internal(run_id)
-        if run is None or run.status != "queued":
-            return
-        run.status = "running"
-        run.started_at = datetime.now(UTC)
-        await self.repository.add_event(run, "run.started", {"run_id": str(run.id)})
-        await self.uow.commit()
-
-        project = await self._owned_project(run.project_id, run.user_id)
-        thread = await self.repository.get_thread(run.thread_id, run.project_id, run.user_id)
-        if thread is None:
-            await self._fail_run(run, "ASSISTANT_THREAD_NOT_FOUND")
-            return
-
-        history = await self.repository.list_messages(
-            thread.id, run.user_id, limit=self.settings.assistant_history_limit
-        )
-        instructions = self._instructions(project.content_locale)
-
-        async def record_delta(delta: str) -> None:
-            await self.repository.session.refresh(run)
-            if run.status == "cancelled":
-                raise AssistantRunCancelled
-            await self.repository.add_event(run, "message.delta", {"delta": delta})
-            await self.uow.commit()
-
-        try:
-            result = await self.provider.respond(
-                [
-                    AssistantProviderMessage(role=item.role, content=item.content)
-                    for item in history
-                    if item.role in {"user", "assistant"}
-                ],
-                instructions=instructions,
-                on_delta=record_delta,
-            )
-        except AssistantRunCancelled:
-            return
-        except Exception as error:
-            del error
-            await self._fail_run(run, "ASSISTANT_PROVIDER_FAILED")
-            return
-
-        await self.repository.session.refresh(run)
-        if run.status == "cancelled":
-            return
-
-        assistant_message = AssistantMessage(
-            thread_id=thread.id,
-            user_id=run.user_id,
-            role="assistant",
-            content=result.content,
-            provider_item_id=result.response_id,
-        )
-        await self.repository.add_message(assistant_message)
-        await self.repository.add_event(
-            run,
-            "message.completed",
-            {
-                "message": {
-                    "id": str(assistant_message.id),
-                    "role": assistant_message.role,
-                    "content": assistant_message.content,
-                    "created_at": assistant_message.created_at.isoformat(),
-                }
-            },
-        )
-        run.status = "completed"
-        run.provider_response_id = result.response_id
-        run.usage_json = result.usage or {}
-        run.finished_at = datetime.now(UTC)
-        await self.repository.add_event(
-            run,
-            "run.completed",
-            {"run_id": str(run.id), "status": run.status},
-        )
-        await self.repository.mark_thread_updated(thread)
-        await self.uow.commit()
+        await AssistantOrchestrator(self.session, self.provider, self.settings).process(run_id)
 
     async def get_run(self, project_id: UUID, run_id: UUID, user_id: UUID) -> AssistantRun:
         await self._owned_project(project_id, user_id)
@@ -208,30 +125,6 @@ class AssistantService:
         )
         await self.uow.commit()
         return run
-
-    async def _fail_run(self, run: AssistantRun, error_code: str) -> None:
-        run.status = "failed"
-        run.error_code = error_code
-        run.finished_at = datetime.now(UTC)
-        await self.repository.add_event(
-            run,
-            "run.failed",
-            {"run_id": str(run.id), "status": run.status, "error_code": error_code},
-        )
-        await self.uow.commit()
-
-    @staticmethod
-    def _instructions(locale: str) -> str:
-        language = "Japanese" if locale == "ja" else "English"
-        return (
-            "You are the collaborative video production assistant for the Douga editor. "
-            f"Respond in {language}. "
-            "Help the user explore ideas, plots, scripts, storyboards, and editing choices. "
-            "When the user asks to think together or propose ideas, do not claim that you changed "
-            "the timeline. This phase has no editing tools, so clearly describe "
-            "proposed next steps. "
-            "Ask only questions whose answers materially change the result."
-        )
 
 
 async def process_assistant_run(run_id: UUID) -> None:

@@ -264,7 +264,24 @@
     "stop": "Stop",
     "history": "Conversation history",
     "newConversation": "Start a new conversation",
-    "newConversationTitle": "New conversation"
+    "newConversationTitle": "New conversation",
+    "artifacts": {
+      "brief": "Brief",
+      "plot": "Plot",
+      "script": "Script",
+      "storyboard": "Storyboard",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
+      "adopt": "Adopt this version",
+      "adopting": "Adopting…",
+      "approvedMark": "Approved",
+      "status": {
+        "draft": "Draft",
+        "proposed": "Proposed",
+        "approved": "Approved",
+        "superseded": "Superseded"
+      }
+    }
   },
   "jobs": {
     "queued": "Queued",
@@ -279,6 +296,11 @@
     "assistantStreamDisconnected": "The connection to the AI assistant was lost. Reload the conversation.",
     "assistantRunNotFound": "The AI run could not be found.",
     "assistantRunNotCancellable": "This AI run cannot be stopped.",
+    "creativeDocumentNotFound": "The creative document could not be found.",
+    "creativeDocumentInvalid": "The creative document has an invalid structure.",
+    "assistantToolNotFound": "The requested AI tool is unavailable.",
+    "assistantToolArgumentsInvalid": "The AI tool arguments were invalid.",
+    "assistantToolLimitExceeded": "The AI used too many tools in one run.",
     "imageQuotaExceeded": "You have reached the hourly image generation limit.",
     "imageGenerationNotFound": "Image generation history was not found.",
     "exportFailed": "Video export failed.",

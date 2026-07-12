@@ -16,6 +16,7 @@ from douga.core.logging import configure_logging
 from douga.db.engine import engine
 from douga.modules.assets.controller import router as assets_router
 from douga.modules.assistant.controller import router as assistant_router
+from douga.modules.assistant.creative_controller import router as creative_router
 from douga.modules.auth.controller import router as auth_router
 from douga.modules.exports.controller import router as exports_router
 from douga.modules.health.controller import router as health_router
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     app.include_router(projects_router, prefix="/api/v1")
     app.include_router(assets_router, prefix="/api/v1")
     app.include_router(assistant_router, prefix="/api/v1")
+    app.include_router(creative_router, prefix="/api/v1")
     app.include_router(image_generations_router, prefix="/api/v1")
     app.include_router(exports_router, prefix="/api/v1")
     return app

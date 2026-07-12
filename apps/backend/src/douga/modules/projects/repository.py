@@ -76,6 +76,9 @@ class ProjectRepository:
         self.session.add_all((project, revision))
         await self.session.flush()
 
+    async def refresh(self, project: Project) -> None:
+        await self.session.refresh(project)
+
     async def add_revision(self, revision: ProjectRevision) -> None:
         self.session.add(revision)
         await self.session.flush()

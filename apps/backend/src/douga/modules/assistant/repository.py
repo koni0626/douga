@@ -9,6 +9,7 @@ from douga.modules.assistant.models import (
     AssistantRun,
     AssistantRunEvent,
     AssistantThread,
+    AssistantToolCall,
 )
 
 
@@ -77,6 +78,22 @@ class AssistantRepository:
     async def add_run(self, run: AssistantRun) -> None:
         self.session.add(run)
         await self.session.flush()
+
+    async def add_tool_call(self, call: AssistantToolCall) -> None:
+        self.session.add(call)
+        await self.session.flush()
+
+    async def list_tool_calls(self, run_id: UUID, user_id: UUID) -> list[AssistantToolCall]:
+        return list(
+            await self.session.scalars(
+                select(AssistantToolCall)
+                .where(
+                    AssistantToolCall.run_id == run_id,
+                    AssistantToolCall.user_id == user_id,
+                )
+                .order_by(AssistantToolCall.created_at)
+            )
+        )
 
     async def get_run(self, run_id: UUID, project_id: UUID, user_id: UUID) -> AssistantRun | None:
         return (

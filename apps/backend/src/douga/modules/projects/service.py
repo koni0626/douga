@@ -237,6 +237,7 @@ class ProjectService:
         await self._record_asset_references(revision, document)
         project.thumbnail_asset_id = project_thumbnail_asset_id(document)
         await self.uow.commit()
+        await self.repository.refresh(project)
         return ProjectDetail(self._summary(project), document)
 
     async def delete_project(self, project_id: UUID, user_id: UUID) -> None:

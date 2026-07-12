@@ -264,7 +264,24 @@
     "stop": "停止",
     "history": "会話履歴",
     "newConversation": "新しい会話を作成",
-    "newConversationTitle": "新しい会話"
+    "newConversationTitle": "新しい会話",
+    "artifacts": {
+      "brief": "企画概要",
+      "plot": "プロット",
+      "script": "台本",
+      "storyboard": "絵コンテ",
+      "itemCount_one": "{{count}}項目",
+      "itemCount_other": "{{count}}項目",
+      "adopt": "この案を採用",
+      "adopting": "採用中…",
+      "approvedMark": "採用済み",
+      "status": {
+        "draft": "下書き",
+        "proposed": "提案",
+        "approved": "採用済み",
+        "superseded": "旧版"
+      }
+    }
   },
   "jobs": {
     "queued": "待機中",
@@ -279,6 +296,11 @@
     "assistantStreamDisconnected": "AIアシスタントとの接続が切れました。会話を再読み込みしてください。",
     "assistantRunNotFound": "AIの実行履歴が見つかりません。",
     "assistantRunNotCancellable": "このAI処理は停止できません。",
+    "creativeDocumentNotFound": "企画データが見つかりません。",
+    "creativeDocumentInvalid": "企画データの形式が正しくありません。",
+    "assistantToolNotFound": "指定されたAIツールは利用できません。",
+    "assistantToolArgumentsInvalid": "AIツールへ渡された内容が正しくありません。",
+    "assistantToolLimitExceeded": "1回の処理で利用できるAIツール数を超えました。",
     "imageQuotaExceeded": "画像生成の1時間あたりの上限に達しました。",
     "imageGenerationNotFound": "画像生成履歴が見つかりません。",
     "exportFailed": "動画の書き出しに失敗しました。",

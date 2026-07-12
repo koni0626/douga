@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -129,4 +130,77 @@ class AssistantRunEvent(UuidPrimaryKeyMixin, Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class AssistantToolCall(UuidPrimaryKeyMixin, Base):
+    __tablename__ = "assistant_tool_calls"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["run_id", "user_id"],
+            ["assistant_runs.id", "assistant_runs.user_id"],
+            ondelete="CASCADE",
+            name="fk_assistant_tool_calls_run_user_runs",
+        ),
+        CheckConstraint(
+            "status IN ('requested', 'waiting_approval', 'running', "
+            "'completed', 'failed', 'cancelled')",
+            name="status",
+        ),
+        UniqueConstraint("run_id", "provider_call_id", name="uq_assistant_tool_calls_provider"),
+        Index("ix_assistant_tool_calls_user_run_created", "user_id", "run_id", "created_at"),
+    )
+
+    run_id: Mapped[UUID] = mapped_column(nullable=False)
+    user_id: Mapped[UUID] = mapped_column(nullable=False)
+    provider_call_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    tool_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    arguments_json: Mapped[dict[str, Any]] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict
+    )
+    result_json: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql")
+    )
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="requested")
+    approval_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CreativeDocument(UuidPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "creative_documents"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["project_id", "user_id"],
+            ["projects.id", "projects.user_id"],
+            ondelete="CASCADE",
+            name="fk_creative_documents_project_user_projects",
+        ),
+        CheckConstraint("kind IN ('brief', 'plot', 'script', 'storyboard')", name="kind"),
+        CheckConstraint("status IN ('draft', 'proposed', 'approved', 'superseded')", name="status"),
+        UniqueConstraint(
+            "project_id", "user_id", "kind", "version", name="uq_creative_documents_version"
+        ),
+        Index(
+            "ix_creative_documents_user_project_kind_version",
+            "user_id",
+            "project_id",
+            "kind",
+            "version",
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(nullable=False)
+    project_id: Mapped[UUID] = mapped_column(nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(
+        JSON().with_variant(JSONB, "postgresql"), nullable=False
+    )
+    source_run_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("assistant_runs.id", ondelete="SET NULL"), nullable=True
     )
