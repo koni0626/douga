@@ -4,7 +4,7 @@ from io import BytesIO
 from typing import Literal, Protocol
 
 from openai import AsyncOpenAI
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from douga.core.config import Settings
 
@@ -21,6 +21,16 @@ class GeneratedImage:
 class ImageProvider(Protocol):
     async def generate(
         self, *, prompt: str, quality: ImageQuality, size: ImageSize
+    ) -> GeneratedImage: ...
+
+    async def edit(
+        self,
+        *,
+        image: bytes,
+        mime_type: str,
+        prompt: str,
+        quality: ImageQuality,
+        size: ImageSize,
     ) -> GeneratedImage: ...
 
 
@@ -50,6 +60,33 @@ class OpenAIImageProvider:
             raise RuntimeError("OpenAI returned no image data")
         return GeneratedImage(base64.b64decode(encoded, validate=True), "image/png")
 
+    async def edit(
+        self,
+        *,
+        image: bytes,
+        mime_type: str,
+        prompt: str,
+        quality: ImageQuality,
+        size: ImageSize,
+    ) -> GeneratedImage:
+        extension = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+        }.get(mime_type, "png")
+        result = await self.client.images.edit(
+            model=self.model,
+            image=(f"source-image.{extension}", image, mime_type),
+            prompt=prompt,
+            quality=quality,
+            size=size,
+            output_format="png",
+        )
+        encoded = result.data[0].b64_json if result.data else None
+        if not encoded:
+            raise RuntimeError("OpenAI returned no edited image data")
+        return GeneratedImage(base64.b64decode(encoded, validate=True), "image/png")
+
 
 class FakeImageProvider:
     async def generate(
@@ -62,6 +99,27 @@ class FakeImageProvider:
         drawing.text((80, 80), prompt[:120], fill="white")
         output = BytesIO()
         image.save(output, format="PNG", optimize=True)
+        return GeneratedImage(output.getvalue(), "image/png")
+
+    async def edit(
+        self,
+        *,
+        image: bytes,
+        mime_type: str,
+        prompt: str,
+        quality: ImageQuality,
+        size: ImageSize,
+    ) -> GeneratedImage:
+        del mime_type, quality
+        width, height = (int(value) for value in size.split("x"))
+        with Image.open(BytesIO(image)) as source:
+            edited = ImageOps.fit(source.convert("RGB"), (width, height))
+        drawing = ImageDraw.Draw(edited)
+        label_height = min(180, max(80, height // 8))
+        drawing.rectangle((0, height - label_height, width, height), fill="#17203b")
+        drawing.text((40, height - label_height + 28), prompt[:120], fill="white")
+        output = BytesIO()
+        edited.save(output, format="PNG", optimize=True)
         return GeneratedImage(output.getvalue(), "image/png")
 
 

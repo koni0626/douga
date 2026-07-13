@@ -10,6 +10,7 @@ from douga.core.errors import ApplicationError, ConflictError, NotFoundError
 from douga.db.session import session_factory
 from douga.db.unit_of_work import UnitOfWork
 from douga.integrations.openai_responses import AssistantProvider, build_assistant_provider
+from douga.modules.assets.repository import AssetRepository
 from douga.modules.assistant.models import (
     AssistantMessage,
     AssistantRun,
@@ -50,6 +51,7 @@ class AssistantService:
     def __init__(self, session: AsyncSession, provider: AssistantProvider | None = None) -> None:
         self.session = session
         self.repository = AssistantRepository(session)
+        self.assets = AssetRepository(session)
         self.projects = ProjectRepository(session)
         self.provider = provider or build_assistant_provider()
         self.uow = UnitOfWork(session)
@@ -116,8 +118,23 @@ class AssistantService:
                 "ASSISTANT_RUN_QUOTA_EXCEEDED", "errors.assistantRunQuotaExceeded", 429
             )
 
+        normalized_context = deepcopy(context or {})
+        attachment_asset_ids = await self._validate_image_attachments(
+            user_id, normalized_context.get("attachment_asset_ids")
+        )
+        normalized_context["attachment_asset_ids"] = [
+            str(asset_id) for asset_id in attachment_asset_ids
+        ]
         user_message = AssistantMessage(
-            thread_id=thread.id, user_id=user_id, role="user", content=content
+            thread_id=thread.id,
+            user_id=user_id,
+            role="user",
+            content=content,
+            content_json=(
+                {"attachment_asset_ids": normalized_context["attachment_asset_ids"]}
+                if attachment_asset_ids
+                else None
+            ),
         )
         run = AssistantRun(
             thread_id=thread.id,
@@ -126,7 +143,7 @@ class AssistantService:
             status="queued",
             model=self.settings.openai_assistant_model,
             base_revision_number=project.current_revision_number,
-            context_json=context or {},
+            context_json=normalized_context,
             usage_json={},
         )
         await self.repository.add_message(user_message)
@@ -139,6 +156,29 @@ class AssistantService:
         await self.repository.mark_thread_updated(thread)
         await self.uow.commit()
         return AssistantRunStarted(run, user_message)
+
+    async def _validate_image_attachments(self, user_id: UUID, raw_asset_ids: object) -> list[UUID]:
+        if raw_asset_ids is None:
+            return []
+        if not isinstance(raw_asset_ids, list) or len(raw_asset_ids) > 4:
+            raise ApplicationError("ASSISTANT_ATTACHMENT_INVALID", "errors.uploadInvalid", 422)
+        result: list[UUID] = []
+        for raw_asset_id in raw_asset_ids:
+            try:
+                asset_id = UUID(str(raw_asset_id))
+            except (TypeError, ValueError) as error:
+                raise ApplicationError(
+                    "ASSISTANT_ATTACHMENT_INVALID", "errors.uploadInvalid", 422
+                ) from error
+            if asset_id in result:
+                continue
+            asset = await self.assets.get_owned(asset_id, user_id)
+            if asset is None:
+                raise NotFoundError("ASSET_NOT_FOUND", "errors.assetNotFound")
+            if asset.kind != "image" or asset.status != "ready":
+                raise ApplicationError("ASSISTANT_ATTACHMENT_INVALID", "errors.uploadInvalid", 422)
+            result.append(asset_id)
+        return result
 
     async def process_run(self, run_id: UUID) -> None:
         await AssistantOrchestrator(self.session, self.provider, self.settings).process(run_id)

@@ -3,8 +3,10 @@ import type { CSSProperties, ReactNode } from "react";
 import type { ProjectDocument } from "@douga/project-schema";
 
 import { resolveLayerAtTime } from "./animation";
+import { isLayerVisibleAtTime } from "./visibility";
 import { cameraTransformValue, resolveCameraTransform } from "./camera";
 import { buildSceneTimeline, resolveCaptionAtTime } from "./layout";
+import { visibleTextAtTime } from "./text";
 
 type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
@@ -29,6 +31,7 @@ function layerTransform(layer: Layer): string {
 
 function renderLayer(
   layer: Layer,
+  timeMs: number,
   assetUrl?: SceneRendererProps["assetUrl"],
 ): ReactNode {
   if (layer.type === "image") {
@@ -75,18 +78,89 @@ function renderLayer(
     );
   }
 
+  const text = visibleTextAtTime(layer, timeMs);
+  const vertical = layer.writing_mode === "vertical";
+  const neon = layer.text_style === "neon";
+  const safeId = layer.id.replace(/[^a-zA-Z0-9_-]/gu, "-");
+  const gradientId = `text-gradient-${safeId}`;
+  const glowId = `text-glow-${safeId}`;
+  const clipId = `text-clip-${safeId}`;
+  const lines = text.split("\n");
+  const fontFamily = layer.font_family ?? "sans-serif";
+  const neonColor = layer.neon_color ?? "#9bdcff";
   return (
-    <text
-      key={layer.id}
-      x={layer.x}
-      y={layer.y + layer.font_size}
-      fill={layer.color}
-      fontSize={layer.font_size}
-      opacity={layer.opacity}
-      transform={layerTransform(layer)}
-    >
-      {layer.text}
-    </text>
+    <g key={layer.id} opacity={layer.opacity} transform={layerTransform(layer)}>
+      <defs>
+        <clipPath id={clipId}>
+          <rect
+            x={layer.x}
+            y={layer.y}
+            width={layer.width}
+            height={layer.height}
+          />
+        </clipPath>
+        {neon ? (
+          <>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="45%" stopColor={neonColor} />
+              <stop offset="100%" stopColor={layer.color} />
+            </linearGradient>
+            <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="7" result="blur" />
+              <feFlood
+                floodColor={neonColor}
+                floodOpacity="0.95"
+                result="glowColor"
+              />
+              <feComposite
+                in="glowColor"
+                in2="blur"
+                operator="in"
+                result="glow"
+              />
+              <feMerge>
+                <feMergeNode in="glow" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </>
+        ) : null}
+      </defs>
+      <g
+        clipPath={`url(#${clipId})`}
+        filter={neon ? `url(#${glowId})` : undefined}
+      >
+        {lines.map((line, index) => (
+          <text
+            key={`${index}-${line}`}
+            x={
+              vertical
+                ? layer.x + layer.width - layer.font_size * (index + 1)
+                : layer.x
+            }
+            y={vertical ? layer.y : layer.y + layer.font_size * (index + 1.2)}
+            dominantBaseline={vertical ? "hanging" : undefined}
+            fill={neon ? `url(#${gradientId})` : layer.color}
+            fontFamily={fontFamily}
+            fontSize={layer.font_size}
+            paintOrder={neon ? "stroke fill" : undefined}
+            stroke={neon ? neonColor : undefined}
+            strokeLinejoin={neon ? "round" : undefined}
+            strokeWidth={
+              neon ? Math.max(1, layer.font_size * 0.025) : undefined
+            }
+            style={
+              vertical
+                ? { textOrientation: "upright", writingMode: "vertical-rl" }
+                : undefined
+            }
+          >
+            {line}
+          </text>
+        ))}
+      </g>
+    </g>
   );
 }
 
@@ -165,9 +239,8 @@ export function SceneRenderer({
           />
         ) : null}
         {scene.layers.map((layer) =>
-          timeMs >= (layer.start_ms ?? 0) &&
-          timeMs < (layer.end_ms ?? Number.POSITIVE_INFINITY)
-            ? renderLayer(resolveLayerAtTime(layer, timeMs), assetUrl)
+          isLayerVisibleAtTime(layer, timeMs)
+            ? renderLayer(resolveLayerAtTime(layer, timeMs), timeMs, assetUrl)
             : null,
         )}
         {!hideCaption && resolved.page ? (

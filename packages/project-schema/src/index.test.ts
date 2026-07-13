@@ -97,6 +97,42 @@ describe("validateProjectDocument", () => {
     });
   });
 
+  it("accepts vertical neon text with a typewriter effect", () => {
+    const project = validProject();
+    project.scenes.push({
+      id: "canvas",
+      name: "Canvas",
+      background: { type: "color", color: "#000000" },
+      dialogues: [],
+      layers: [
+        {
+          id: "vertical-text",
+          type: "text",
+          text: "縦書き",
+          writing_mode: "vertical",
+          font_family: '"Noto Serif JP", serif',
+          font_size: 72,
+          color: "#ffffff",
+          text_style: "neon",
+          neon_color: "#9bdcff",
+          display_effect: "typewriter",
+          characters_per_second: 12,
+          x: 100,
+          y: 100,
+          width: 180,
+          height: 700,
+          rotation: 0,
+          opacity: 1,
+        },
+      ],
+    });
+
+    expect(validateProjectDocument(project)).toEqual({
+      valid: true,
+      errors: [],
+    });
+  });
+
   it("rejects an unsupported locale", () => {
     expect(
       validateProjectDocument({ ...validProject(), content_locale: "fr" }),

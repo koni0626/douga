@@ -1,4 +1,10 @@
-import { type CSSProperties, type PointerEvent, useState } from "react";
+import {
+  type CSSProperties,
+  type PointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import type { LayerEasing } from "@douga/scene-renderer";
@@ -6,6 +12,12 @@ import type { LayerEasing } from "@douga/scene-renderer";
 import type { CaptionTimelineClip } from "../lib/captionTimeline";
 import { timelineMenuPosition } from "../lib/timelineMenuPosition";
 import type { TimelineRange } from "../lib/timelineRange";
+import {
+  followPlayheadScroll,
+  TIMELINE_LABEL_WIDTH_PX,
+  TIMELINE_SECOND_WIDTH_PX,
+  timelineTrackWidth,
+} from "../lib/timelineViewport";
 import { CaptionTimelineTrack } from "./CaptionTimelineTrack";
 import type { KeyframeLabels } from "./KeyframePopover";
 import { LayerTimelineTracks } from "./LayerTimelineTracks";
@@ -49,7 +61,8 @@ export interface ObjectTimelineProps {
   onAudioStartChange: (trackId: string, startMs: number) => void;
   onAddCamera: () => void;
   onAddCaption: (startMs: number) => void;
-  onAddText: () => void;
+  onAddTextHorizontal: () => void;
+  onAddTextVertical: () => void;
   onAddShape: () => void;
   onOpenAudioSettings: () => void;
   onOpenCameraSettings: () => void;
@@ -61,6 +74,7 @@ export interface ObjectTimelineProps {
   onExtend: () => void;
   onPlay: () => void;
   onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
+  onDeleteLayer: (layerId: string) => void;
   onDuplicateKeyframe: (
     layerId: string,
     keyframeId: string,
@@ -72,6 +86,11 @@ export interface ObjectTimelineProps {
     easing: LayerEasing,
   ) => void;
   onMergeTrack: (sourceLayerId: string, targetLayerId: string) => void;
+  onMoveToTrack: (
+    layerId: string,
+    targetLayerId: string,
+    range: TimelineRange,
+  ) => void;
   onReorder: (
     sourceIndex: number,
     targetIndex: number,
@@ -97,11 +116,13 @@ export interface ObjectTimelineProps {
   splitTrackLabel: string;
   addCameraLabel: string;
   addCaptionLabel: string;
-  addTextLabel: string;
+  addTextHorizontalLabel: string;
+  addTextVerticalLabel: string;
   addShapeLabel: string;
   addImageLabel: string;
   addAudioLabel: string;
   settingsLabel: string;
+  deleteLabel: string;
   captionSettingsLabel: string;
 }
 
@@ -128,7 +149,8 @@ export function ObjectTimeline({
   onAudioStartChange,
   onAddCamera,
   onAddCaption,
-  onAddText,
+  onAddTextHorizontal,
+  onAddTextVertical,
   onAddShape,
   onOpenAudioSettings,
   onOpenCameraSettings,
@@ -139,9 +161,11 @@ export function ObjectTimeline({
   onOpenLayerSettings,
   onExtend,
   onDeleteKeyframe,
+  onDeleteLayer,
   onDuplicateKeyframe,
   onKeyframeEasingChange,
   onMergeTrack,
+  onMoveToTrack,
   onPlay,
   onReorder,
   onRename,
@@ -164,36 +188,67 @@ export function ObjectTimeline({
   splitTrackLabel,
   addCameraLabel,
   addCaptionLabel,
-  addTextLabel,
+  addTextHorizontalLabel,
+  addTextVerticalLabel,
   addShapeLabel,
   addImageLabel,
   addAudioLabel,
   settingsLabel,
+  deleteLabel,
   captionSettingsLabel,
 }: ObjectTimelineProps) {
   const [expanded, setExpanded] = useState(true);
   const [height, setHeight] = useState(DEFAULT_TIMELINE_HEIGHT_PX);
   const [timelineMenu, setTimelineMenu] = useState<TimelineMenuState>();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const trackWidth = timelineTrackWidth(durationMs);
   const seconds = Array.from(
     { length: Math.floor(durationMs / 1000) + 1 },
     (_, index) => index,
   );
 
-  function seek(event: PointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) return;
-    const bounds = event.currentTarget.getBoundingClientRect();
+  function seekAt(clientX: number, element: HTMLDivElement) {
+    const bounds = element.getBoundingClientRect();
     onSeek(
       Math.max(
         0,
         Math.min(
           durationMs,
-          Math.round(
-            ((event.clientX - bounds.left) / bounds.width) * durationMs,
-          ),
+          Math.round(((clientX - bounds.left) / bounds.width) * durationMs),
         ),
       ),
     );
   }
+
+  function beginSeek(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    seekAt(event.clientX, event.currentTarget);
+  }
+
+  function dragSeek(event: PointerEvent<HTMLDivElement>) {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    seekAt(event.clientX, event.currentTarget);
+  }
+
+  function finishSeek(event: PointerEvent<HTMLDivElement>) {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    seekAt(event.clientX, event.currentTarget);
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  useEffect(() => {
+    if (!playing || !expanded) return;
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    const playheadContentX =
+      TIMELINE_LABEL_WIDTH_PX + (timeMs / durationMs) * trackWidth;
+    scroll.scrollLeft = followPlayheadScroll(
+      scroll.scrollLeft,
+      scroll.clientWidth,
+      playheadContentX,
+    );
+  }, [durationMs, expanded, playing, timeMs, trackWidth]);
 
   return (
     <section
@@ -229,13 +284,15 @@ export function ObjectTimeline({
         title={title}
       />
       {expanded ? (
-        <div className="object-timeline-scroll">
+        <div className="object-timeline-scroll" ref={scrollRef}>
           <div
             className="object-timeline-grid"
             style={
               {
-                minWidth: `${9 + Math.max(36, (durationMs / 1000) * 4)}rem`,
-                "--timeline-second-width": `${100_000 / durationMs}%`,
+                minWidth: `${TIMELINE_LABEL_WIDTH_PX + trackWidth}px`,
+                "--timeline-label-width": `${TIMELINE_LABEL_WIDTH_PX}px`,
+                "--timeline-second-width": `${TIMELINE_SECOND_WIDTH_PX}px`,
+                "--timeline-track-width": `${trackWidth}px`,
               } as CSSProperties
             }
             onContextMenu={(event) => {
@@ -249,7 +306,7 @@ export function ObjectTimeline({
               event.preventDefault();
               setTimelineMenu({
                 kind: "add",
-                ...timelineMenuPosition(event.clientX, event.clientY, 7),
+                ...timelineMenuPosition(event.clientX, event.clientY, 8),
               });
             }}
           >
@@ -274,7 +331,10 @@ export function ObjectTimeline({
                   ),
                 );
               }}
-              onPointerDown={seek}
+              onPointerCancel={finishSeek}
+              onPointerDown={beginSeek}
+              onPointerMove={dragSeek}
+              onPointerUp={finishSeek}
               role="slider"
               tabIndex={0}
             >
@@ -342,9 +402,11 @@ export function ObjectTimeline({
               mergeBelowLabel={mergeBelowLabel}
               onChange={onChange}
               onDeleteKeyframe={onDeleteKeyframe}
+              onDeleteLayer={onDeleteLayer}
               onDuplicateKeyframe={onDuplicateKeyframe}
               onKeyframeEasingChange={onKeyframeEasingChange}
               onMergeTrack={onMergeTrack}
+              onMoveToTrack={onMoveToTrack}
               onOpenSettings={onOpenLayerSettings}
               onRename={onRename}
               onReorder={onReorder}
@@ -354,6 +416,7 @@ export function ObjectTimeline({
               renameLabel={renameLabel}
               selectedLayerId={selectedLayerId}
               settingsLabel={settingsLabel}
+              deleteLabel={deleteLabel}
               splitTrackLabel={splitTrackLabel}
               timeMs={timeMs}
             />
@@ -372,7 +435,8 @@ export function ObjectTimeline({
         addCaptionLabel={addCaptionLabel}
         addImageLabel={addImageLabel}
         addShapeLabel={addShapeLabel}
-        addTextLabel={addTextLabel}
+        addTextHorizontalLabel={addTextHorizontalLabel}
+        addTextVerticalLabel={addTextVerticalLabel}
         captionSettingsLabel={captionSettingsLabel}
         menu={timelineMenu}
         onAddAudio={onOpenAudioSettings}
@@ -380,7 +444,8 @@ export function ObjectTimeline({
         onAddCaption={() => onAddCaption(timeMs)}
         onAddImage={onOpenLayerSettings}
         onAddShape={onAddShape}
-        onAddText={onAddText}
+        onAddTextHorizontal={onAddTextHorizontal}
+        onAddTextVertical={onAddTextVertical}
         onClose={() => setTimelineMenu(undefined)}
         onOpenAudioSettings={onOpenAudioSettings}
         onOpenCameraSettings={onOpenCameraSettings}

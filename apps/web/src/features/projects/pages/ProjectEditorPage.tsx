@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -17,6 +17,7 @@ import { EditorTimelineArea } from "../components/EditorTimelineArea";
 import type { LayerTransformPatch } from "../components/CanvasObjectEditor";
 import { buildCaptionTimelineClips } from "../lib/captionTimeline";
 import type { EditorTool } from "../lib/editorTypes";
+import type { TextLayer } from "../lib/textLayers";
 import { AssistantPanel } from "../../assistant/components/AssistantPanel";
 import { useProjectDocumentEditor } from "../hooks/useProjectDocumentEditor";
 import { useCaptionEditorActions } from "../hooks/useCaptionEditorActions";
@@ -24,6 +25,7 @@ import { useLayerEditorActions } from "../hooks/useLayerEditorActions";
 import { useMediaEditorActions } from "../hooks/useMediaEditorActions";
 
 type LayerPreview = { layerId: string; patch: LayerTransformPatch };
+const TEXT_LAYER_CLIPBOARD_TYPE = "application/x-douga-text-layer";
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   return (
@@ -57,6 +59,10 @@ export function ProjectEditorPage() {
   const [captionDraft, setCaptionDraft] = useState("");
   const [captionEditing, setCaptionEditing] = useState(false);
   const [layerPreview, setLayerPreview] = useState<LayerPreview>();
+  const textLayerClipboardRef = useRef<{
+    layer: TextLayer;
+    token: string;
+  } | null>(null);
   const durationMs = detail
     ? resolveSceneDurationMs(detail.document, selectedSceneIndex)
     : MIN_VIDEO_DURATION_MS;
@@ -83,9 +89,12 @@ export function ProjectEditorPage() {
     addUploadedImageLayer,
     applyAnimationPreset,
     clearAnimation,
+    deleteLayer,
     deleteKeyframe,
     duplicateKeyframe,
     mergeLayerTrack,
+    moveLayerToTrack,
+    pasteTextLayer,
     reorderLayer,
     setManualDuration,
     splitLayerTrack,
@@ -93,7 +102,6 @@ export function ProjectEditorPage() {
     updateLayer,
     updateLayerRange,
   } = useLayerEditorActions({
-    documentRef,
     durationMs,
     mutate,
     sceneIndex: selectedSceneIndex,
@@ -185,6 +193,39 @@ export function ProjectEditorPage() {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, [detail]);
 
+  useEffect(() => {
+    const copySelectedTextLayer = (event: ClipboardEvent) => {
+      if (isEditableShortcutTarget(event.target) || !selectedLayerId) return;
+      const layer = documentRef.current?.scenes[
+        selectedSceneIndex
+      ]?.layers.find((item) => item.id === selectedLayerId);
+      if (!layer || layer.type !== "text" || !event.clipboardData) return;
+      const token = crypto.randomUUID();
+      textLayerClipboardRef.current = {
+        layer: structuredClone(layer),
+        token,
+      };
+      event.preventDefault();
+      event.clipboardData.setData(TEXT_LAYER_CLIPBOARD_TYPE, token);
+      event.clipboardData.setData("text/plain", layer.text);
+    };
+    const pasteCopiedTextLayer = (event: ClipboardEvent) => {
+      if (isEditableShortcutTarget(event.target) || !event.clipboardData)
+        return;
+      const clipboard = textLayerClipboardRef.current;
+      const token = event.clipboardData.getData(TEXT_LAYER_CLIPBOARD_TYPE);
+      if (!clipboard || !token || token !== clipboard.token) return;
+      event.preventDefault();
+      pasteTextLayer(clipboard.layer);
+    };
+    window.addEventListener("copy", copySelectedTextLayer);
+    window.addEventListener("paste", pasteCopiedTextLayer);
+    return () => {
+      window.removeEventListener("copy", copySelectedTextLayer);
+      window.removeEventListener("paste", pasteCopiedTextLayer);
+    };
+  }, [documentRef, pasteTextLayer, selectedLayerId]);
+
   if (!detail) {
     return (
       <main className="loading-screen">
@@ -260,7 +301,8 @@ export function ProjectEditorPage() {
           actions={{
             onAddCaption: addCaptionAt,
             onAddShape: addShapeLayer,
-            onAddText: addTextLayer,
+            onAddTextHorizontal: () => addTextLayer("horizontal"),
+            onAddTextVertical: () => addTextLayer("vertical"),
             onAudioStartChange: (trackId, startMs) =>
               updateAudioTrack(trackId, { start_ms: startMs }),
             onCaptionChange: updateCaptionRange,
@@ -269,11 +311,13 @@ export function ProjectEditorPage() {
               updateDialogue(dialogueId, { text }),
             onChange: updateLayerRange,
             onDeleteKeyframe: deleteKeyframe,
+            onDeleteLayer: deleteLayer,
             onDuplicateKeyframe: duplicateKeyframe,
             onExtend: () =>
               setManualDuration(durationMs + VIDEO_DURATION_STEP_MS),
             onKeyframeEasingChange: updateKeyframeEasing,
             onMergeTrack: mergeLayerTrack,
+            onMoveToTrack: moveLayerToTrack,
             onPlay: () => setPlaying(true),
             onRename: (layerId, name) => updateLayer(layerId, { name }),
             onReorder: reorderLayer,
@@ -361,14 +405,7 @@ export function ProjectEditorPage() {
                 );
               })
             }
-            onDeleteLayer={(layerId) => {
-              updateScene((item) => {
-                item.layers = item.layers.filter(
-                  (layer) => layer.id !== layerId,
-                );
-              });
-              setSelectedLayerId(undefined);
-            }}
+            onDeleteLayer={deleteLayer}
             onSelectLayer={setSelectedLayerId}
             onUpdateAudio={updateAudioTrack}
             onUpdateCamera={updateCameraEffect}

@@ -1,4 +1,4 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
@@ -21,9 +21,18 @@ import {
   snapKeyframeTime,
 } from "../lib/layerKeyframes";
 import type { TimelineRange } from "../lib/timelineRange";
+import {
+  moveLayerClipToTrack,
+  updateLayerTimelineRange,
+} from "../lib/layerTracks";
+import {
+  createTextLayer,
+  duplicateTextLayer,
+  type TextLayer,
+  type TextWritingMode,
+} from "../lib/textLayers";
 
 export interface LayerEditorActionsOptions {
-  documentRef: MutableRefObject<ProjectDocument | undefined>;
   durationMs: number;
   mutate: (mutator: (document: ProjectDocument) => void) => void;
   sceneIndex: number;
@@ -34,7 +43,6 @@ export interface LayerEditorActionsOptions {
 }
 
 export function useLayerEditorActions({
-  documentRef,
   durationMs,
   mutate,
   sceneIndex,
@@ -50,22 +58,25 @@ export function useLayerEditorActions({
     setSelectedLayerId(layer.id);
   }
 
-  function addTextLayer() {
-    addLayer({
-      id: crypto.randomUUID(),
-      type: "text",
-      text: t("editor.newText"),
-      font_size: 64,
-      color: "#ffffff",
-      x: 160,
-      y: 140,
-      width: 800,
-      height: 120,
-      rotation: 0,
-      opacity: 1,
-      start_ms: timeMs,
-      end_ms: durationMs,
-    });
+  function addTextLayer(writingMode: TextWritingMode = "horizontal") {
+    addLayer(
+      createTextLayer({
+        durationMs,
+        id: crypto.randomUUID(),
+        startMs: timeMs,
+        text: t("editor.newText"),
+        video,
+        writingMode,
+      }),
+    );
+  }
+
+  function pasteTextLayer(source: TextLayer) {
+    addLayer(
+      duplicateTextLayer(source, crypto.randomUUID(), () =>
+        crypto.randomUUID(),
+      ),
+    );
   }
 
   function addShapeLayer() {
@@ -148,6 +159,15 @@ export function useLayerEditorActions({
   function deleteKeyframe(layerId: string, keyframeId: string) {
     updateLayerObject(layerId, (layer) =>
       deleteLayerKeyframe(layer, keyframeId),
+    );
+  }
+
+  function deleteLayer(layerId: string) {
+    updateScene((scene) => {
+      scene.layers = scene.layers.filter((layer) => layer.id !== layerId);
+    });
+    setSelectedLayerId((selected) =>
+      selected === layerId ? undefined : selected,
     );
   }
 
@@ -238,6 +258,16 @@ export function useLayerEditorActions({
     });
   }
 
+  function moveLayerToTrack(
+    layerId: string,
+    targetLayerId: string,
+    range: TimelineRange,
+  ) {
+    updateScene((scene) => {
+      moveLayerClipToTrack(scene.layers, layerId, targetLayerId, range);
+    });
+  }
+
   function setManualDuration(requestedDurationMs: number) {
     mutate((document) => {
       document.video.duration_ms = roundVideoDurationMs(requestedDurationMs);
@@ -245,19 +275,12 @@ export function useLayerEditorActions({
   }
 
   function updateLayerRange(layerId: string, range: TimelineRange) {
-    const currentLayer = documentRef.current?.scenes[sceneIndex]?.layers.find(
-      (layer) => layer.id === layerId,
-    );
-    if (!currentLayer) return;
-    const delta = range.startMs - (currentLayer.start_ms ?? 0);
     mutate((document) => {
       const layer = document.scenes[sceneIndex]?.layers.find(
         (item) => item.id === layerId,
       );
       if (!layer) return;
-      layer.start_ms = range.startMs;
-      layer.end_ms = range.endMs;
-      for (const keyframe of layer.keyframes ?? []) keyframe.time_ms += delta;
+      updateLayerTimelineRange(layer, range);
     });
   }
 
@@ -269,9 +292,12 @@ export function useLayerEditorActions({
     addUploadedImageLayer,
     applyAnimationPreset: applyAnimation,
     clearAnimation,
+    deleteLayer,
     deleteKeyframe,
     duplicateKeyframe,
     mergeLayerTrack,
+    moveLayerToTrack,
+    pasteTextLayer,
     reorderLayer,
     setManualDuration,
     splitLayerTrack,

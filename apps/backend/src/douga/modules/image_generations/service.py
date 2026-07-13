@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
@@ -26,11 +27,49 @@ class ImageGenerationService:
         self.session = session
         self.requests = ImageGenerationRepository(session)
         self.jobs = JobRepository(session)
+        self.assets = AssetRepository(session)
         self.uow = UnitOfWork(session)
         self.settings = get_settings()
 
     async def create(
         self, user_id: UUID, *, prompt: str, quality: ImageQuality, size: ImageSize
+    ) -> ImageGenerationResponse:
+        return await self._create(
+            user_id,
+            prompt=prompt,
+            quality=quality,
+            size=size,
+            parent_asset_id=None,
+        )
+
+    async def create_edit(
+        self,
+        user_id: UUID,
+        *,
+        parent_asset_id: UUID,
+        prompt: str,
+        quality: ImageQuality,
+        size: ImageSize,
+    ) -> ImageGenerationResponse:
+        source = await self.assets.get_owned(parent_asset_id, user_id)
+        if source is None or source.kind != "image" or source.status != "ready":
+            raise NotFoundError("ASSET_NOT_FOUND", "errors.assetNotFound")
+        return await self._create(
+            user_id,
+            prompt=prompt,
+            quality=quality,
+            size=size,
+            parent_asset_id=parent_asset_id,
+        )
+
+    async def _create(
+        self,
+        user_id: UUID,
+        *,
+        prompt: str,
+        quality: ImageQuality,
+        size: ImageSize,
+        parent_asset_id: UUID | None,
     ) -> ImageGenerationResponse:
         if (
             await self.jobs.recent_count(user_id, "image_generation")
@@ -46,6 +85,7 @@ class ImageGenerationService:
             model=self.settings.openai_image_model,
             quality=quality,
             size=size,
+            parent_asset_id=parent_asset_id,
         )
         await self.requests.add(request)
         job.payload = {"request_id": str(request.id)}
@@ -89,6 +129,7 @@ class ImageGenerationService:
             size=request.size,
             status=job.status,
             progress=job.progress,
+            parent_asset_id=request.parent_asset_id,
             output_asset_id=request.output_asset_id,
             error_code=job.error_code,
             created_at=request.created_at,
@@ -112,11 +153,33 @@ async def process_image_generation_job(job_id: UUID) -> None:
             if request is None:
                 raise RuntimeError("Image generation request is missing")
             provider = build_image_provider(settings)
-            generated = await provider.generate(
-                prompt=request.prompt,
-                quality=request.quality,  # type: ignore[arg-type]
-                size=request.size,  # type: ignore[arg-type]
-            )
+            if request.parent_asset_id is None:
+                generated = await provider.generate(
+                    prompt=request.prompt,
+                    quality=request.quality,  # type: ignore[arg-type]
+                    size=request.size,  # type: ignore[arg-type]
+                )
+            else:
+                source = await AssetRepository(session).get_owned(
+                    request.parent_asset_id, request.user_id
+                )
+                if (
+                    source is None
+                    or source.kind != "image"
+                    or source.status != "ready"
+                    or source.storage_key is None
+                ):
+                    raise RuntimeError("Image edit source asset is unavailable")
+                storage = LocalStorage(settings.local_storage_path, settings.max_upload_bytes)
+                source_path = storage.require_path(source.storage_key)
+                source_content = await asyncio.to_thread(source_path.read_bytes)
+                generated = await provider.edit(
+                    image=source_content,
+                    mime_type=source.mime_type or "image/png",
+                    prompt=request.prompt,
+                    quality=request.quality,  # type: ignore[arg-type]
+                    size=request.size,  # type: ignore[arg-type]
+                )
             job = await jobs.get(job_id)
             if job is None:
                 raise RuntimeError("Job is missing")
@@ -142,7 +205,14 @@ async def process_image_generation_job(job_id: UUID) -> None:
                 sha256=digest,
                 width=width,
                 height=height,
-                asset_metadata={"model": request.model, "request_id": str(request.id)},
+                asset_metadata={
+                    "model": request.model,
+                    "request_id": str(request.id),
+                    "parent_asset_id": (
+                        str(request.parent_asset_id) if request.parent_asset_id else None
+                    ),
+                    "operation": "edit" if request.parent_asset_id else "generate",
+                },
             )
             await AssetRepository(session).add(asset)
             request.output_asset_id = asset.id

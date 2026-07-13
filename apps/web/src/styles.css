@@ -787,8 +787,15 @@ button,
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+  min-height: 0;
+  overscroll-behavior: contain;
   overflow-y: auto;
   padding: 1rem;
+  scrollbar-gutter: stable;
+}
+
+.assistant-messages > * {
+  flex: 0 0 auto;
 }
 
 .assistant-welcome {
@@ -932,6 +939,7 @@ button,
 .assistant-image-card img {
   aspect-ratio: 16 / 9;
   display: block;
+  height: auto;
   object-fit: cover;
   width: 100%;
 }
@@ -1052,21 +1060,72 @@ button,
   padding: 0.75rem;
 }
 
+.assistant-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  grid-column: 1 / -1;
+}
+
+.assistant-attachment {
+  border: 1px solid #3d7198;
+  border-radius: 0.5rem;
+  height: 4.5rem;
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+  width: 4.5rem;
+}
+
+.assistant-attachment img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.assistant-attachment button {
+  align-items: center;
+  background: rgb(4 17 28 / 88%);
+  border: 0;
+  border-radius: 50%;
+  display: flex;
+  height: 1.35rem;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: 0.2rem;
+  top: 0.2rem;
+  width: 1.35rem;
+}
+
+.assistant-message .assistant-attachment {
+  height: 7rem;
+  width: 7rem;
+}
+
 .assistant-composer textarea {
   max-height: 9rem;
   min-height: 4.5rem;
   resize: vertical;
 }
 
-.assistant-composer button {
+.assistant-composer > button {
   height: 2.5rem;
   padding: 0 0.8rem;
 }
 
-.assistant-save-required {
-  color: #e5ba77;
+.assistant-attachment-status,
+.assistant-attachment-error {
   font-size: 0.64rem;
   grid-column: 1 / -1;
+}
+
+.assistant-attachment-status {
+  color: #8fb4d1;
+}
+
+.assistant-attachment-error {
+  color: #ff9d9d;
 }
 
 .assistant-open {
@@ -1441,6 +1500,29 @@ button,
   pointer-events: all;
 }
 
+.canvas-inline-text-editor {
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.canvas-inline-text-input {
+  background: rgb(7 21 34 / 82%);
+  border: 3px solid #60a5fa;
+  border-radius: 0.3rem;
+  box-shadow:
+    inset 0 0 0 3px rgb(96 165 250 / 18%),
+    0 8px 24px rgb(0 0 0 / 35%);
+  box-sizing: border-box;
+  height: 100%;
+  line-height: 1.3;
+  outline: none;
+  overflow: auto;
+  padding: 0.15em;
+  pointer-events: auto;
+  resize: none;
+  width: 100%;
+}
+
 .canvas-object-selection {
   fill: none;
   pointer-events: none;
@@ -1466,6 +1548,16 @@ button,
 .canvas-object-resize-handle--ne,
 .canvas-object-resize-handle--sw {
   cursor: nesw-resize;
+}
+
+.canvas-object-resize-handle--n,
+.canvas-object-resize-handle--s {
+  cursor: ns-resize;
+}
+
+.canvas-object-resize-handle--e,
+.canvas-object-resize-handle--w {
+  cursor: ew-resize;
 }
 
 .canvas-object-rotate-handle {
@@ -1510,6 +1602,44 @@ button,
 .canvas-object-context-menu--presets {
   gap: 0.55rem;
   width: min(22rem, calc(100vw - 1rem));
+}
+
+.text-style-menu {
+  display: grid;
+  gap: 0.55rem;
+  max-height: min(34rem, calc(100vh - 1rem));
+  overflow-y: auto;
+  padding: 0.15rem;
+}
+
+.text-style-menu > label {
+  display: grid;
+  font-size: 0.7rem;
+  gap: 0.3rem;
+}
+
+.text-style-menu select,
+.text-style-menu input[type="number"] {
+  min-width: 0;
+  padding: 0.42rem 0.5rem;
+  width: 100%;
+}
+
+.text-style-menu input[type="color"] {
+  cursor: pointer;
+  height: 2.1rem;
+  padding: 0.15rem;
+  width: 100%;
+}
+
+.text-style-menu > .text-style-toggle {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.text-style-toggle input {
+  margin: 0;
 }
 
 .animation-preset-header {
@@ -1737,8 +1867,10 @@ button,
 
 .object-timeline-grid {
   display: grid;
-  grid-template-columns: 9rem minmax(36rem, 1fr);
-  min-width: 45rem;
+  grid-template-columns:
+    var(--timeline-label-width, 9rem)
+    var(--timeline-track-width, 30rem);
+  width: max-content;
   position: relative;
 }
 
@@ -1759,10 +1891,12 @@ button,
 }
 
 .object-timeline-ruler {
-  cursor: pointer;
+  cursor: ew-resize;
   grid-column: 2;
   grid-row: 1;
   position: sticky;
+  touch-action: none;
+  user-select: none;
 }
 
 .object-timeline-ruler span {
@@ -1877,6 +2011,11 @@ button,
 
 .object-timeline-track--base {
   pointer-events: auto;
+}
+
+.object-timeline-track--clip-target {
+  background-color: #123552;
+  box-shadow: inset 0 0 0 2px #60a5fa;
 }
 
 .object-timeline-clip,
@@ -2055,7 +2194,7 @@ button,
 
 .object-timeline-playhead-area {
   bottom: 0;
-  left: 9rem;
+  left: var(--timeline-label-width, 9rem);
   pointer-events: none;
   position: absolute;
   right: 0;

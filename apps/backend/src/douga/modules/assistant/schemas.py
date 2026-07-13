@@ -13,6 +13,7 @@ class AssistantEditorContext(BaseModel):
     selected_layer_id: str | None = Field(default=None, max_length=100)
     visible_start_ms: int = Field(ge=0, le=3_600_000)
     visible_end_ms: int = Field(gt=0, le=3_600_000)
+    attachment_asset_ids: list[UUID] = Field(default_factory=list, max_length=4)
 
     @model_validator(mode="after")
     def validate_visible_range(self) -> AssistantEditorContext:
@@ -39,6 +40,7 @@ class AssistantMessageResponse(BaseModel):
     id: UUID
     role: str
     content: str
+    attachment_asset_ids: list[UUID] = Field(default_factory=list)
     created_at: datetime
 
 

@@ -4,14 +4,13 @@ import { useTranslation } from "react-i18next";
 import {
   ApiError,
   apiRequest,
-  apiUpload,
   assetContentUrl,
   type AssetDto,
   type AssetListDto,
   type ImageGenerationDto,
   type ImageGenerationListDto,
-  type UploadTargetDto,
 } from "../../../shared/lib/api";
+import { uploadAsset } from "../lib/uploadAsset";
 
 function kindFor(file: File): AssetDto["kind"] | undefined {
   if (file.type.startsWith("image/")) return "image";
@@ -86,18 +85,7 @@ export function AssetLibraryPage() {
     setUploading(true);
     setErrorKey(undefined);
     try {
-      const target = await apiRequest<UploadTargetDto>("/assets/uploads", {
-        method: "POST",
-        body: JSON.stringify({
-          name: file.name,
-          original_filename: file.name,
-          kind,
-        }),
-      });
-      await apiUpload(target.upload_path, file);
-      await apiRequest<AssetDto>(`/assets/${target.asset.id}/complete`, {
-        method: "POST",
-      });
+      await uploadAsset(file, kind);
       await load();
     } catch (error) {
       setErrorKey(

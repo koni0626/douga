@@ -27,6 +27,9 @@ export {
   layoutDialogue,
   resolveCaptionAtTime,
 } from "./layout";
+export { isLayerVisibleAtTime } from "./visibility";
+export { DEFAULT_TEXT_CHARACTERS_PER_SECOND, visibleTextAtTime } from "./text";
+export type { TextLayer } from "./text";
 export type {
   CaptionPage,
   CaptionStyle,

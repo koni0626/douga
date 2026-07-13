@@ -106,6 +106,10 @@
 5. 生成結果を素材として登録する。
 6. 元クリップを置換するか、新しい候補として提示する。
 
+画像編集では元Assetを上書きせず、GPT Image 2のImage Edit APIで編集済みAssetを新規作成する。素材名で指定された場合は`list_assets`で所有素材を解決する。現在画面に表示されている画像を編集する場合は、先に`inspect_frame`で現在時刻の画像レイヤーを確認する。複数の画像レイヤーが表示され、利用者が対象を指定していない場合は処理を開始せず、レイヤー名を質問する。対象が確定したら、新規Assetを作成して指定レイヤーの参照だけを差し替える。
+
+チャット入力欄へクリップボード画像を貼り付けた場合は、先に通常のAssetアップロードとして所有ユーザー内へ保存し、ユーザーメッセージへ`attachment_asset_ids`を構造化データとして関連付ける。AIは添付の有無と会話の意味から画像編集の要否を判断し、特定語句の部分一致で画像編集ツールを選択しない。複数画像のうち対象が曖昧な場合だけ、どの添付画像を使うか質問する。
+
 ## 6. 会話時の行動モード
 
 モード選択用の必須ボタンは設けず、発言と現在状態からAIが判断する。UIには現在の状態を補助表示する。
@@ -386,11 +390,13 @@ flowchart LR
 | ツール | 用途 | 承認 |
 | --- | --- | --- |
 | `generate_image` | 既存画像生成Serviceで画像を生成 | 品質・枚数による |
+| `edit_image_asset` | アップロード済み・生成済みの所有画像から編集済みAssetを作成 | 品質による |
+| `edit_visible_image` | 現在表示中の画像をレイヤー名で特定し、編集済みAssetへ差し替え | 品質による |
 | `list_generation_status` | 非同期生成の状態を取得 | 不要 |
 | `add_asset_to_timeline` | 素材を指定時間・トラックへ配置 | 通常不要 |
 | `replace_clip_asset` | クリップの素材を差し替え | 通常不要 |
 
-画像生成結果は必ず既存のAssetおよびImage Generation Requestとしてユーザー単位で保存する。
+画像生成・編集結果は必ず既存のAssetおよびImage Generation Requestとしてユーザー単位で保存する。画像編集では`parent_asset_id`で元画像を記録し、元Assetを保持する。
 
 ### 11.5 タイムライン編集ツール
 
@@ -569,11 +575,13 @@ flowchart LR
 - 会話とツール利用にはResponses APIを使用する。
 - 動画編集操作はFunction Callingの独自ツールとして定義する。
 - 会話継続にはOpenAI側の会話識別子または直前Response IDを使用できるが、アプリDBを会話と監査の正本とする。
+- `store=false`で推論モデルの出力を手動継続する場合は、`reasoning.encrypted_content`を取得し、Function Call出力とともに後続リクエストへ渡す。
 - モデルIDは環境設定とし、コードへ固定しない。
 - ツール引数はstrictなJSON Schemaを使用する。
 - 大量のツール定義を常時渡さず、現在の状態に必要なツール群へ絞る。
 - 既存のGPT Image 2連携は独自`generate_image`ツールから呼び出す。
-- 将来、会話内での画像編集体験が必要になった場合はResponses API組み込み画像生成ツールも比較検討する。
+- 単一プロンプトによる画像編集はGPT Image 2のImage Edit APIを`edit_image_asset`または`edit_visible_image`から呼び出す。
+- 将来、同一画像を複数ターンで連続編集する体験が必要になった場合はResponses API組み込み画像生成ツールも比較検討する。
 
 ## 18. システムプロンプト方針
 
@@ -614,6 +622,7 @@ flowchart LR
 - APIキー、Cookie、Authorization Header、署名付きURLをモデル、DB、ログへ出力しない。
 - メッセージ本文を通常のアプリログへ全文出力しない。
 - Tool引数に個人情報が含まれる可能性を考慮し、監査ログと運用ログを分離する。
+- Provider例外はRun ID、Provider種別、モデルIDとともにサーバーログへ記録する。例外メッセージとトレースはAPIキー、認証情報、署名値をマスクし、DBや画面には汎用エラーコードだけを保存・表示する。
 
 ### 19.4 コスト・濫用対策
 
@@ -879,6 +888,19 @@ ControllerとServiceを分離し、OpenAI SDK固有処理をIntegrationへ隔離
 - 承認待ちカードと承認後のSSE再接続
 - 会話単位の多重Run防止と停止時の承認状態破棄
 - 承認、拒否、ユーザー分離、進捗、成果物、全プリセットのUnit・Integration Test
+
+### 2026-07-13: Image-to-Image編集
+
+実装済み:
+
+- GPT Image 2 Image Edit APIを利用した所有画像の編集
+- アップロード済み・生成済みAssetから編集済みAssetを新規作成する`edit_image_asset`
+- 現在時刻の表示画像をレイヤー名で特定し、編集後のAssetへ差し替える`edit_visible_image`
+- 複数画像が表示中で対象名が未指定の場合に、レイヤー名を質問して推測を禁止するシステムポリシー
+- 編集元Assetの所有権検証、`parent_asset_id`による派生元記録、元画像の保持
+- 高品質編集の承認ポリシー、Tool Schema・選択・所有権・Provider adapterの回帰テスト
+- チャット入力欄へのCtrl+V画像添付、添付Asset IDのメッセージ保存、所有権検証
+- 添付画像がある場合の`edit_image_asset`公開と、会話の意味に基づく汎用的なツール選択指示
 
 次の作業:
 

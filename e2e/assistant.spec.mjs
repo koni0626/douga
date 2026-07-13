@@ -72,6 +72,19 @@ test("collaborate, edit, undo and approve costly assistant tools", async ({
   await expect(timelineRows).toHaveCount(rowsBefore + 1);
   await expect(composer).toBeEnabled({ timeout: 15_000 });
 
+  const messageHistory = panel.locator(".assistant-messages");
+  await expect
+    .poll(() =>
+      messageHistory.evaluate(
+        (element) => element.scrollHeight > element.clientHeight,
+      ),
+    )
+    .toBe(true);
+  const generatedImages = panel.locator(".assistant-image-card img");
+  await expect(generatedImages).toHaveCount(1);
+  const generatedImageBox = await generatedImages.boundingBox();
+  expect(generatedImageBox?.height).toBeGreaterThan(100);
+
   await composer.fill("夜の工場の高品質画像を生成して");
   await composer.press("Enter");
   await expect(panel.getByText("実行前の確認が必要です")).toBeVisible({

@@ -13,10 +13,17 @@ import {
 } from "@douga/scene-renderer";
 
 import type { LayerAnimationPreset } from "../lib/layerKeyframes";
+import {
+  resizeRectangleFromAnchor,
+  type ResizeAnchor,
+} from "../lib/canvasResize";
+import { fitTextLayerToContent } from "../lib/textLayers";
 import type { AnimationPresetLabels } from "./AnimationPresetMenu";
 import { CanvasObjectContextMenu } from "./CanvasObjectContextMenu";
+import { CanvasInlineTextEditor } from "./CanvasInlineTextEditor";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
+type TextLayer = Extract<Layer, { type: "text" }>;
 export type LayerTransformPatch = Partial<
   Pick<
     Layer,
@@ -24,7 +31,6 @@ export type LayerTransformPatch = Partial<
   >
 >;
 type Operation = "move" | "resize" | "rotate";
-type ResizeAnchor = "nw" | "ne" | "sw" | "se";
 type Point = { x: number; y: number };
 type Interaction = {
   layer: Layer;
@@ -41,10 +47,11 @@ export interface CanvasObjectEditorProps {
   flipVerticalLabel: string;
   fillCanvasLabel: string;
   height: number;
+  inlineTextLabel: string;
   layers: Layer[];
   lockLabel: string;
   lockedLabel: string;
-  onCommit: (layerId: string, patch: LayerTransformPatch) => void;
+  onCommit: (layerId: string, patch: Partial<Layer>) => void;
   onApplyAnimation: (
     layerId: string,
     preset: LayerAnimationPreset,
@@ -54,6 +61,7 @@ export interface CanvasObjectEditorProps {
   onPreview: (layerId: string, patch?: LayerTransformPatch) => void;
   onSelect: (layerId: string) => void;
   selectedLayerId?: string;
+  textSettingsLabel: string;
   unlockLabel: string;
   width: number;
 }
@@ -97,6 +105,7 @@ export function CanvasObjectEditor({
   flipVerticalLabel,
   fillCanvasLabel,
   height,
+  inlineTextLabel,
   layers,
   lockLabel,
   lockedLabel,
@@ -106,12 +115,14 @@ export function CanvasObjectEditor({
   onPreview,
   onSelect,
   selectedLayerId,
+  textSettingsLabel,
   unlockLabel,
   width,
 }: CanvasObjectEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const interactionRef = useRef<Interaction | undefined>(undefined);
   const patchRef = useRef<LayerTransformPatch | undefined>(undefined);
+  const [editingTextLayerId, setEditingTextLayerId] = useState<string>();
   const [contextMenu, setContextMenu] = useState<{
     layerId: string;
     x: number;
@@ -157,33 +168,8 @@ export function CanvasObjectEditor({
       if (interaction.operation === "move") {
         patch = { x: layer.x + deltaX, y: layer.y + deltaY };
       } else if (interaction.operation === "resize") {
-        const radians = (-layer.rotation * Math.PI) / 180;
-        const localX = deltaX * Math.cos(radians) - deltaY * Math.sin(radians);
-        const localY = deltaX * Math.sin(radians) + deltaY * Math.cos(radians);
         const anchor = interaction.resizeAnchor ?? "se";
-        const horizontalDelta = anchor.includes("e") ? localX : -localX;
-        const verticalDelta = anchor.includes("s") ? localY : -localY;
-        const scale = Math.max(
-          40 / layer.width,
-          40 / layer.height,
-          1 +
-            Math.max(
-              horizontalDelta / layer.width,
-              verticalDelta / layer.height,
-            ),
-        );
-        const nextWidth = Math.round(layer.width * scale);
-        const nextHeight = Math.round(layer.height * scale);
-        patch = {
-          width: nextWidth,
-          height: nextHeight,
-          ...(anchor.includes("w")
-            ? { x: layer.x + layer.width - nextWidth }
-            : {}),
-          ...(anchor.includes("n")
-            ? { y: layer.y + layer.height - nextHeight }
-            : {}),
-        };
+        patch = resizeRectangleFromAnchor(layer, anchor, deltaX, deltaY);
       } else {
         const centerX = layer.x + layer.width / 2;
         const centerY = layer.y + layer.height / 2;
@@ -235,10 +221,10 @@ export function CanvasObjectEditor({
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setContextMenu(undefined);
     };
-    window.addEventListener("pointerdown", close);
+    window.addEventListener("pointerdown", close, true);
     window.addEventListener("keydown", closeOnEscape);
     return () => {
-      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("pointerdown", close, true);
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [contextMenu]);
@@ -251,6 +237,7 @@ export function CanvasObjectEditor({
   ) {
     event.preventDefault();
     event.stopPropagation();
+    setEditingTextLayerId(undefined);
     onSelect(layer.id);
     if (layer.locked) return;
     const start = clientPoint(event.clientX, event.clientY);
@@ -277,14 +264,19 @@ export function CanvasObjectEditor({
     setContextMenu({
       layerId: layer.id,
       x: Math.max(8, Math.min(event.clientX, window.innerWidth - 370)),
-      y: Math.max(8, Math.min(event.clientY, window.innerHeight - 390)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - 560)),
     });
   }
 
-  function commitFromMenu(patch: LayerTransformPatch) {
+  function commitFromMenu(patch: Partial<Layer>) {
     if (!menuLayer) return;
     onCommit(menuLayer.id, patch);
     setContextMenu(undefined);
+  }
+
+  function commitTextStyle(patch: Partial<TextLayer>) {
+    if (!menuLayer || menuLayer.type !== "text") return;
+    onCommit(menuLayer.id, patch);
   }
 
   function fillCanvas() {
@@ -329,6 +321,13 @@ export function CanvasObjectEditor({
                   height={layer.height}
                   aria-label={layer.type}
                   onContextMenu={(event) => openContextMenu(event, layer)}
+                  onDoubleClick={(event) => {
+                    if (layer.type !== "text" || layer.locked) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onSelect(layer.id);
+                    setEditingTextLayerId(layer.id);
+                  }}
                   onPointerDown={(event) => begin(event, layer, "move")}
                 />
                 {selected ? (
@@ -373,13 +372,25 @@ export function CanvasObjectEditor({
                         {(
                           [
                             ["nw", layer.x, layer.y],
+                            ["n", layer.x + layer.width / 2, layer.y],
                             ["ne", layer.x + layer.width, layer.y],
-                            ["sw", layer.x, layer.y + layer.height],
+                            [
+                              "e",
+                              layer.x + layer.width,
+                              layer.y + layer.height / 2,
+                            ],
                             [
                               "se",
                               layer.x + layer.width,
                               layer.y + layer.height,
                             ],
+                            [
+                              "s",
+                              layer.x + layer.width / 2,
+                              layer.y + layer.height,
+                            ],
+                            ["sw", layer.x, layer.y + layer.height],
+                            ["w", layer.x, layer.y + layer.height / 2],
                           ] as const
                         ).map(([anchor, x, y]) => (
                           <rect
@@ -390,6 +401,7 @@ export function CanvasObjectEditor({
                             width={handleSize}
                             height={handleSize}
                             rx={handleSize * 0.18}
+                            data-resize-anchor={anchor}
                             onPointerDown={(event) =>
                               begin(event, layer, "resize", anchor)
                             }
@@ -398,6 +410,17 @@ export function CanvasObjectEditor({
                       </>
                     )}
                   </>
+                ) : null}
+                {layer.type === "text" && layer.id === editingTextLayerId ? (
+                  <CanvasInlineTextEditor
+                    label={inlineTextLabel}
+                    layer={layer}
+                    onCancel={() => setEditingTextLayerId(undefined)}
+                    onCommit={(text) => {
+                      onCommit(layer.id, fitTextLayerToContent(layer, text));
+                      setEditingTextLayerId(undefined);
+                    }}
+                  />
                 ) : null}
               </g>
             );
@@ -419,6 +442,8 @@ export function CanvasObjectEditor({
           onClose={() => setContextMenu(undefined)}
           onFillCanvas={fillCanvas}
           onPatch={commitFromMenu}
+          onTextPatch={commitTextStyle}
+          textSettingsLabel={textSettingsLabel}
           unlockLabel={unlockLabel}
           x={contextMenu.x}
           y={contextMenu.y}

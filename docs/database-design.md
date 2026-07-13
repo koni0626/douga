@@ -468,7 +468,7 @@ Serviceは、参照素材について次を検証する。
 | `id` | `uuid` | NO | アプリ生成 | 主キー |
 | `user_id` | `uuid` | NO |  | 所有ユーザー |
 | `job_id` | `uuid` | YES |  | 実行ジョブ |
-| `parent_asset_id` | `uuid` | YES |  | 編集元・参照元素材 |
+| `parent_asset_id` | `uuid` | YES |  | Image Edit APIへ渡した編集元Asset。通常生成ではNULL |
 | `output_asset_id` | `uuid` | YES |  | 成功時の生成素材 |
 | `status` | `varchar(30)` | NO | `'queued'` | `queued`、`running`、`succeeded`、`failed`、`cancelled` |
 | `model` | `varchar(100)` | NO |  | 例: `gpt-image-2` |

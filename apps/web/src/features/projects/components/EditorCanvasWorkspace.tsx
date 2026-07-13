@@ -2,7 +2,11 @@ import { type DragEvent, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
-import { resolveCameraTransform, SceneRenderer } from "@douga/scene-renderer";
+import {
+  isLayerVisibleAtTime,
+  resolveCameraTransform,
+  SceneRenderer,
+} from "@douga/scene-renderer";
 
 import { assetContentUrl } from "../../../shared/lib/api";
 import type { EditorTool, Layer, Scene } from "../lib/editorTypes";
@@ -139,7 +143,10 @@ export function EditorCanvasWorkspace({
                 flipHorizontalLabel={t("editor.flipHorizontal")}
                 flipVerticalLabel={t("editor.flipVertical")}
                 height={project.video.height}
-                layers={previewScene?.layers ?? []}
+                inlineTextLabel={t("editor.inlineTextInput")}
+                layers={(previewScene?.layers ?? []).filter((layer) =>
+                  isLayerVisibleAtTime(layer, timeMs),
+                )}
                 lockLabel={t("editor.lock")}
                 lockedLabel={t("editor.locked")}
                 onApplyAnimation={applyAnimationPreset}
@@ -150,6 +157,7 @@ export function EditorCanvasWorkspace({
                 }
                 onSelect={setSelectedLayerId}
                 selectedLayerId={selectedLayerId}
+                textSettingsLabel={t("editor.textStyle.title")}
                 unlockLabel={t("editor.unlock")}
                 width={project.video.width}
               />

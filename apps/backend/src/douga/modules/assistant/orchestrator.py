@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
 from typing import Any
@@ -19,12 +20,15 @@ from douga.modules.assistant.repository import AssistantRepository
 from douga.modules.assistant.tools.animation_tools import animation_tool_definitions
 from douga.modules.assistant.tools.asset_tools import asset_tool_definitions
 from douga.modules.assistant.tools.creative_tools import creative_tool_definitions
+from douga.modules.assistant.tools.image_edit_tools import image_edit_tool_definitions
 from douga.modules.assistant.tools.output_tools import output_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.registry import ToolContext, ToolRegistry
 from douga.modules.assistant.tools.timeline_tools import timeline_tool_definitions
 from douga.modules.projects.models import Project
 from douga.modules.projects.repository import ProjectRepository
+
+logger = logging.getLogger(__name__)
 
 
 class AssistantRunCancelled(Exception):
@@ -51,6 +55,7 @@ class AssistantOrchestrator:
         self.tools = ToolRegistry(
             creative_tool_definitions()
             + asset_tool_definitions()
+            + image_edit_tool_definitions()
             + animation_tool_definitions()
             + output_tool_definitions()
             + project_read_tool_definitions()
@@ -84,8 +89,13 @@ class AssistantOrchestrator:
             for item in history
             if item.role in {"user", "assistant"}
         ]
-        available_tools = self._tool_names_for(messages[-1].content if messages else "")
-        instructions = self._instructions(project)
+        attachment_asset_ids = tuple(
+            str(value) for value in run.context_json.get("attachment_asset_ids", [])
+        )
+        available_tools = self._available_tool_names(
+            messages[-1].content if messages else "", attachment_asset_ids
+        )
+        instructions = self._instructions(project, attachment_asset_ids)
         continuation = list(run.continuation_json)
         aggregate_usage = {
             key: int(run.usage_json.get(key, 0))
@@ -128,8 +138,15 @@ class AssistantOrchestrator:
             run.usage_json = aggregate_usage
             await self._fail_run(run, error.code)
             return
-        except Exception as error:
-            del error
+        except Exception:
+            logger.exception(
+                "assistant provider failed",
+                extra={
+                    "run_id": str(run.id),
+                    "provider": type(self.provider).__name__,
+                    "model": run.model,
+                },
+            )
             run.usage_json = aggregate_usage
             await self._fail_run(run, "ASSISTANT_PROVIDER_FAILED")
             return
@@ -154,6 +171,7 @@ class AssistantOrchestrator:
                     "id": str(assistant_message.id),
                     "role": assistant_message.role,
                     "content": assistant_message.content,
+                    "attachment_asset_ids": [],
                     "created_at": assistant_message.created_at.isoformat(),
                 }
             },
@@ -440,8 +458,18 @@ class AssistantOrchestrator:
             target[key] += int(usage.get(key, 0))
 
     @staticmethod
-    def _instructions(project: Project) -> str:
+    def _instructions(project: Project, attachment_asset_ids: tuple[str, ...] = ()) -> str:
         language = "Japanese" if project.content_locale == "ja" else "English"
+        attachment_context = ""
+        if attachment_asset_ids:
+            attachment_context = (
+                " The current user message includes trusted image attachments with these exact "
+                f"owned asset IDs: {', '.join(attachment_asset_ids)}. Use edit_image_asset when "
+                "the user asks to transform an attached image, deriving the edit prompt from the "
+                "meaning of the user's request. Do not choose tools by matching fixed words or "
+                "phrases. If multiple images are attached and the intended source is unclear, ask "
+                "which attachment to use. Do not call generate_image to modify an attachment."
+            )
         return (
             "You are the collaborative video production assistant for the Douga editor. "
             f"Respond in {language}. "
@@ -455,7 +483,11 @@ class AssistantOrchestrator:
             "inspect representative frames before reporting completion; offer or render a short "
             "preview when useful. Never claim an operation succeeded until its tool result "
             "confirms it, and never claim a draft is validated unless validation tools ran. "
-            "Ask only questions whose answers materially change the result."
+            "Before editing an image visible in the editor, inspect the current frame. If more "
+            "than one image layer is visible and the user did not identify one by layer name, "
+            "ask which exact layer name to edit and do not guess. Image edits create a new asset; "
+            "preserve the source asset. "
+            "Ask only questions whose answers materially change the result." + attachment_context
         )
 
     def _tool_names_for(self, prompt: str) -> set[str]:
@@ -524,6 +556,8 @@ class AssistantOrchestrator:
             names.update(
                 {
                     "generate_image",
+                    "edit_image_asset",
+                    "edit_visible_image",
                     "list_generation_status",
                     "add_asset_to_timeline",
                     "replace_clip_asset",
@@ -541,3 +575,11 @@ class AssistantOrchestrator:
         if any(term in text for term in ("書き出", "mp4", "export")):
             names.update({"export_video", "validate_timeline"})
         return names & self.tools.names()
+
+    def _available_tool_names(
+        self, prompt: str, attachment_asset_ids: tuple[str, ...] = ()
+    ) -> set[str]:
+        names = self._tool_names_for(prompt)
+        if attachment_asset_ids:
+            names.add("edit_image_asset")
+        return names

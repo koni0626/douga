@@ -1,3 +1,5 @@
+import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
+
 export type TimelineMenuState = {
   kind: "add" | "camera" | "audio";
   x: number;
@@ -10,7 +12,8 @@ export interface TimelineContextMenuProps {
   addCaptionLabel: string;
   addImageLabel: string;
   addShapeLabel: string;
-  addTextLabel: string;
+  addTextHorizontalLabel: string;
+  addTextVerticalLabel: string;
   captionSettingsLabel: string;
   menu?: TimelineMenuState;
   onAddAudio: () => void;
@@ -18,7 +21,8 @@ export interface TimelineContextMenuProps {
   onAddCaption: () => void;
   onAddImage: () => void;
   onAddShape: () => void;
-  onAddText: () => void;
+  onAddTextHorizontal: () => void;
+  onAddTextVertical: () => void;
   onClose: () => void;
   onOpenAudioSettings: () => void;
   onOpenCameraSettings: () => void;
@@ -32,7 +36,8 @@ export function TimelineContextMenu({
   addCaptionLabel,
   addImageLabel,
   addShapeLabel,
-  addTextLabel,
+  addTextHorizontalLabel,
+  addTextVerticalLabel,
   captionSettingsLabel,
   menu,
   onAddAudio,
@@ -40,13 +45,15 @@ export function TimelineContextMenu({
   onAddCaption,
   onAddImage,
   onAddShape,
-  onAddText,
+  onAddTextHorizontal,
+  onAddTextVertical,
   onClose,
   onOpenAudioSettings,
   onOpenCameraSettings,
   onOpenCaptionSettings,
   settingsLabel,
 }: TimelineContextMenuProps) {
+  const menuRef = useDismissibleMenu<HTMLDivElement>(Boolean(menu), onClose);
   if (!menu) return null;
   const action = (callback: () => void) => () => {
     callback();
@@ -54,6 +61,7 @@ export function TimelineContextMenu({
   };
   return (
     <div
+      ref={menuRef}
       className="timeline-clip-menu"
       role="menu"
       style={{ left: menu.x, top: menu.y }}
@@ -62,7 +70,14 @@ export function TimelineContextMenu({
         <>
           <MenuItem label={addCameraLabel} onClick={action(onAddCamera)} />
           <MenuItem label={addCaptionLabel} onClick={action(onAddCaption)} />
-          <MenuItem label={addTextLabel} onClick={action(onAddText)} />
+          <MenuItem
+            label={addTextHorizontalLabel}
+            onClick={action(onAddTextHorizontal)}
+          />
+          <MenuItem
+            label={addTextVerticalLabel}
+            onClick={action(onAddTextVertical)}
+          />
           <MenuItem label={addShapeLabel} onClick={action(onAddShape)} />
           <MenuItem label={addImageLabel} onClick={action(onAddImage)} />
           <MenuItem label={addAudioLabel} onClick={action(onAddAudio)} />

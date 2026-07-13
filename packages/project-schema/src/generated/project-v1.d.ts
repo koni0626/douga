@@ -44,6 +44,8 @@ export type TextLayer = BaseLayer & {
   type: "text";
   name?: string;
   text: string;
+  writing_mode?: "horizontal" | "vertical";
+  font_family?: string;
   start_ms?: number;
   end_ms?: number;
   flip_x?: boolean;
@@ -55,6 +57,10 @@ export type TextLayer = BaseLayer & {
   keyframes?: LayerKeyframe[];
   font_size: number;
   color: string;
+  text_style?: "solid" | "neon";
+  neon_color?: string;
+  display_effect?: "instant" | "typewriter";
+  characters_per_second?: number;
   x: number;
   y: number;
   width: number;

@@ -287,6 +287,16 @@
             "type": { "const": "text" },
             "name": { "type": "string", "maxLength": 200 },
             "text": { "type": "string" },
+            "writing_mode": {
+              "type": "string",
+              "enum": ["horizontal", "vertical"],
+              "default": "horizontal"
+            },
+            "font_family": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
             "start_ms": { "type": "integer", "minimum": 0 },
             "end_ms": { "type": "integer", "minimum": 1 },
             "flip_x": { "type": "boolean", "default": false },
@@ -299,6 +309,22 @@
             },
             "font_size": { "type": "number", "exclusiveMinimum": 0 },
             "color": { "type": "string", "minLength": 1 },
+            "text_style": {
+              "type": "string",
+              "enum": ["solid", "neon"],
+              "default": "solid"
+            },
+            "neon_color": { "type": "string", "minLength": 1 },
+            "display_effect": {
+              "type": "string",
+              "enum": ["instant", "typewriter"],
+              "default": "instant"
+            },
+            "characters_per_second": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            },
             "x": { "type": "number" },
             "y": { "type": "number" },
             "width": { "type": "number", "exclusiveMinimum": 0 },

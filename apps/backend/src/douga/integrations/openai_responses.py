@@ -5,8 +5,11 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from openai import AsyncOpenAI
+from openai.types.responses import ResponseIncludable
 
 from douga.core.config import Settings, get_settings
+
+REASONING_CONTEXT_INCLUDE: list[ResponseIncludable] = ["reasoning.encrypted_content"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +91,7 @@ class OpenAIResponsesProvider:
                 model=self.model,
                 instructions=instructions,
                 input=input_items,
+                include=REASONING_CONTEXT_INCLUDE,
                 store=False,
                 tools=provider_tools,
                 parallel_tool_calls=False,
@@ -102,6 +106,7 @@ class OpenAIResponsesProvider:
             model=self.model,
             instructions=instructions,
             input=input_items,
+            include=REASONING_CONTEXT_INCLUDE,
             store=False,
             tools=provider_tools,
             parallel_tool_calls=False,
@@ -111,7 +116,9 @@ class OpenAIResponsesProvider:
     @staticmethod
     def _result(response: Any) -> AssistantProviderResult:
         usage = response.usage
-        output_items = tuple(item.model_dump(mode="json") for item in response.output)
+        output_items = tuple(
+            OpenAIResponsesProvider._continuation_item(item) for item in response.output
+        )
         tool_calls = tuple(
             AssistantProviderToolCall(
                 call_id=item.call_id,
@@ -134,6 +141,21 @@ class OpenAIResponsesProvider:
             tool_calls=tool_calls,
             output_items=output_items,
         )
+
+    @staticmethod
+    def _continuation_item(item: Any) -> dict[str, Any]:
+        """Serialize an output item into a valid Responses API input item."""
+        sdk_output_only_fields = set(getattr(item, "__api_exclude__", set()))
+        payload: dict[str, Any] = item.model_dump(
+            mode="json",
+            exclude_none=True,
+            exclude=sdk_output_only_fields,
+        )
+        # `status` describes an item returned by the API. The Responses API rejects
+        # that output-only field when the item is supplied again as conversation input.
+        for field in sdk_output_only_fields | {"status"}:
+            payload.pop(field, None)
+        return payload
 
 
 class FakeAssistantProvider:

@@ -91,6 +91,7 @@ export interface ImageGenerationDto {
   size: "1024x1024" | "1024x1536" | "1536x1024";
   status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
   progress: number;
+  parent_asset_id: string | null;
   output_asset_id: string | null;
   error_code: string | null;
   created_at: string;
@@ -139,6 +140,7 @@ export interface AssistantMessageDto {
   id: string;
   role: "user" | "assistant" | "system_summary";
   content: string;
+  attachment_asset_ids: string[];
   created_at: string;
 }
 

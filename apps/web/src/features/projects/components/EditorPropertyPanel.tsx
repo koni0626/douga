@@ -65,7 +65,7 @@ export function EditorPropertyPanel(props: EditorPropertyPanelProps) {
           ×
         </button>
       </div>
-      <DialogueLayerSettings {...props} />
+      <DialogueLayerSettings {...props} video={project.video} />
       <MediaCaptionSettings
         activeTool={activeTool}
         audioAssets={props.audioAssets}

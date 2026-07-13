@@ -9,13 +9,8 @@ import {
 
 import type { ProjectDocument } from "@douga/project-schema";
 
-import {
-  ApiError,
-  apiRequest,
-  apiUpload,
-  type AssetDto,
-  type UploadTargetDto,
-} from "../../../shared/lib/api";
+import { uploadAsset } from "../../assets/lib/uploadAsset";
+import { ApiError, type AssetDto } from "../../../shared/lib/api";
 import type {
   AudioTrack,
   CameraEffect,
@@ -207,24 +202,6 @@ export function useMediaEditorActions({
     uploadingAudio,
     uploadingImage,
   };
-}
-
-async function uploadAsset(
-  file: File,
-  kind: "image" | "audio",
-): Promise<AssetDto> {
-  const target = await apiRequest<UploadTargetDto>("/assets/uploads", {
-    method: "POST",
-    body: JSON.stringify({
-      name: file.name,
-      original_filename: file.name,
-      kind,
-    }),
-  });
-  await apiUpload(target.upload_path, file);
-  return apiRequest<AssetDto>(`/assets/${target.asset.id}/complete`, {
-    method: "POST",
-  });
 }
 
 function errorKey(error: unknown): string {

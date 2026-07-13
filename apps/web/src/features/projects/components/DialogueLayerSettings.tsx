@@ -1,7 +1,10 @@
 import { useTranslation } from "react-i18next";
 
+import type { ProjectDocument } from "@douga/project-schema";
+
 import { assetContentUrl, type AssetDto } from "../../../shared/lib/api";
 import type { Dialogue, EditorTool, Layer, Scene } from "../lib/editorTypes";
+import { createTextLayer } from "../lib/textLayers";
 import { NumberField } from "./EditorFields";
 
 export interface DialogueLayerSettingsProps {
@@ -19,6 +22,7 @@ export interface DialogueLayerSettingsProps {
   scene: Scene;
   selectedLayer?: Layer;
   selectedLayerId?: string;
+  video: ProjectDocument["video"];
 }
 
 export function DialogueLayerSettings({
@@ -36,6 +40,7 @@ export function DialogueLayerSettings({
   scene,
   selectedLayer,
   selectedLayerId,
+  video,
 }: DialogueLayerSettingsProps) {
   const { t } = useTranslation();
   return (
@@ -114,28 +119,30 @@ export function DialogueLayerSettings({
       <details open hidden={activeTool !== "layers"}>
         <summary>{t("editor.layers")}</summary>
         <div className="panel-actions">
-          <button
-            type="button"
-            onClick={() =>
-              onAddLayer({
-                id: crypto.randomUUID(),
-                type: "text",
-                text: t("editor.newText"),
-                font_size: 64,
-                color: "#ffffff",
-                x: 160,
-                y: 140,
-                width: 800,
-                height: 120,
-                rotation: 0,
-                opacity: 1,
-                start_ms: 0,
-                end_ms: durationMs,
-              })
-            }
-          >
-            {t("editor.addText")}
-          </button>
+          {(["horizontal", "vertical"] as const).map((writingMode) => (
+            <button
+              type="button"
+              key={writingMode}
+              onClick={() =>
+                onAddLayer(
+                  createTextLayer({
+                    durationMs,
+                    id: crypto.randomUUID(),
+                    startMs: 0,
+                    text: t("editor.newText"),
+                    video,
+                    writingMode,
+                  }),
+                )
+              }
+            >
+              {t(
+                writingMode === "horizontal"
+                  ? "editor.addTextHorizontal"
+                  : "editor.addTextVertical",
+              )}
+            </button>
+          ))}
           <button
             type="button"
             onClick={() =>

@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import type { CaptionTimelineClip } from "../lib/captionTimeline";
+import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 import {
   moveTimelineRange,
   snapTimelineRange,
@@ -76,6 +77,9 @@ export function CaptionTimelineTrack({
     range: TimelineRange;
   }>();
   const [menu, setMenu] = useState<CaptionMenu>();
+  const menuRef = useDismissibleMenu<HTMLDivElement>(Boolean(menu), () =>
+    setMenu(undefined),
+  );
 
   useEffect(() => {
     if (!drag) return;
@@ -234,6 +238,7 @@ export function CaptionTimelineTrack({
       </div>
       {menu ? (
         <div
+          ref={menuRef}
           className="timeline-clip-menu"
           role="menu"
           style={{ left: menu.x, top: menu.y }}

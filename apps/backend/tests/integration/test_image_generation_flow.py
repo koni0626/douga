@@ -2,6 +2,7 @@ import os
 
 import pytest
 from douga.api_main import create_app
+from douga.core.errors import NotFoundError
 from douga.db.session import session_factory
 from douga.modules.assets.models import Asset
 from douga.modules.auth.models import User, UserSession
@@ -101,5 +102,62 @@ async def test_cancelled_generation_does_not_create_an_asset() -> None:
         )
         assert result.status == "cancelled"
         assert assets == 0
+
+    await clear_data()
+
+
+async def test_fake_image_edit_creates_derivative_and_enforces_owner() -> None:
+    await clear_data()
+    async with session_factory() as session:
+        owner = User(
+            email="image-edit-owner@example.com",
+            email_normalized="image-edit-owner@example.com",
+            password_hash="test",
+            preferred_locale="ja",
+        )
+        outsider = User(
+            email="image-edit-outsider@example.com",
+            email_normalized="image-edit-outsider@example.com",
+            password_hash="test",
+            preferred_locale="ja",
+        )
+        session.add_all((owner, outsider))
+        await session.commit()
+        owner_id = owner.id
+        outsider_id = outsider.id
+
+        generated = await ImageGenerationService(session).create(
+            owner_id,
+            prompt="source image",
+            quality="low",
+            size="1024x1024",
+        )
+    await process_image_generation_job(generated.job_id)
+
+    async with session_factory() as session:
+        source = await ImageGenerationService(session).get(generated.id, owner_id)
+        assert source.output_asset_id is not None
+        with pytest.raises(NotFoundError):
+            await ImageGenerationService(session).create_edit(
+                outsider_id,
+                parent_asset_id=source.output_asset_id,
+                prompt="edit someone else's image",
+                quality="low",
+                size="1024x1024",
+            )
+        edited = await ImageGenerationService(session).create_edit(
+            owner_id,
+            parent_asset_id=source.output_asset_id,
+            prompt="make the sky blue",
+            quality="low",
+            size="1024x1024",
+        )
+    await process_image_generation_job(edited.job_id)
+
+    async with session_factory() as session:
+        result = await ImageGenerationService(session).get(edited.id, owner_id)
+        assert result.status == "succeeded"
+        assert result.parent_asset_id == source.output_asset_id
+        assert result.output_asset_id not in {None, source.output_asset_id}
 
     await clear_data()

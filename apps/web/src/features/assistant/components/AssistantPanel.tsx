@@ -18,10 +18,12 @@ import {
   type VideoArtifactDto,
 } from "../../../shared/lib/api";
 import { ApprovalCard } from "./ApprovalCard";
+import { AssistantAttachmentStrip } from "./AssistantAttachmentStrip";
 import { CreativeDocumentCard } from "./CreativeDocumentCard";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageArtifactCard } from "./ImageArtifactCard";
 import { VideoArtifactCard } from "./VideoArtifactCard";
+import { useAssistantImageAttachments } from "../hooks/useAssistantImageAttachments";
 
 function imageArtifact(value: unknown): ImageArtifactDto | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -98,6 +100,16 @@ export function AssistantPanel({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [errorKey, setErrorKey] = useState<string>();
+  const {
+    attachments: imageAttachments,
+    clear: clearImageAttachments,
+    clearError: clearAttachmentError,
+    errorKey: attachmentErrorKey,
+    paste: pasteImageAttachments,
+    remove: removeImageAttachment,
+    replace: replaceImageAttachments,
+    uploading: uploadingAttachment,
+  } = useAssistantImageAttachments();
   const messageEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -176,14 +188,18 @@ export function AssistantPanel({
   async function submit(event: FormEvent) {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || !thread || sending) return;
+    if (!content || !thread || sending || uploadingAttachment) return;
+    const submittedAttachments = [...imageAttachments];
     setDraft("");
+    clearImageAttachments();
+    clearAttachmentError();
     setSending(true);
     setErrorKey(undefined);
     const optimistic: AssistantMessageDto = {
       id: `pending-${Date.now()}`,
       role: "user",
       content,
+      attachment_asset_ids: submittedAttachments.map((asset) => asset.id),
       created_at: new Date().toISOString(),
     };
     setMessages((current) => [...current, optimistic]);
@@ -192,7 +208,15 @@ export function AssistantPanel({
         `/projects/${projectId}/assistant/threads/${thread.id}/messages`,
         {
           method: "POST",
-          body: JSON.stringify({ content, context: editorContext }),
+          body: JSON.stringify({
+            content,
+            context: {
+              ...editorContext,
+              attachment_asset_ids: submittedAttachments.map(
+                (asset) => asset.id,
+              ),
+            },
+          }),
         },
       );
       setMessages((current) => [
@@ -205,6 +229,7 @@ export function AssistantPanel({
         current.filter((item) => item.id !== optimistic.id),
       );
       setDraft(content);
+      replaceImageAttachments(submittedAttachments);
       setErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
       );
@@ -222,6 +247,8 @@ export function AssistantPanel({
       );
       setThread(detail.thread);
       setMessages(detail.messages);
+      clearImageAttachments();
+      clearAttachmentError();
       setApprovals(
         detail.tool_calls.filter((call) => call.status === "waiting_approval"),
       );
@@ -270,6 +297,8 @@ export function AssistantPanel({
       setThread(created);
       setMessages([]);
       setDraft("");
+      clearImageAttachments();
+      clearAttachmentError();
       setUndoableRunId(undefined);
       setApprovals([]);
       setImageArtifacts([]);
@@ -302,6 +331,7 @@ export function AssistantPanel({
               id: pendingId,
               role: "assistant",
               content: delta,
+              attachment_asset_ids: [],
               created_at: new Date().toISOString(),
             },
           ];
@@ -606,6 +636,14 @@ export function AssistantPanel({
                 ? t("assistant.you")
                 : t("assistant.name")}
             </span>
+            <AssistantAttachmentStrip
+              attachments={(message.attachment_asset_ids ?? []).map(
+                (assetId) => ({
+                  id: assetId,
+                  name: t("assistant.attachedImage"),
+                }),
+              )}
+            />
             <MarkdownMessage content={message.content} />
           </article>
         ))}
@@ -663,6 +701,10 @@ export function AssistantPanel({
         <div ref={messageEndRef} />
       </div>
       <form className="assistant-composer" onSubmit={submit}>
+        <AssistantAttachmentStrip
+          attachments={imageAttachments}
+          onRemove={removeImageAttachment}
+        />
         <textarea
           aria-label={t("assistant.input")}
           disabled={!thread || sending || approvals.length > 0 || !canRun}
@@ -670,6 +712,7 @@ export function AssistantPanel({
           placeholder={t("assistant.placeholder")}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          onPaste={(event) => void pasteImageAttachments(event)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -683,15 +726,21 @@ export function AssistantPanel({
             !draft.trim() ||
             !thread ||
             sending ||
+            uploadingAttachment ||
             approvals.length > 0 ||
             !canRun
           }
         >
           {t("assistant.send")}
         </button>
-        {!canRun ? (
-          <small className="assistant-save-required">
-            {t("assistant.saveRequired")}
+        {uploadingAttachment ? (
+          <small className="assistant-attachment-status">
+            {t("assistant.attachmentUploading")}
+          </small>
+        ) : null}
+        {attachmentErrorKey ? (
+          <small className="assistant-attachment-error" role="alert">
+            {t(attachmentErrorKey)}
           </small>
         ) : null}
       </form>

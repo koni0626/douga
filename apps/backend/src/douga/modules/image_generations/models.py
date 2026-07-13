@@ -24,6 +24,9 @@ class ImageGenerationRequest(UuidPrimaryKeyMixin, TimestampMixin, Base):
     model: Mapped[str] = mapped_column(String(100), nullable=False)
     quality: Mapped[str] = mapped_column(String(20), nullable=False)
     size: Mapped[str] = mapped_column(String(20), nullable=False)
+    parent_asset_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("assets.id", ondelete="SET NULL")
+    )
     output_asset_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("assets.id", ondelete="SET NULL")
     )

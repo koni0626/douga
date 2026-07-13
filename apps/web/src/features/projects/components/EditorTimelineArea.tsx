@@ -13,17 +13,20 @@ type TimelineActions = Pick<
   TimelineProps,
   | "onAddCaption"
   | "onAddShape"
-  | "onAddText"
+  | "onAddTextHorizontal"
+  | "onAddTextVertical"
   | "onAudioStartChange"
   | "onCaptionChange"
   | "onCaptionDelete"
   | "onCaptionTextChange"
   | "onChange"
   | "onDeleteKeyframe"
+  | "onDeleteLayer"
   | "onDuplicateKeyframe"
   | "onExtend"
   | "onKeyframeEasingChange"
   | "onMergeTrack"
+  | "onMoveToTrack"
   | "onPlay"
   | "onRename"
   | "onReorder"
@@ -154,11 +157,13 @@ export function EditorTimelineArea({
           title={t("editor.objectTimeline")}
           addCameraLabel={t("editor.timelineMenu.addCamera")}
           addCaptionLabel={t("editor.timelineMenu.addCaption")}
-          addTextLabel={t("editor.timelineMenu.addText")}
+          addTextHorizontalLabel={t("editor.timelineMenu.addTextHorizontal")}
+          addTextVerticalLabel={t("editor.timelineMenu.addTextVertical")}
           addShapeLabel={t("editor.timelineMenu.addShape")}
           addImageLabel={t("editor.timelineMenu.addImage")}
           addAudioLabel={t("editor.timelineMenu.addAudio")}
           settingsLabel={t("editor.timelineMenu.settings")}
+          deleteLabel={t("editor.delete")}
           captionSettingsLabel={t("editor.timelineMenu.captionSettings")}
         />
       ) : null}

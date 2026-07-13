@@ -1,6 +1,7 @@
 import type { ProjectDocument } from "@douga/project-schema";
 import type { LayerEasing } from "@douga/scene-renderer";
 
+import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 import { KeyframePopover, type KeyframeLabels } from "./KeyframePopover";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
@@ -68,9 +69,11 @@ export interface LayerClipMenuProps {
   displayLayers: Layer[];
   displayTrackIds: string[];
   layers: Layer[];
+  deleteLabel: string;
   mergeAboveLabel: string;
   mergeBelowLabel: string;
   onClose: () => void;
+  onDeleteLayer: (layerId: string) => void;
   onMergeTrack: (sourceLayerId: string, targetLayerId: string) => void;
   onOpenSettings: () => void;
   onSplitTrack: (layerId: string) => void;
@@ -84,9 +87,11 @@ export function LayerClipMenu({
   displayLayers,
   displayTrackIds,
   layers,
+  deleteLabel,
   mergeAboveLabel,
   mergeBelowLabel,
   onClose,
+  onDeleteLayer,
   onMergeTrack,
   onOpenSettings,
   onSplitTrack,
@@ -94,6 +99,10 @@ export function LayerClipMenu({
   splitTrackLabel,
   trackCounts,
 }: LayerClipMenuProps) {
+  const menuRef = useDismissibleMenu<HTMLDivElement>(
+    Boolean(clipMenu),
+    onClose,
+  );
   if (!clipMenu) return null;
   const layer = layers.find((item) => item.id === clipMenu.layerId);
   if (!layer) return null;
@@ -104,6 +113,7 @@ export function LayerClipMenu({
   const below = targetFor(displayTrackIds[currentTrackIndex + 1]);
   return (
     <div
+      ref={menuRef}
       className="timeline-clip-menu"
       role="menu"
       style={{ left: clipMenu.x, top: clipMenu.y }}
@@ -154,6 +164,17 @@ export function LayerClipMenu({
           {splitTrackLabel}
         </button>
       ) : null}
+      <button
+        type="button"
+        role="menuitem"
+        className="danger"
+        onClick={() => {
+          onDeleteLayer(layer.id);
+          onClose();
+        }}
+      >
+        {deleteLabel}
+      </button>
     </div>
   );
 }

@@ -17,6 +17,9 @@ from douga.modules.assistant.orchestrator import AssistantOrchestrator
         ("採用した絵コンテからドラフトを作って", "validate_timeline", "export_video"),
         ("会社紹介動画作って", "add_caption_clip", "export_video"),
         ("Build a draft from the script", "add_text_clip", "export_video"),
+        ("Edit the visible image", "edit_visible_image", "export_video"),
+        ("アップロードした画像を青空に編集して", "edit_image_asset", "export_video"),
+        ("画面に表示中の画像を編集して", "edit_visible_image", "export_video"),
     ],
 )
 def test_tool_catalog_is_routed_to_the_current_intent(
@@ -26,3 +29,15 @@ def test_tool_catalog_is_routed_to_the_current_intent(
     names = orchestrator._tool_names_for(prompt)
     assert included in names
     assert excluded not in names
+
+
+def test_attached_image_exposes_edit_tool_without_prompt_keyword_matching() -> None:
+    orchestrator = AssistantOrchestrator(MagicMock(), FakeAssistantProvider())
+
+    names = orchestrator._available_tool_names(
+        "左右を自然な構図に調整してください",
+        ("00000000-0000-0000-0000-000000000001",),
+    )
+
+    assert "edit_image_asset" in names
+    assert "generate_image" not in names

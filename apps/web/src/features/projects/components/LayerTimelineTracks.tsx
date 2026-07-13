@@ -30,6 +30,8 @@ type DragState = {
   initial: TimelineRange;
   mode: TimelineDragMode;
   originX: number;
+  originY: number;
+  trackLeft: number;
   trackWidth: number;
 };
 type ClipMenu = { layerId: string; x: number; y: number };
@@ -44,6 +46,7 @@ export interface LayerTimelineTracksProps {
   mergeBelowLabel: string;
   onChange: (layerId: string, range: TimelineRange) => void;
   onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
+  onDeleteLayer: (layerId: string) => void;
   onDuplicateKeyframe: (
     layerId: string,
     keyframeId: string,
@@ -55,6 +58,11 @@ export interface LayerTimelineTracksProps {
     easing: LayerEasing,
   ) => void;
   onMergeTrack: (sourceLayerId: string, targetLayerId: string) => void;
+  onMoveToTrack: (
+    layerId: string,
+    targetLayerId: string,
+    range: TimelineRange,
+  ) => void;
   onOpenSettings: () => void;
   onRename: (layerId: string, name?: string) => void;
   onReorder: (
@@ -68,6 +76,7 @@ export interface LayerTimelineTracksProps {
   renameLabel: string;
   selectedLayerId?: string;
   settingsLabel: string;
+  deleteLabel: string;
   splitTrackLabel: string;
   timeMs: number;
 }
@@ -98,9 +107,11 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
     layers,
     onChange,
     onDeleteKeyframe,
+    onDeleteLayer,
     onDuplicateKeyframe,
     onKeyframeEasingChange,
     onMergeTrack,
+    onMoveToTrack,
     onOpenSettings,
     onRename,
     onReorder,
@@ -110,6 +121,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
     renameLabel,
     selectedLayerId,
     timeMs,
+    deleteLabel,
   } = props;
   const displayLayers = [...layers].reverse();
   const displayTrackIds = Array.from(
@@ -126,6 +138,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
   }>();
   const [drag, setDrag] = useState<DragState>();
   const [draggedLayerId, setDraggedLayerId] = useState<string>();
+  const [clipDropTargetId, setClipDropTargetId] = useState<string>();
   const [dropTarget, setDropTarget] = useState<{
     layerId: string;
     position: "before" | "after";
@@ -144,12 +157,49 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
         durationMs,
       });
     };
-    const move = (event: globalThis.PointerEvent) =>
+    const targetAt = (event: globalThis.PointerEvent) => {
+      if (drag.mode !== "move") return undefined;
+      return document
+        .elementsFromPoint(event.clientX, event.clientY)
+        .map((element) =>
+          element.closest<HTMLElement>("[data-timeline-track-target]"),
+        )
+        .find(Boolean)?.dataset.timelineTrackTarget;
+    };
+    const move = (event: globalThis.PointerEvent) => {
       setDraft({ layerId: drag.layerId, range: rangeAt(event.clientX) });
+      setClipDropTargetId(targetAt(event));
+    };
     const finish = (event: globalThis.PointerEvent) => {
-      onChange(drag.layerId, snapTimelineRange(rangeAt(event.clientX)));
+      const moved =
+        Math.abs(event.clientX - drag.originX) >= 4 ||
+        Math.abs(event.clientY - drag.originY) >= 4;
+      if (!moved) {
+        onSeek(
+          Math.max(
+            0,
+            Math.min(
+              durationMs - 1,
+              Math.round(
+                ((drag.originX - drag.trackLeft) / drag.trackWidth) *
+                  durationMs,
+              ),
+            ),
+          ),
+        );
+        setDraft(undefined);
+        setDrag(undefined);
+        setClipDropTargetId(undefined);
+        return;
+      }
+      const range = snapTimelineRange(rangeAt(event.clientX));
+      const targetLayerId = targetAt(event);
+      if (targetLayerId && targetLayerId !== drag.layerId)
+        onMoveToTrack(drag.layerId, targetLayerId, range);
+      else onChange(drag.layerId, range);
       setDraft(undefined);
       setDrag(undefined);
+      setClipDropTargetId(undefined);
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish, { once: true });
@@ -157,7 +207,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
     };
-  }, [drag, durationMs, onChange]);
+  }, [drag, durationMs, onChange, onMoveToTrack, onSeek]);
 
   function beginDrag(
     event: PointerEvent<HTMLDivElement>,
@@ -171,14 +221,18 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
       ".object-timeline-track",
     );
     if (!track) return;
+    const trackBounds = track.getBoundingClientRect();
     const initial = layerRange(layer, durationMs);
     setDraft({ layerId: layer.id, range: initial });
+    setClipDropTargetId(undefined);
     setDrag({
       layerId: layer.id,
       initial,
       mode,
       originX: event.clientX,
-      trackWidth: track.getBoundingClientRect().width,
+      originY: event.clientY,
+      trackLeft: trackBounds.left,
+      trackWidth: trackBounds.width,
     });
   }
 
@@ -222,6 +276,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
         const trackLayers = displayLayers.filter(
           (item) => trackId(item) === layerTrackId,
         );
+        const isRepresentative = trackLayers[0]?.id === layer.id;
         const range =
           draft?.layerId === layer.id
             ? draft.range
@@ -233,12 +288,13 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
         return (
           <LayerTimelineRow
             beginDrag={beginDrag}
+            clipDropTarget={clipDropTargetId === layer.id}
             displayRow={trackIndex + audioTrackCount + 4}
             draftRange={draft?.layerId === layer.id ? range : undefined}
             dropClass={dropClass}
             durationMs={durationMs}
             grabbed={draggedLayerId === layer.id}
-            isRepresentative={trackLayers[0]?.id === layer.id}
+            isRepresentative={isRepresentative}
             keyframeLabels={keyframeLabels}
             label={`${labelFor(layer)}${trackLayers.length > 1 ? ` (${trackLayers.length})` : ""}`}
             layer={layer}
@@ -267,6 +323,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
             trackSelected={trackLayers.some(
               (item) => item.id === selectedLayerId,
             )}
+            trackTargetLayerId={isRepresentative ? layer.id : undefined}
           />
         );
       })}
@@ -282,12 +339,14 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
       />
       <LayerClipMenu
         clipMenu={clipMenu}
+        deleteLabel={deleteLabel}
         displayLayers={displayLayers}
         displayTrackIds={displayTrackIds}
         layers={layers}
         mergeAboveLabel={props.mergeAboveLabel}
         mergeBelowLabel={props.mergeBelowLabel}
         onClose={() => setClipMenu(undefined)}
+        onDeleteLayer={onDeleteLayer}
         onMergeTrack={onMergeTrack}
         onOpenSettings={onOpenSettings}
         onSplitTrack={onSplitTrack}

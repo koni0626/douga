@@ -7,8 +7,10 @@ import {
   AnimationPresetMenu,
   type AnimationPresetLabels,
 } from "./AnimationPresetMenu";
+import { TextStyleMenu } from "./TextStyleMenu";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
+type TextLayer = Extract<Layer, { type: "text" }>;
 type MenuPatch = Partial<Pick<Layer, "flip_x" | "flip_y" | "locked">>;
 
 interface CanvasObjectContextMenuProps {
@@ -23,6 +25,8 @@ interface CanvasObjectContextMenuProps {
   onClose: () => void;
   onFillCanvas: () => void;
   onPatch: (patch: MenuPatch) => void;
+  onTextPatch: (patch: Partial<TextLayer>) => void;
+  textSettingsLabel: string;
   unlockLabel: string;
   x: number;
   y: number;
@@ -40,11 +44,13 @@ export function CanvasObjectContextMenu({
   onClose,
   onFillCanvas,
   onPatch,
+  onTextPatch,
+  textSettingsLabel,
   unlockLabel,
   x,
   y,
 }: CanvasObjectContextMenuProps) {
-  const [panel, setPanel] = useState<"animation" | "effect">();
+  const [panel, setPanel] = useState<"animation" | "effect" | "text">();
 
   return (
     <div
@@ -57,9 +63,15 @@ export function CanvasObjectContextMenu({
       style={{ left: x, top: y }}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {panel ? (
+      {panel === "text" && layer.type === "text" ? (
+        <TextStyleMenu
+          layer={layer}
+          onBack={() => setPanel(undefined)}
+          onPatch={onTextPatch}
+        />
+      ) : panel ? (
         <AnimationPresetMenu
-          kind={panel}
+          kind={panel as "animation" | "effect"}
           labels={animationLabels}
           onApply={(preset, durationMs) => {
             onApplyAnimation(preset, durationMs);
@@ -97,6 +109,16 @@ export function CanvasObjectContextMenu({
               onClick={onFillCanvas}
             >
               {fillCanvasLabel}
+            </button>
+          ) : null}
+          {layer.type === "text" ? (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={layer.locked}
+              onClick={() => setPanel("text")}
+            >
+              {textSettingsLabel} ›
             </button>
           ) : null}
           <button

@@ -20,6 +20,7 @@ class ImageGenerationResponse(BaseModel):
     size: str
     status: str
     progress: int
+    parent_asset_id: UUID | None
     output_asset_id: UUID | None
     error_code: str | None
     created_at: datetime

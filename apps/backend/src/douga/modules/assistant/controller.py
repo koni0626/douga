@@ -42,7 +42,19 @@ def thread_response(thread: AssistantThread) -> AssistantThreadResponse:
 
 
 def message_response(message: AssistantMessage) -> AssistantMessageResponse:
-    return AssistantMessageResponse.model_validate(message, from_attributes=True)
+    attachment_asset_ids: list[UUID] = []
+    for value in (message.content_json or {}).get("attachment_asset_ids", []):
+        try:
+            attachment_asset_ids.append(UUID(str(value)))
+        except TypeError, ValueError:
+            continue
+    return AssistantMessageResponse(
+        id=message.id,
+        role=message.role,
+        content=message.content,
+        attachment_asset_ids=attachment_asset_ids,
+        created_at=message.created_at,
+    )
 
 
 def run_response(run: AssistantRun) -> AssistantRunResponse:

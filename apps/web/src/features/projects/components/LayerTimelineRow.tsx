@@ -18,6 +18,7 @@ export interface LayerTimelineRowProps {
     layer: Layer,
     mode: TimelineDragMode,
   ) => void;
+  clipDropTarget: boolean;
   displayRow: number;
   draftRange?: TimelineRange;
   dropClass: string;
@@ -40,10 +41,12 @@ export interface LayerTimelineRowProps {
   renameLabel: string;
   selected: boolean;
   trackSelected: boolean;
+  trackTargetLayerId?: string;
 }
 
 export function LayerTimelineRow({
   beginDrag,
+  clipDropTarget,
   displayRow,
   draftRange,
   dropClass,
@@ -66,6 +69,7 @@ export function LayerTimelineRow({
   renameLabel,
   selected,
   trackSelected,
+  trackTargetLayerId,
 }: LayerTimelineRowProps) {
   return (
     <div className="object-timeline-row">
@@ -94,6 +98,7 @@ export function LayerTimelineRow({
         className={[
           "object-timeline-track",
           isRepresentative ? "object-timeline-track--base" : "",
+          clipDropTarget ? "object-timeline-track--clip-target" : "",
           dropClass,
         ]
           .filter(Boolean)
@@ -101,6 +106,7 @@ export function LayerTimelineRow({
         onDragOver={(event) => onDragOver(event, layer.id)}
         onDrop={(event) => onDrop(event, layer.id)}
         onPointerDown={(event) => seek(event, durationMs, onSeek)}
+        data-timeline-track-target={trackTargetLayerId}
         style={{ gridColumn: 2, gridRow: displayRow }}
       >
         <div
@@ -126,6 +132,9 @@ export function LayerTimelineRow({
             if (layer.locked) {
               event.stopPropagation();
               onSelect();
+              const track = event.currentTarget.parentElement;
+              if (track)
+                seekAtClientX(event.clientX, track, durationMs, onSeek);
               return;
             }
             const bounds = event.currentTarget.getBoundingClientRect();
@@ -175,13 +184,22 @@ function seek(
   onSeek: (timeMs: number) => void,
 ) {
   if (event.button !== 0) return;
-  const bounds = event.currentTarget.getBoundingClientRect();
+  seekAtClientX(event.clientX, event.currentTarget, durationMs, onSeek);
+}
+
+function seekAtClientX(
+  clientX: number,
+  track: Element,
+  durationMs: number,
+  onSeek: (timeMs: number) => void,
+) {
+  const bounds = track.getBoundingClientRect();
   onSeek(
     Math.max(
       0,
       Math.min(
-        durationMs,
-        Math.round(((event.clientX - bounds.left) / bounds.width) * durationMs),
+        durationMs - 1,
+        Math.round(((clientX - bounds.left) / bounds.width) * durationMs),
       ),
     ),
   );
