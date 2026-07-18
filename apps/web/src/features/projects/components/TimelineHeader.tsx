@@ -1,14 +1,21 @@
-import { type Dispatch, type SetStateAction, useRef } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 export interface TimelineHeaderProps {
   collapseLabel: string;
+  cutDisabled: boolean;
+  cutLabel: string;
   expandLabel: string;
   expanded: boolean;
-  extendLabel: string;
   height: number;
   maximumHeight: number;
   minimumHeight: number;
-  onExtend: () => void;
+  onCut: () => void;
   onHeightChange: Dispatch<SetStateAction<number>>;
   onPlay: () => void;
   onStop: () => void;
@@ -18,18 +25,22 @@ export interface TimelineHeaderProps {
   resizeLabel: string;
   stopLabel: string;
   timeMs: number;
+  durationMs: number;
+  durationInputLabel: string;
+  onDurationChange: (durationMs: number) => void;
   title: string;
 }
 
 export function TimelineHeader({
   collapseLabel,
+  cutDisabled,
+  cutLabel,
   expandLabel,
   expanded,
-  extendLabel,
   height,
   maximumHeight,
   minimumHeight,
-  onExtend,
+  onCut,
   onHeightChange,
   onPlay,
   onStop,
@@ -39,6 +50,9 @@ export function TimelineHeader({
   resizeLabel,
   stopLabel,
   timeMs,
+  durationMs,
+  durationInputLabel,
+  onDurationChange,
   title,
 }: TimelineHeaderProps) {
   return (
@@ -68,12 +82,18 @@ export function TimelineHeader({
         <h2>{title}</h2>
         <button
           type="button"
-          className="timeline-extend-button"
-          aria-label={extendLabel}
-          title={extendLabel}
-          onClick={onExtend}
+          className="timeline-cut-button"
+          aria-label={cutLabel}
+          disabled={cutDisabled}
+          title={cutLabel}
+          onClick={onCut}
         >
-          +5s
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="6" cy="7" r="3" />
+            <circle cx="6" cy="17" r="3" />
+            <path d="m8.6 8.5 10.4 6M8.6 15.5 19 9" />
+          </svg>
+          <span>{cutLabel}</span>
         </button>
         <div className="object-timeline-playback">
           <button
@@ -103,9 +123,60 @@ export function TimelineHeader({
             </svg>
           </button>
         </div>
-        <span>{(timeMs / 1000).toFixed(1)}s</span>
+        <span className="timeline-playback-time">
+          {(timeMs / 1000).toFixed(1)}s / {(durationMs / 1000).toFixed(1)}s
+        </span>
+        <TimelineDurationInput
+          durationMs={durationMs}
+          label={durationInputLabel}
+          onChange={onDurationChange}
+        />
       </header>
     </>
+  );
+}
+
+interface TimelineDurationInputProps {
+  durationMs: number;
+  label: string;
+  onChange: (durationMs: number) => void;
+}
+
+function TimelineDurationInput({
+  durationMs,
+  label,
+  onChange,
+}: TimelineDurationInputProps) {
+  const [draft, setDraft] = useState((durationMs / 1000).toFixed(2));
+  useEffect(() => setDraft((durationMs / 1000).toFixed(2)), [durationMs]);
+
+  function commit() {
+    const seconds = Number(draft);
+    if (!Number.isFinite(seconds)) {
+      setDraft((durationMs / 1000).toFixed(2));
+      return;
+    }
+    onChange(Math.round(seconds) * 1000);
+  }
+
+  return (
+    <label className="timeline-duration-input">
+      <span>{label}</span>
+      <input
+        aria-label={label}
+        max={3600}
+        min={1}
+        onBlur={commit}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
+        step={1}
+        type="number"
+        value={draft}
+      />
+      <span>s</span>
+    </label>
   );
 }
 

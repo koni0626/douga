@@ -110,7 +110,7 @@ class DeleteClipArgs(StrictToolArgs):
 
 
 class ExtendTimelineArgs(StrictToolArgs):
-    duration_ms: int = Field(ge=5000, le=3_600_000)
+    duration_ms: int = Field(ge=100, le=3_600_000)
 
 
 def layer_base(values: TimedBoxArgs, layer_id: str, layer_type: str) -> dict[str, Any]:

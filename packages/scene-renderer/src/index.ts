@@ -3,6 +3,7 @@ export { cameraTransformValue, resolveCameraTransform } from "./camera";
 export type { CameraEffect, CameraTransform } from "./camera";
 export type { SceneRendererProps } from "./SceneRenderer";
 export {
+  MAX_VIDEO_DURATION_MS,
   MIN_VIDEO_DURATION_MS,
   resolveSceneDurationMs,
   roundVideoDurationMs,

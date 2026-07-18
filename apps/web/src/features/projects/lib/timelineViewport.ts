@@ -5,8 +5,12 @@ export const TIMELINE_MIN_TRACK_WIDTH_PX = 480;
 export function timelineTrackWidth(durationMs: number): number {
   return Math.max(
     TIMELINE_MIN_TRACK_WIDTH_PX,
-    Math.ceil(durationMs / 1000) * TIMELINE_SECOND_WIDTH_PX,
+    (durationMs / 1000) * TIMELINE_SECOND_WIDTH_PX,
   );
+}
+
+export function timelineSecondWidth(durationMs: number): number {
+  return timelineTrackWidth(durationMs) / Math.max(0.001, durationMs / 1000);
 }
 
 export function followPlayheadScroll(

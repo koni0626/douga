@@ -24,6 +24,7 @@ interface EditorCanvasWorkspaceProps {
     durationMs: number,
   ) => void;
   captionDraft: string;
+  captionEditorVisible: boolean;
   clearAnimation: (layerId: string) => void;
   commitInlineCaption: () => void;
   dropActive: boolean;
@@ -51,6 +52,7 @@ interface EditorCanvasWorkspaceProps {
 export function EditorCanvasWorkspace({
   applyAnimationPreset,
   captionDraft,
+  captionEditorVisible,
   clearAnimation,
   commitInlineCaption,
   dropActive,
@@ -108,6 +110,7 @@ export function EditorCanvasWorkspace({
               timeMs={timeMs}
               assetUrl={assetContentUrl}
               hideCaption={!playing}
+              showFullText={!playing}
             />
             {!playing ? (
               <CanvasObjectEditor
@@ -162,7 +165,7 @@ export function EditorCanvasWorkspace({
                 width={project.video.width}
               />
             ) : null}
-            {!playing ? (
+            {!playing && captionEditorVisible ? (
               <svg
                 className="inline-caption-overlay"
                 viewBox={`0 0 ${project.video.width} ${project.video.height}`}

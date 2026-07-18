@@ -1,6 +1,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 from uuid import uuid4
@@ -146,4 +147,11 @@ app = create_app()
 
 
 def run() -> None:
-    uvicorn.run("douga.api_main:app", host="127.0.0.1", port=8000, reload=True)
+    source_directory = Path(__file__).resolve().parent
+    uvicorn.run(
+        "douga.api_main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        reload_dirs=[str(source_directory)],
+    )

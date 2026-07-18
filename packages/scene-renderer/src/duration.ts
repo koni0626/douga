@@ -2,8 +2,9 @@ import type { ProjectDocument } from "@douga/project-schema";
 
 import { buildSceneTimeline } from "./layout";
 
-export const MIN_VIDEO_DURATION_MS = 5_000;
-export const VIDEO_DURATION_STEP_MS = 5_000;
+export const MIN_VIDEO_DURATION_MS = 100;
+export const MAX_VIDEO_DURATION_MS = 3_600_000;
+export const VIDEO_DURATION_STEP_MS = 50;
 
 export function roundVideoDurationMs(durationMs: number): number {
   return Math.max(

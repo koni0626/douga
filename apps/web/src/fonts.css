@@ -1,0 +1,179 @@
+@font-face {
+  font-family: "Noto Sans JP";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/noto-sans-jp/files/noto-sans-jp-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Serif JP";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/noto-serif-jp/files/noto-serif-jp-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "M PLUS 1p";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/m-plus-1p/files/m-plus-1p-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "M PLUS Rounded 1c";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/m-plus-rounded-1c/files/m-plus-rounded-1c-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Zen Kaku Gothic New";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/zen-kaku-gothic-new/files/zen-kaku-gothic-new-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Zen Maru Gothic";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/zen-maru-gothic/files/zen-maru-gothic-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Zen Old Mincho";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/zen-old-mincho/files/zen-old-mincho-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Shippori Mincho";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/shippori-mincho/files/shippori-mincho-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Kaisei Decol";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/kaisei-decol/files/kaisei-decol-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Dela Gothic One";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/dela-gothic-one/files/dela-gothic-one-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "DotGothic16";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/dotgothic16/files/dotgothic16-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Yomogi";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/yomogi/files/yomogi-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Hachi Maru Pop";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/hachi-maru-pop/files/hachi-maru-pop-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "RocknRoll One";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/rocknroll-one/files/rocknroll-one-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Kiwi Maru";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/kiwi-maru/files/kiwi-maru-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Yuji Syuku";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/yuji-syuku/files/yuji-syuku-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Mochiy Pop One";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/mochiy-pop-one/files/mochiy-pop-one-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Sawarabi Gothic";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/sawarabi-gothic/files/sawarabi-gothic-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Sawarabi Mincho";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/sawarabi-mincho/files/sawarabi-mincho-japanese-400-normal.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Reggae One";
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+  src: url("@fontsource/reggae-one/files/reggae-one-japanese-400-normal.woff2")
+    format("woff2");
+}

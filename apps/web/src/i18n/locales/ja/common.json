@@ -167,7 +167,11 @@
     "renameObject": "オブジェクト名を変更",
     "collapseTimeline": "タイムラインを閉じる",
     "expandTimeline": "タイムラインを開く",
-    "extendTimeline": "5秒延長",
+    "cutTimelineAtPlayhead": "再生位置で終了",
+    "resizeTimelineDuration": "動画の終了位置を変更",
+    "timelineDurationValue": "動画の長さ: {{seconds}}秒",
+    "trimAudioStart": "音声クリップの開始位置をトリム",
+    "trimAudioEnd": "音声クリップの終了位置をトリム",
     "resizeTimeline": "タイムラインの高さを変更",
     "mergeTrackAbove": "上のレイヤーにまとめる",
     "mergeTrackBelow": "下のレイヤーにまとめる",
@@ -210,12 +214,22 @@
       "fontMonospace": "等幅",
       "fontJapaneseGothic": "日本語ゴシック",
       "fontJapaneseMincho": "日本語明朝",
+      "fontCategory": {
+        "system": "標準フォント",
+        "gothic": "ゴシック体",
+        "mincho": "明朝・筆文字",
+        "display": "丸文字・手書き・デザイン"
+      },
       "neon": "ネオングラデーション",
       "neonColor": "ネオン色",
       "displayEffect": "表示エフェクト",
       "effectInstant": "一括表示",
       "effectTypewriter": "文字送り",
       "charactersPerSecond": "1秒あたりの文字数"
+    },
+    "shapeStyle": {
+      "title": "図形設定",
+      "transparency": "透明度"
     },
     "keyframe": {
       "label": "キーフレーム",
@@ -238,7 +252,7 @@
     "sceneName": "シーン名",
     "backgroundColor": "背景色",
     "videoDurationSeconds": "動画の長さ（秒）",
-    "durationAutoHint": "オブジェクト、キーフレーム、テロップ、音声に合わせて5秒単位で自動延長されます。",
+    "durationAutoHint": "オブジェクト、キーフレーム、テロップ、音声の終了位置に合わせて自動延長されます。",
     "dialogues": "台本・テロップ",
     "addDialogue": "テロップを追加",
     "newDialogue": "ここにテロップを入力してください。",
@@ -268,6 +282,8 @@
     "audioRole": "用途",
     "audioTrack": "音声",
     "audioStartSeconds": "再生開始（秒）",
+    "audioTrimStartSeconds": "音源の開始位置（秒）",
+    "audioDurationSeconds": "使用する長さ（秒）",
     "fadeInSeconds": "フェードイン（秒）",
     "fadeOutSeconds": "フェードアウト（秒）",
     "volume": "音量",

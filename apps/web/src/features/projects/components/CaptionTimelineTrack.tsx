@@ -47,8 +47,10 @@ export interface CaptionTimelineTrackProps {
   onChange: (captionId: string, range: TimelineRange) => void;
   onDelete: (captionId: string) => void;
   onOpenSettings: () => void;
+  onSelect: (captionId: string) => void;
   onSeek: (timeMs: number) => void;
   onTextChange: (captionId: string, text: string) => void;
+  selectedCaptionId?: string;
   settingsLabel: string;
   timeMs: number;
 }
@@ -66,8 +68,10 @@ export function CaptionTimelineTrack({
   onChange,
   onDelete,
   onOpenSettings,
+  onSelect,
   onSeek,
   onTextChange,
+  selectedCaptionId,
   settingsLabel,
   timeMs,
 }: CaptionTimelineTrackProps) {
@@ -109,11 +113,13 @@ export function CaptionTimelineTrack({
     event: PointerEvent<HTMLDivElement>,
     caption: CaptionTimelineClip,
   ) {
+    onSelect(caption.id);
     if (
       event.target instanceof Element &&
       event.target.closest("input, button")
     )
       return;
+    event.currentTarget.focus();
     event.preventDefault();
     event.stopPropagation();
     const track = event.currentTarget.parentElement;
@@ -196,9 +202,12 @@ export function CaptionTimelineTrack({
               className={
                 draft?.captionId === caption.id
                   ? "caption-timeline-clip caption-timeline-clip--dragging"
-                  : "caption-timeline-clip"
+                  : selectedCaptionId === caption.id
+                    ? "caption-timeline-clip caption-timeline-clip--selected"
+                    : "caption-timeline-clip"
               }
               key={caption.id}
+              tabIndex={0}
               style={{
                 left: `${(range.startMs * 100) / durationMs}%`,
                 width: `${((range.endMs - range.startMs) * 100) / durationMs}%`,
@@ -207,11 +216,22 @@ export function CaptionTimelineTrack({
               onContextMenu={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
+                onSelect(caption.id);
                 setMenu({
                   captionId: caption.id,
                   x: Math.min(event.clientX, globalThis.innerWidth - 220),
                   y: Math.min(event.clientY, globalThis.innerHeight - 110),
                 });
+              }}
+              onKeyDown={(event) => {
+                if (
+                  event.key !== "Delete" ||
+                  event.target !== event.currentTarget
+                )
+                  return;
+                event.preventDefault();
+                event.stopPropagation();
+                onDelete(caption.id);
               }}
               onPointerDown={(event) => beginDrag(event, caption)}
             >
@@ -222,6 +242,7 @@ export function CaptionTimelineTrack({
                 onChange={(event) =>
                   onTextChange(caption.id, event.target.value)
                 }
+                onFocus={() => onSelect(caption.id)}
                 onPointerDown={(event) => event.stopPropagation()}
               />
               <output>{formatDuration(range.endMs - range.startMs)}</output>

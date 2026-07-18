@@ -2,6 +2,7 @@ import type { ComponentProps, DragEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
+import { MIN_VIDEO_DURATION_MS } from "@douga/scene-renderer";
 
 import type { AssetDto } from "../../../shared/lib/api";
 import type { EditorTool, Scene } from "../lib/editorTypes";
@@ -15,15 +16,17 @@ type TimelineActions = Pick<
   | "onAddShape"
   | "onAddTextHorizontal"
   | "onAddTextVertical"
-  | "onAudioStartChange"
+  | "onAudioChange"
   | "onCaptionChange"
   | "onCaptionDelete"
+  | "onCaptionSelect"
   | "onCaptionTextChange"
   | "onChange"
   | "onDeleteKeyframe"
   | "onDeleteLayer"
   | "onDuplicateKeyframe"
-  | "onExtend"
+  | "onCut"
+  | "onDurationChange"
   | "onKeyframeEasingChange"
   | "onMergeTrack"
   | "onMoveToTrack"
@@ -47,10 +50,15 @@ interface EditorTimelineAreaProps {
   project: ProjectDocument;
   scene?: Scene;
   selectedLayerId?: string;
+  selectedCaptionId?: string;
   setActiveTool: (tool: EditorTool) => void;
   setAudioDropActive: (active: boolean) => void;
   timeMs: number;
   uploadingAudio: boolean;
+}
+
+export function isFileDrag(dataTransfer: Pick<DataTransfer, "types">): boolean {
+  return Array.from(dataTransfer.types).includes("Files");
 }
 
 export function EditorTimelineArea({
@@ -64,6 +72,7 @@ export function EditorTimelineArea({
   project,
   scene,
   selectedLayerId,
+  selectedCaptionId,
   setActiveTool,
   setAudioDropActive,
   timeMs,
@@ -75,10 +84,12 @@ export function EditorTimelineArea({
     <section
       className="editor-timeline-area"
       onDragEnter={(event) => {
+        if (!isFileDrag(event.dataTransfer)) return;
         event.preventDefault();
         if (!uploadingAudio) setAudioDropActive(true);
       }}
       onDragOver={(event) => {
+        if (!isFileDrag(event.dataTransfer)) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = "copy";
       }}
@@ -86,15 +97,26 @@ export function EditorTimelineArea({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null))
           setAudioDropActive(false);
       }}
-      onDrop={onDrop}
+      onDrop={(event) => {
+        if (!isFileDrag(event.dataTransfer)) return;
+        onDrop(event);
+      }}
     >
       {scene ? (
         <ObjectTimeline
           {...actions}
           collapseLabel={t("editor.collapseTimeline")}
+          cutDisabled={timeMs < MIN_VIDEO_DURATION_MS || timeMs >= durationMs}
+          cutLabel={t("editor.cutTimelineAtPlayhead")}
+          durationHandleLabel={t("editor.resizeTimelineDuration")}
+          durationInputLabel={t("editor.videoDurationSeconds")}
           durationMs={durationMs}
-          extendLabel={t("editor.extendTimeline")}
           expandLabel={t("editor.expandTimeline")}
+          formatTimelineDuration={(value) =>
+            t("editor.timelineDurationValue", {
+              seconds: (value / 1000).toFixed(0),
+            })
+          }
           labelFor={(layer) =>
             layer.name?.trim()
               ? layer.name
@@ -124,6 +146,12 @@ export function EditorTimelineArea({
             assets.find((asset) => asset.id === track.asset_id)?.name ??
             t("editor.audioTrack")
           }
+          audioTrackSourceDuration={(track) =>
+            assets.find((asset) => asset.id === track.asset_id)?.duration_ms ??
+            undefined
+          }
+          audioTrimEndLabel={t("editor.trimAudioEnd")}
+          audioTrimStartLabel={t("editor.trimAudioStart")}
           mergeAboveLabel={t("editor.mergeTrackAbove")}
           mergeBelowLabel={t("editor.mergeTrackBelow")}
           keyframeLabels={{
@@ -151,6 +179,7 @@ export function EditorTimelineArea({
           resizeLabel={t("editor.resizeTimeline")}
           seekLabel={t("editor.timeline")}
           selectedLayerId={selectedLayerId}
+          selectedCaptionId={selectedCaptionId}
           stopLabel={t("stop")}
           splitTrackLabel={t("editor.splitTrack")}
           timeMs={timeMs}

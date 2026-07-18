@@ -37,4 +37,14 @@ describe("visibleTextAtTime", () => {
     expect(visibleTextAtTime(layer, 2000)).toBe("あい");
     expect(visibleTextAtTime(layer, 4000)).toBe("あいうえお");
   });
+
+  it("returns all typewriter text when editing without playback", () => {
+    const layer = textLayer({
+      text: "あいうえお",
+      display_effect: "typewriter",
+      characters_per_second: 2,
+    });
+
+    expect(visibleTextAtTime(layer, 0, true)).toBe("あいうえお");
+  });
 });

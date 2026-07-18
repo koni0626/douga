@@ -1,4 +1,13 @@
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -8,7 +17,6 @@ import {
   MIN_VIDEO_DURATION_MS,
   resolveLayerAtTime,
   resolveSceneDurationMs,
-  VIDEO_DURATION_STEP_MS,
 } from "@douga/scene-renderer";
 
 import { EditorPropertyPanel } from "../components/EditorPropertyPanel";
@@ -51,6 +59,18 @@ export function ProjectEditorPage() {
     updateScene,
   } = useProjectDocumentEditor(projectId);
   const [selectedLayerId, setSelectedLayerId] = useState<string>();
+  const [selectedCaptionId, setSelectedCaptionId] = useState<string>();
+  const selectLayer = useCallback<Dispatch<SetStateAction<string | undefined>>>(
+    (value) => {
+      setSelectedLayerId(value);
+      setSelectedCaptionId(undefined);
+    },
+    [],
+  );
+  const selectCaption = useCallback((captionId: string) => {
+    setSelectedLayerId(undefined);
+    setSelectedCaptionId(captionId);
+  }, []);
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
@@ -89,6 +109,7 @@ export function ProjectEditorPage() {
     addUploadedImageLayer,
     applyAnimationPreset,
     clearAnimation,
+    cutTimelineAt,
     deleteLayer,
     deleteKeyframe,
     duplicateKeyframe,
@@ -96,7 +117,7 @@ export function ProjectEditorPage() {
     moveLayerToTrack,
     pasteTextLayer,
     reorderLayer,
-    setManualDuration,
+    resizeTimelineTo,
     splitLayerTrack,
     updateKeyframeEasing,
     updateLayer,
@@ -105,7 +126,7 @@ export function ProjectEditorPage() {
     durationMs,
     mutate,
     sceneIndex: selectedSceneIndex,
-    setSelectedLayerId,
+    setSelectedLayerId: selectLayer,
     timeMs,
     updateScene,
     video: detail?.document.video,
@@ -134,11 +155,11 @@ export function ProjectEditorPage() {
     setAssets,
   });
 
-  useEffect(() => {
-    if (captionEditing || !detail) return;
+  const resolvedCaption = useMemo(() => {
+    if (!detail) return undefined;
     const scene = detail.document.scenes[selectedSceneIndex];
-    if (!scene) return;
-    const resolved = resolveCaptionAtTime(
+    if (!scene) return undefined;
+    return resolveCaptionAtTime(
       buildSceneTimeline(
         scene,
         detail.document.caption_style,
@@ -146,8 +167,28 @@ export function ProjectEditorPage() {
       ),
       timeMs,
     );
-    setCaptionDraft(resolved.page?.dialogue.text ?? "");
-  }, [captionEditing, detail, timeMs]);
+  }, [detail, timeMs]);
+
+  const addCaptionAndSelect = useCallback(
+    (startMs: number) => {
+      selectCaption(addCaptionAt(startMs));
+    },
+    [addCaptionAt, selectCaption],
+  );
+  const deleteCaptionAndClearSelection = useCallback(
+    (captionId: string) => {
+      deleteCaption(captionId);
+      setSelectedCaptionId((selected) =>
+        selected === captionId ? undefined : selected,
+      );
+    },
+    [deleteCaption],
+  );
+
+  useEffect(() => {
+    if (captionEditing) return;
+    setCaptionDraft(resolvedCaption?.page?.dialogue.text ?? "");
+  }, [captionEditing, resolvedCaption]);
 
   useEffect(() => {
     if (!playing) return;
@@ -169,12 +210,22 @@ export function ProjectEditorPage() {
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
-      if (
-        !(event.ctrlKey || event.metaKey) ||
-        event.altKey ||
-        isEditableShortcutTarget(event.target)
-      )
-        return;
+      if (isEditableShortcutTarget(event.target)) return;
+
+      if (event.key === "Delete") {
+        if (selectedCaptionId) {
+          event.preventDefault();
+          deleteCaptionAndClearSelection(selectedCaptionId);
+          return;
+        }
+        if (selectedLayerId) {
+          event.preventDefault();
+          deleteLayer(selectedLayerId);
+          return;
+        }
+      }
+
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
 
       const key = event.key.toLowerCase();
       if (key === "z") {
@@ -191,7 +242,15 @@ export function ProjectEditorPage() {
     };
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [detail]);
+  }, [
+    deleteCaptionAndClearSelection,
+    deleteLayer,
+    detail,
+    redo,
+    selectedCaptionId,
+    selectedLayerId,
+    undo,
+  ]);
 
   useEffect(() => {
     const copySelectedTextLayer = (event: ClipboardEvent) => {
@@ -275,6 +334,9 @@ export function ProjectEditorPage() {
         <EditorCanvasWorkspace
           applyAnimationPreset={applyAnimationPreset}
           captionDraft={captionDraft}
+          captionEditorVisible={Boolean(
+            captionEditing || resolvedCaption?.page,
+          )}
           clearAnimation={clearAnimation}
           commitInlineCaption={commitInlineCaption}
           dropActive={dropActive}
@@ -290,7 +352,7 @@ export function ProjectEditorPage() {
           setCaptionEditing={setCaptionEditing}
           setDropActive={setDropActive}
           setLayerPreview={setLayerPreview}
-          setSelectedLayerId={setSelectedLayerId}
+          setSelectedLayerId={selectLayer}
           timeMs={timeMs}
           updateLayer={updateLayer}
           uploadErrorKey={uploadErrorKey}
@@ -299,22 +361,32 @@ export function ProjectEditorPage() {
 
         <EditorTimelineArea
           actions={{
-            onAddCaption: addCaptionAt,
+            onAddCaption: addCaptionAndSelect,
             onAddShape: addShapeLayer,
             onAddTextHorizontal: () => addTextLayer("horizontal"),
             onAddTextVertical: () => addTextLayer("vertical"),
-            onAudioStartChange: (trackId, startMs) =>
-              updateAudioTrack(trackId, { start_ms: startMs }),
+            onAudioChange: updateAudioTrack,
             onCaptionChange: updateCaptionRange,
-            onCaptionDelete: deleteCaption,
+            onCaptionDelete: deleteCaptionAndClearSelection,
+            onCaptionSelect: selectCaption,
             onCaptionTextChange: (dialogueId, text) =>
               updateDialogue(dialogueId, { text }),
             onChange: updateLayerRange,
             onDeleteKeyframe: deleteKeyframe,
             onDeleteLayer: deleteLayer,
             onDuplicateKeyframe: duplicateKeyframe,
-            onExtend: () =>
-              setManualDuration(durationMs + VIDEO_DURATION_STEP_MS),
+            onCut: () => {
+              setPlaying(false);
+              const cutMs = cutTimelineAt(timeMs);
+              setTimeMs(Math.max(0, cutMs - 1));
+            },
+            onDurationChange: (requestedDurationMs) => {
+              setPlaying(false);
+              const resizedDurationMs = resizeTimelineTo(requestedDurationMs);
+              setTimeMs((current) =>
+                Math.min(current, Math.max(0, resizedDurationMs - 1)),
+              );
+            },
             onKeyframeEasingChange: updateKeyframeEasing,
             onMergeTrack: mergeLayerTrack,
             onMoveToTrack: moveLayerToTrack,
@@ -325,7 +397,7 @@ export function ProjectEditorPage() {
               setPlaying(false);
               setTimeMs(value === durationMs ? value - 1 : value);
             },
-            onSelect: setSelectedLayerId,
+            onSelect: selectLayer,
             onSplitTrack: splitLayerTrack,
             onStop: () => {
               setPlaying(false);
@@ -340,6 +412,7 @@ export function ProjectEditorPage() {
           playing={playing}
           project={project}
           scene={scene}
+          selectedCaptionId={selectedCaptionId}
           selectedLayerId={selectedLayerId}
           setActiveTool={setActiveTool}
           setAudioDropActive={setAudioDropActive}

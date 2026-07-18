@@ -401,6 +401,7 @@ test("create a project and auto-save its canvas", async ({ page }) => {
       /\/api\/v1\/projects\/[^/]+\/revisions$/.test(response.url()) &&
       response.ok(),
   );
+  await page.getByRole("button", { name: "テロップを追加" }).click();
   const inlineCaption = page.getByLabel("テロップ本文を直接入力");
   await inlineCaption.fill("ノベルゲームのように自動で送られるテロップです。");
   await inlineCaption.press("Control+Enter");

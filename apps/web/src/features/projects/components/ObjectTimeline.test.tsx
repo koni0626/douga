@@ -57,12 +57,18 @@ function props(
     audioLabel: "Audio",
     audioTracks: [],
     audioTrackLabel: () => "audio",
+    audioTrackSourceDuration: () => undefined,
+    audioTrimEndLabel: "Trim end",
+    audioTrimStartLabel: "Trim start",
     layers,
     playing: false,
     timeMs: 0,
+    durationHandleLabel: "Change video end",
+    durationInputLabel: "Video length",
+    formatTimelineDuration: (duration) => `${duration}ms`,
     labelFor: (layer) => layer.id,
     onChange: noop,
-    onAudioStartChange: noop,
+    onAudioChange: noop,
     onAddCamera: noop,
     onAddCaption: noop,
     onAddTextHorizontal: noop,
@@ -73,9 +79,11 @@ function props(
     onOpenCaptionSettings: noop,
     onCaptionChange: noop,
     onCaptionDelete: noop,
+    onCaptionSelect: noop,
     onCaptionTextChange: noop,
     onOpenLayerSettings: noop,
-    onExtend: noop,
+    onCut: noop,
+    onDurationChange: noop,
     onPlay: noop,
     onDeleteKeyframe: noop,
     onDeleteLayer: noop,
@@ -90,8 +98,9 @@ function props(
     onSeek: noop,
     onStop: noop,
     collapseLabel: "Collapse",
+    cutDisabled: false,
+    cutLabel: "End at playhead",
     expandLabel: "Expand",
-    extendLabel: "Extend",
     resizeLabel: "Resize",
     playLabel: "Play",
     seekLabel: "Timeline",
@@ -130,6 +139,126 @@ function props(
 }
 
 describe("ObjectTimeline", () => {
+  it("renders an uploaded BGM as an audio timeline clip", () => {
+    const view = render(
+      <ObjectTimeline
+        {...props({
+          audioTrackLabel: () => "uploaded-bgm.mp3",
+          audioTracks: [
+            {
+              id: "audio-1",
+              asset_id: "asset-1",
+              role: "bgm",
+              start_ms: 1000,
+              duration_ms: 3000,
+              trim_start_ms: 0,
+              volume: 0.7,
+              loop: false,
+              fade_in_ms: 0,
+              fade_out_ms: 0,
+              ducking: true,
+            },
+          ],
+        })}
+      />,
+    );
+
+    const clip = view.container.querySelector<HTMLElement>(
+      ".audio-timeline-clip",
+    );
+    expect(clip).not.toBeNull();
+    expect(clip).toHaveTextContent("uploaded-bgm.mp3");
+    expect(clip).toHaveStyle({ left: "10%", width: "30%" });
+    view.unmount();
+  });
+
+  it("trims an audio clip by dragging its right edge", () => {
+    const onAudioChange = vi.fn();
+    const view = render(
+      <ObjectTimeline
+        {...props({
+          audioTrackSourceDuration: () => 10_000,
+          audioTracks: [
+            {
+              id: "audio-1",
+              asset_id: "asset-1",
+              role: "bgm",
+              start_ms: 1000,
+              duration_ms: 3000,
+              trim_start_ms: 0,
+              volume: 0.7,
+              loop: false,
+              fade_in_ms: 0,
+              fade_out_ms: 0,
+              ducking: true,
+            },
+          ],
+          onAudioChange,
+        })}
+      />,
+    );
+    const track = view.container.querySelector<HTMLElement>(
+      ".audio-timeline-track",
+    );
+    expect(track).not.toBeNull();
+    Object.defineProperty(track, "getBoundingClientRect", {
+      value: () => ({ left: 0, right: 1000, width: 1000 }),
+    });
+
+    fireEvent.pointerDown(view.getByRole("separator", { name: "Trim end" }), {
+      button: 0,
+      clientX: 400,
+    });
+    fireEvent.pointerUp(window, { clientX: 500 });
+
+    expect(onAudioChange).toHaveBeenCalledWith("audio-1", {
+      start_ms: 1000,
+      trim_start_ms: 0,
+      duration_ms: 4000,
+      fade_in_ms: 0,
+      fade_out_ms: 0,
+    });
+    view.unmount();
+  });
+
+  it("cuts the timeline at the selected playhead position", () => {
+    const onCut = vi.fn();
+    const view = render(<ObjectTimeline {...props({ onCut })} />);
+
+    fireEvent.click(view.getByRole("button", { name: "End at playhead" }));
+
+    expect(onCut).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("changes the duration by dragging the timeline end handle", () => {
+    const onDurationChange = vi.fn();
+    const view = render(<ObjectTimeline {...props({ onDurationChange })} />);
+
+    fireEvent.pointerDown(
+      view.getByRole("separator", { name: "Change video end" }),
+      { button: 0, clientX: 480 },
+    );
+    fireEvent.pointerMove(window, { clientX: 576 });
+    expect(view.getByText("12000ms")).toBeInTheDocument();
+    fireEvent.pointerUp(window, { clientX: 576 });
+
+    expect(onDurationChange).toHaveBeenCalledWith(12_000);
+    view.unmount();
+  });
+
+  it("changes the duration by entering seconds", () => {
+    const onDurationChange = vi.fn();
+    const view = render(<ObjectTimeline {...props({ onDurationChange })} />);
+    const input = view.getByRole("spinbutton", { name: "Video length" });
+
+    fireEvent.change(input, { target: { value: "12.35" } });
+    fireEvent.blur(input);
+
+    expect(onDurationChange).toHaveBeenCalledWith(12_000);
+    view.unmount();
+  });
+
   it("seeks continuously while dragging the ruler", () => {
     const onSeek = vi.fn();
     const view = render(<ObjectTimeline {...props({ onSeek })} />);
@@ -205,6 +334,35 @@ describe("ObjectTimeline", () => {
       endMs: 3000,
     });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("reorders shape layers by dragging a layer label", () => {
+    const onReorder = vi.fn();
+    const view = render(<ObjectTimeline {...props({ onReorder })} />);
+    const labels = Array.from(
+      view.container.querySelectorAll<HTMLElement>(".object-timeline-label"),
+    );
+    const sourceLabel = labels.find((label) => label.textContent === "source");
+    const targetLabel = labels.find((label) => label.textContent === "target");
+    expect(sourceLabel).toBeDefined();
+    expect(targetLabel).toBeDefined();
+    Object.defineProperty(targetLabel, "getBoundingClientRect", {
+      value: () => ({ top: 40, bottom: 70, height: 30 }),
+    });
+    Object.defineProperty(document, "elementsFromPoint", {
+      configurable: true,
+      value: vi.fn(() => [targetLabel]),
+    });
+
+    fireEvent.pointerDown(sourceLabel!, {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+    });
+    fireEvent.pointerMove(window, { clientX: 20, clientY: 50 });
+    fireEvent.pointerUp(window, { clientX: 20, clientY: 50 });
+
+    expect(onReorder).toHaveBeenCalledWith(0, 1, "after");
   });
 
   it("seeks to the clicked position without moving the clip", () => {

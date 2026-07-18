@@ -1,7 +1,7 @@
 from douga.modules.projects.service import ProjectService
 
 
-def test_estimated_duration_uses_longest_content_and_rounds_to_five_seconds() -> None:
+def test_estimated_duration_uses_longest_content_at_editor_precision() -> None:
     document = {
         "video": {"duration_ms": 7000},
         "scenes": [
@@ -19,16 +19,16 @@ def test_estimated_duration_uses_longest_content_and_rounds_to_five_seconds() ->
         "audio_tracks": [{"start_ms": 1000, "duration_ms": 13000}],
     }
 
-    assert ProjectService._estimated_duration(document) == 15000
+    assert ProjectService._estimated_duration(document) == 14000
 
 
-def test_estimated_duration_has_a_five_second_minimum() -> None:
+def test_estimated_duration_has_a_short_minimum() -> None:
     document: dict[str, object] = {
         "video": {},
         "scenes": [{"dialogues": [], "layers": []}],
     }
 
-    assert ProjectService._estimated_duration(document) == 5000
+    assert ProjectService._estimated_duration(document) == 100
 
 
 def test_estimated_duration_includes_delayed_dialogue() -> None:
@@ -48,7 +48,7 @@ def test_estimated_duration_includes_delayed_dialogue() -> None:
         ],
     }
 
-    assert ProjectService._estimated_duration(document) == 10000
+    assert ProjectService._estimated_duration(document) == 8000
 
 
 def test_estimated_duration_includes_camera_effects() -> None:
@@ -58,4 +58,4 @@ def test_estimated_duration_includes_camera_effects() -> None:
         "camera_effects": [{"end_ms": 12001}],
     }
 
-    assert ProjectService._estimated_duration(document) == 15000
+    assert ProjectService._estimated_duration(document) == 12050

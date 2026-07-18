@@ -9,6 +9,7 @@ import type {
   CameraPreset,
   EditorTool,
 } from "../lib/editorTypes";
+import { AudioTrackSettings } from "./AudioTrackSettings";
 import { NumberField } from "./EditorFields";
 
 export interface MediaCaptionSettingsProps {
@@ -16,6 +17,7 @@ export interface MediaCaptionSettingsProps {
   audioAssets: AssetDto[];
   captionStyle: ProjectDocument["caption_style"];
   cameraEffects: CameraEffect[];
+  durationMs: number;
   onAddAudio: (asset: AssetDto) => void;
   onAddCamera: (preset: CameraPreset) => void;
   onDeleteAudio: (trackId: string) => void;
@@ -32,6 +34,7 @@ export function MediaCaptionSettings({
   audioTracks,
   cameraEffects,
   captionStyle,
+  durationMs,
   onAddAudio,
   onAddCamera,
   onDeleteAudio,
@@ -140,73 +143,17 @@ export function MediaCaptionSettings({
           ))}
         </div>
         {audioTracks.map((track) => (
-          <div className="audio-track" key={track.id}>
-            <label>
-              <span>{t("editor.audioRole")}</span>
-              <select
-                value={track.role}
-                onChange={(event) =>
-                  onUpdateAudio(track.id, {
-                    role: event.target.value as AudioTrack["role"],
-                  })
-                }
-              >
-                <option value="narration">Narration</option>
-                <option value="bgm">BGM</option>
-                <option value="effect">Effect</option>
-              </select>
-            </label>
-            <div className="property-grid">
-              <NumberField
-                label={t("editor.audioStartSeconds")}
-                value={track.start_ms / 1000}
-                min={0}
-                step={0.1}
-                onChange={(value) =>
-                  onUpdateAudio(track.id, {
-                    start_ms: Math.max(0, Math.round(value * 1000)),
-                  })
-                }
-              />
-              <NumberField
-                label={t("editor.fadeInSeconds")}
-                value={track.fade_in_ms / 1000}
-                min={0}
-                step={0.1}
-                onChange={(value) =>
-                  onUpdateAudio(track.id, {
-                    fade_in_ms: Math.max(0, Math.round(value * 1000)),
-                  })
-                }
-              />
-              <NumberField
-                label={t("editor.fadeOutSeconds")}
-                value={track.fade_out_ms / 1000}
-                min={0}
-                step={0.1}
-                onChange={(value) =>
-                  onUpdateAudio(track.id, {
-                    fade_out_ms: Math.max(0, Math.round(value * 1000)),
-                  })
-                }
-              />
-            </div>
-            <NumberField
-              label={t("editor.volume")}
-              value={track.volume}
-              min={0}
-              max={2}
-              step={0.05}
-              onChange={(value) => onUpdateAudio(track.id, { volume: value })}
-            />
-            <button
-              type="button"
-              className="danger"
-              onClick={() => onDeleteAudio(track.id)}
-            >
-              {t("editor.delete")}
-            </button>
-          </div>
+          <AudioTrackSettings
+            fallbackDurationMs={durationMs}
+            key={track.id}
+            onDelete={() => onDeleteAudio(track.id)}
+            onUpdate={(patch) => onUpdateAudio(track.id, patch)}
+            sourceDurationMs={
+              audioAssets.find((asset) => asset.id === track.asset_id)
+                ?.duration_ms ?? undefined
+            }
+            track={track}
+          />
         ))}
       </details>
 

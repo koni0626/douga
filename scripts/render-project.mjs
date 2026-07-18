@@ -100,9 +100,10 @@ try {
         },
         { sceneIndex, timeMs },
       );
-      await page.evaluate(
-        () => new Promise((resolve) => requestAnimationFrame(() => resolve())),
-      );
+      await page.evaluate(async () => {
+        await globalThis.document.fonts.ready;
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      });
       await canvas.screenshot({
         path: path.join(
           framesDir,

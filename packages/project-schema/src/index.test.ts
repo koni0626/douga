@@ -49,6 +49,16 @@ describe("validateProjectDocument", () => {
     });
   });
 
+  it("accepts a sub-five-second project duration", () => {
+    const project = validProject();
+    project.video.duration_ms = 2350;
+
+    expect(validateProjectDocument(project)).toEqual({
+      valid: true,
+      errors: [],
+    });
+  });
+
   it("accepts layer keyframes", () => {
     const project = validProject();
     project.video.duration_ms = 15_000;

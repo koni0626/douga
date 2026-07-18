@@ -1,4 +1,4 @@
-import type { DragEvent as ReactDragEvent, PointerEvent } from "react";
+import type { PointerEvent } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
@@ -28,10 +28,10 @@ export interface LayerTimelineRowProps {
   keyframeLabels: KeyframeLabels;
   label: string;
   layer: Layer;
-  onDragEnd: () => void;
-  onDragOver: (event: ReactDragEvent<HTMLElement>, layerId: string) => void;
-  onDragStart: (layerId: string) => void;
-  onDrop: (event: ReactDragEvent<HTMLElement>, layerId: string) => void;
+  onOrderPointerDown: (
+    event: PointerEvent<HTMLButtonElement>,
+    layer: Layer,
+  ) => void;
   onOpenClipMenu: (x: number, y: number) => void;
   onOpenKeyframe: (keyframeId: string, x: number, y: number) => void;
   onRename: (name?: string) => void;
@@ -56,10 +56,7 @@ export function LayerTimelineRow({
   keyframeLabels,
   label,
   layer,
-  onDragEnd,
-  onDragOver,
-  onDragStart,
-  onDrop,
+  onOrderPointerDown,
   onOpenClipMenu,
   onOpenKeyframe,
   onRename,
@@ -80,14 +77,7 @@ export function LayerTimelineRow({
           grabbed={grabbed}
           label={label}
           layer={layer}
-          onDragEnd={onDragEnd}
-          onDragOver={(event) => onDragOver(event, layer.id)}
-          onDragStart={(event) => {
-            onDragStart(layer.id);
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("application/x-douga-layer", layer.id);
-          }}
-          onDrop={(event) => onDrop(event, layer.id)}
+          onPointerDown={(event) => onOrderPointerDown(event, layer)}
           onRename={onRename}
           onSelect={onSelect}
           renameLabel={renameLabel}
@@ -103,9 +93,8 @@ export function LayerTimelineRow({
         ]
           .filter(Boolean)
           .join(" ")}
-        onDragOver={(event) => onDragOver(event, layer.id)}
-        onDrop={(event) => onDrop(event, layer.id)}
         onPointerDown={(event) => seek(event, durationMs, onSeek)}
+        data-layer-order-target={layer.id}
         data-timeline-track-target={trackTargetLayerId}
         style={{ gridColumn: 2, gridRow: displayRow }}
       >

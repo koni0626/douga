@@ -1,5 +1,6 @@
 import asyncio
 import json
+import subprocess
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,25 @@ from douga.modules.assets.repository import AssetRepository
 from douga.modules.assets.storage import LocalStorage
 
 AssetKind = Literal["image", "video", "audio"]
+MEDIA_PROBE_TIMEOUT_SECONDS = 30
+
+
+def _run_ffprobe(ffprobe_path: str, path: Path) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(  # noqa: S603 - no shell; arguments are passed as a fixed array.
+        [
+            ffprobe_path,
+            "-v",
+            "error",
+            "-show_streams",
+            "-show_format",
+            "-of",
+            "json",
+            str(path),
+        ],
+        capture_output=True,
+        check=False,
+        timeout=MEDIA_PROBE_TIMEOUT_SECONDS,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,22 +280,13 @@ class AssetService:
             return mime_types[image.format], image.width, image.height
 
     async def _inspect_media(self, asset: Asset, path: Path) -> None:
-        process = await asyncio.create_subprocess_exec(
-            self.ffprobe_path,
-            "-v",
-            "error",
-            "-show_streams",
-            "-show_format",
-            "-of",
-            "json",
-            str(path),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, _ = await process.communicate()
+        try:
+            process = await asyncio.to_thread(_run_ffprobe, self.ffprobe_path, path)
+        except subprocess.TimeoutExpired as error:
+            raise ApplicationError("MEDIA_INVALID", "errors.uploadInvalid", 422) from error
         if process.returncode != 0:
             raise ApplicationError("MEDIA_INVALID", "errors.uploadInvalid", 422)
-        probe = json.loads(stdout)
+        probe = json.loads(process.stdout)
         streams = probe.get("streams", [])
         expected_type = "video" if asset.kind == "video" else "audio"
         stream = next((item for item in streams if item.get("codec_type") == expected_type), None)

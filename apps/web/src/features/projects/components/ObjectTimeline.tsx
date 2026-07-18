@@ -7,15 +7,20 @@ import {
 } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
-import type { LayerEasing } from "@douga/scene-renderer";
+import {
+  MAX_VIDEO_DURATION_MS,
+  MIN_VIDEO_DURATION_MS,
+  type LayerEasing,
+} from "@douga/scene-renderer";
 
 import type { CaptionTimelineClip } from "../lib/captionTimeline";
 import { timelineMenuPosition } from "../lib/timelineMenuPosition";
 import type { TimelineRange } from "../lib/timelineRange";
+import { TIMELINE_DURATION_RESIZE_STEP_MS } from "../lib/timelineCut";
 import {
   followPlayheadScroll,
   TIMELINE_LABEL_WIDTH_PX,
-  TIMELINE_SECOND_WIDTH_PX,
+  timelineSecondWidth,
   timelineTrackWidth,
 } from "../lib/timelineViewport";
 import { CaptionTimelineTrack } from "./CaptionTimelineTrack";
@@ -34,6 +39,11 @@ import { TimelineHeader } from "./TimelineHeader";
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type CameraEffect = NonNullable<ProjectDocument["camera_effects"]>[number];
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
+type DurationDrag = {
+  originDurationMs: number;
+  originX: number;
+  trackWidth: number;
+};
 const DEFAULT_TIMELINE_HEIGHT_PX = 180;
 const MIN_TIMELINE_HEIGHT_PX = 96;
 const TIMELINE_VIEWPORT_RESERVE_PX = 360;
@@ -52,13 +62,20 @@ export interface ObjectTimelineProps {
   audioLabel: string;
   audioTracks: AudioTrack[];
   audioTrackLabel: (track: AudioTrack) => string;
+  audioTrackSourceDuration: (track: AudioTrack) => number | undefined;
+  audioTrimEndLabel: string;
+  audioTrimStartLabel: string;
   layers: Layer[];
   playing: boolean;
   selectedLayerId?: string;
+  selectedCaptionId?: string;
   timeMs: number;
+  durationHandleLabel: string;
+  durationInputLabel: string;
+  formatTimelineDuration: (durationMs: number) => string;
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: TimelineRange) => void;
-  onAudioStartChange: (trackId: string, startMs: number) => void;
+  onAudioChange: (trackId: string, patch: Partial<AudioTrack>) => void;
   onAddCamera: () => void;
   onAddCaption: (startMs: number) => void;
   onAddTextHorizontal: () => void;
@@ -69,9 +86,11 @@ export interface ObjectTimelineProps {
   onOpenCaptionSettings: () => void;
   onCaptionChange: (captionId: string, range: TimelineRange) => void;
   onCaptionDelete: (captionId: string) => void;
+  onCaptionSelect: (captionId: string) => void;
   onCaptionTextChange: (captionId: string, text: string) => void;
   onOpenLayerSettings: () => void;
-  onExtend: () => void;
+  onCut: () => void;
+  onDurationChange: (durationMs: number) => void;
   onPlay: () => void;
   onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
   onDeleteLayer: (layerId: string) => void;
@@ -103,7 +122,8 @@ export interface ObjectTimelineProps {
   onStop: () => void;
   collapseLabel: string;
   expandLabel: string;
-  extendLabel: string;
+  cutDisabled: boolean;
+  cutLabel: string;
   resizeLabel: string;
   playLabel: string;
   seekLabel: string;
@@ -140,13 +160,20 @@ export function ObjectTimeline({
   audioLabel,
   audioTracks,
   audioTrackLabel,
+  audioTrackSourceDuration,
+  audioTrimEndLabel,
+  audioTrimStartLabel,
   layers,
   playing,
   selectedLayerId,
+  selectedCaptionId,
   timeMs,
+  durationHandleLabel,
+  durationInputLabel,
+  formatTimelineDuration,
   labelFor,
   onChange,
-  onAudioStartChange,
+  onAudioChange,
   onAddCamera,
   onAddCaption,
   onAddTextHorizontal,
@@ -157,9 +184,11 @@ export function ObjectTimeline({
   onOpenCaptionSettings,
   onCaptionChange,
   onCaptionDelete,
+  onCaptionSelect,
   onCaptionTextChange,
   onOpenLayerSettings,
-  onExtend,
+  onCut,
+  onDurationChange,
   onDeleteKeyframe,
   onDeleteLayer,
   onDuplicateKeyframe,
@@ -175,7 +204,8 @@ export function ObjectTimeline({
   onStop,
   collapseLabel,
   expandLabel,
-  extendLabel,
+  cutDisabled,
+  cutLabel,
   resizeLabel,
   playLabel,
   seekLabel,
@@ -200,8 +230,11 @@ export function ObjectTimeline({
   const [expanded, setExpanded] = useState(true);
   const [height, setHeight] = useState(DEFAULT_TIMELINE_HEIGHT_PX);
   const [timelineMenu, setTimelineMenu] = useState<TimelineMenuState>();
+  const [durationDrag, setDurationDrag] = useState<DurationDrag>();
+  const [draftDurationMs, setDraftDurationMs] = useState<number>();
   const scrollRef = useRef<HTMLDivElement>(null);
   const trackWidth = timelineTrackWidth(durationMs);
+  const secondWidth = timelineSecondWidth(durationMs);
   const seconds = Array.from(
     { length: Math.floor(durationMs / 1000) + 1 },
     (_, index) => index,
@@ -238,6 +271,36 @@ export function ObjectTimeline({
   }
 
   useEffect(() => {
+    if (!durationDrag) return;
+    const durationAt = (clientX: number) =>
+      Math.max(
+        MIN_VIDEO_DURATION_MS,
+        Math.min(
+          MAX_VIDEO_DURATION_MS,
+          Math.round(
+            (durationDrag.originDurationMs +
+              ((clientX - durationDrag.originX) / durationDrag.trackWidth) *
+                durationDrag.originDurationMs) /
+              TIMELINE_DURATION_RESIZE_STEP_MS,
+          ) * TIMELINE_DURATION_RESIZE_STEP_MS,
+        ),
+      );
+    const move = (event: globalThis.PointerEvent) =>
+      setDraftDurationMs(durationAt(event.clientX));
+    const finish = (event: globalThis.PointerEvent) => {
+      onDurationChange(durationAt(event.clientX));
+      setDurationDrag(undefined);
+      setDraftDurationMs(undefined);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+    };
+  }, [durationDrag, onDurationChange]);
+
+  useEffect(() => {
     if (!playing || !expanded) return;
     const scroll = scrollRef.current;
     if (!scroll) return;
@@ -262,16 +325,17 @@ export function ObjectTimeline({
     >
       <TimelineHeader
         collapseLabel={collapseLabel}
+        cutDisabled={cutDisabled}
+        cutLabel={cutLabel}
         expandLabel={expandLabel}
         expanded={expanded}
-        extendLabel={extendLabel}
         height={height}
         maximumHeight={Math.max(
           MIN_TIMELINE_HEIGHT_PX,
           globalThis.innerHeight - TIMELINE_VIEWPORT_RESERVE_PX,
         )}
         minimumHeight={MIN_TIMELINE_HEIGHT_PX}
-        onExtend={onExtend}
+        onCut={onCut}
         onHeightChange={setHeight}
         onPlay={onPlay}
         onStop={onStop}
@@ -281,6 +345,9 @@ export function ObjectTimeline({
         resizeLabel={resizeLabel}
         stopLabel={stopLabel}
         timeMs={timeMs}
+        durationMs={durationMs}
+        durationInputLabel={durationInputLabel}
+        onDurationChange={onDurationChange}
         title={title}
       />
       {expanded ? (
@@ -291,7 +358,7 @@ export function ObjectTimeline({
               {
                 minWidth: `${TIMELINE_LABEL_WIDTH_PX + trackWidth}px`,
                 "--timeline-label-width": `${TIMELINE_LABEL_WIDTH_PX}px`,
-                "--timeline-second-width": `${TIMELINE_SECOND_WIDTH_PX}px`,
+                "--timeline-second-width": `${secondWidth}px`,
                 "--timeline-track-width": `${trackWidth}px`,
               } as CSSProperties
             }
@@ -360,8 +427,10 @@ export function ObjectTimeline({
               onChange={onCaptionChange}
               onDelete={onCaptionDelete}
               onOpenSettings={onOpenCaptionSettings}
+              onSelect={onCaptionSelect}
               onSeek={onSeek}
               onTextChange={onCaptionTextChange}
+              selectedCaptionId={selectedCaptionId}
               settingsLabel={captionSettingsLabel}
               timeMs={timeMs}
             />
@@ -389,8 +458,11 @@ export function ObjectTimeline({
                 })
               }
               onSeek={onSeek}
-              onStartChange={onAudioStartChange}
+              onChange={onAudioChange}
+              sourceDurationFor={audioTrackSourceDuration}
               tracks={audioTracks}
+              trimEndLabel={audioTrimEndLabel}
+              trimStartLabel={audioTrimStartLabel}
             />
             <LayerTimelineTracks
               audioTrackCount={audioTracks.length}
@@ -425,6 +497,60 @@ export function ObjectTimeline({
                 className="object-timeline-playhead"
                 style={{ left: `${(timeMs * 100) / durationMs}%` }}
               />
+            </div>
+            <div
+              aria-label={durationHandleLabel}
+              aria-orientation="vertical"
+              aria-valuemax={MAX_VIDEO_DURATION_MS}
+              aria-valuemin={MIN_VIDEO_DURATION_MS}
+              aria-valuenow={draftDurationMs ?? durationMs}
+              className={
+                durationDrag
+                  ? "object-timeline-duration-handle object-timeline-duration-handle--dragging"
+                  : "object-timeline-duration-handle"
+              }
+              onKeyDown={(event) => {
+                if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
+                  return;
+                event.preventDefault();
+                onDurationChange(
+                  durationMs +
+                    (event.key === "ArrowRight"
+                      ? TIMELINE_DURATION_RESIZE_STEP_MS
+                      : -TIMELINE_DURATION_RESIZE_STEP_MS),
+                );
+              }}
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                setDraftDurationMs(durationMs);
+                setDurationDrag({
+                  originDurationMs: durationMs,
+                  originX: event.clientX,
+                  trackWidth,
+                });
+              }}
+              role="separator"
+              style={
+                {
+                  "--timeline-duration-draft-offset": `${
+                    draftDurationMs === undefined
+                      ? 0
+                      : ((draftDurationMs - durationMs) / durationMs) *
+                        trackWidth
+                  }px`,
+                } as CSSProperties
+              }
+              tabIndex={0}
+              title={durationHandleLabel}
+            >
+              <span aria-hidden="true" />
+              {draftDurationMs !== undefined ? (
+                <output aria-live="polite">
+                  {formatTimelineDuration(draftDurationMs)}
+                </output>
+              ) : null}
             </div>
           </div>
         </div>

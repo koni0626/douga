@@ -35,6 +35,66 @@ importers:
       '@douga/scene-renderer':
         specifier: workspace:*
         version: link:../../packages/scene-renderer
+      '@fontsource/dela-gothic-one':
+        specifier: 5.2.7
+        version: 5.2.7
+      '@fontsource/dotgothic16':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/hachi-maru-pop':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/kaisei-decol':
+        specifier: 5.2.7
+        version: 5.2.7
+      '@fontsource/kiwi-maru':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/m-plus-1p':
+        specifier: 5.2.9
+        version: 5.2.9
+      '@fontsource/m-plus-rounded-1c':
+        specifier: 5.2.10
+        version: 5.2.10
+      '@fontsource/mochiy-pop-one':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/noto-sans-jp':
+        specifier: 5.2.9
+        version: 5.2.9
+      '@fontsource/noto-serif-jp':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/reggae-one':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/rocknroll-one':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/sawarabi-gothic':
+        specifier: 5.2.9
+        version: 5.2.9
+      '@fontsource/sawarabi-mincho':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/shippori-mincho':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/yomogi':
+        specifier: 5.2.7
+        version: 5.2.7
+      '@fontsource/yuji-syuku':
+        specifier: 5.2.7
+        version: 5.2.7
+      '@fontsource/zen-kaku-gothic-new':
+        specifier: 5.2.7
+        version: 5.2.7
+      '@fontsource/zen-maru-gothic':
+        specifier: 5.2.8
+        version: 5.2.8
+      '@fontsource/zen-old-mincho':
+        specifier: 5.2.8
+        version: 5.2.8
       i18next:
         specifier: 26.3.6
         version: 26.3.6(typescript@7.0.2)
@@ -237,6 +297,66 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@fontsource/dela-gothic-one@5.2.7':
+    resolution: {integrity: sha512-swkcFgr2HjPWbY7dGP/9H7zXePtwF6C5ASLriFSZ02nAh6zjUIudwz8TBWQu9mIXfbgWnvokZ0PjP2FWQGGIWQ==}
+
+  '@fontsource/dotgothic16@5.2.8':
+    resolution: {integrity: sha512-kKLp0jtNURDwQwdBBHB7CFs/i5b6MVPNVEOy8EFbdWwKT9xQZbQqYIEjW1nKayqcs0Uh6imBCeUFuIBufEJK4w==}
+
+  '@fontsource/hachi-maru-pop@5.2.8':
+    resolution: {integrity: sha512-MaPBq9mELk30HLhT5vViDZoU+XYpCEGf03f34o7NzGdcA/GOhQXe3lLnAfKdr27RIb/PcJnNtyriyAmlO28mcw==}
+
+  '@fontsource/kaisei-decol@5.2.7':
+    resolution: {integrity: sha512-7SvyKTqZWON4XhH7HpA0gFyCznvWIEKS2ln77elgdkPaAigySo3iw/gfL1s4sjxBViXOhnNJwQUhmo7+RfwJHA==}
+
+  '@fontsource/kiwi-maru@5.2.8':
+    resolution: {integrity: sha512-2ENkh90aXGQDmhClqkrIjDpFJ1BQIuVeVKcYQC7ZYKbUcybBdth8mTAIkEPJsfMKc1RX7S63QMr9B+Bk/FtXjA==}
+
+  '@fontsource/m-plus-1p@5.2.9':
+    resolution: {integrity: sha512-SdstxK+xoUHmSkbmYTnPRWZWEfuQax6ZR0XbFhU82z5GA4X/YRE+VX54q0aDRJ5btej/fvFtww3qHFvp9A06GQ==}
+
+  '@fontsource/m-plus-rounded-1c@5.2.10':
+    resolution: {integrity: sha512-PLrYoJHCBMApU8zioMT+Un6TLr6JTI7lBJWXo+t2ZNdpEn1XqZG3Y3XvNuIxdX1F3m0UqvtEbtBMHgAbTdefOw==}
+
+  '@fontsource/mochiy-pop-one@5.2.8':
+    resolution: {integrity: sha512-WNPX7iIlifcXKDd27o2+YeUkS2BwLIU3LupW3Sz7RLHxxl/mE3ucNuAJesJ+aL/BNLI62+J7w+e3RMoGNlzd8w==}
+
+  '@fontsource/noto-sans-jp@5.2.9':
+    resolution: {integrity: sha512-6yVGiofnrnbiJjU8ch4JGSs2HqyozxMvsVyVmFwOnDH3u//qQKLqmKM4n0lqN0637uaJNzUW9nIJqbbMgHVQzw==}
+
+  '@fontsource/noto-serif-jp@5.2.8':
+    resolution: {integrity: sha512-x+tGrrK+4t/hoHLxAl7Ry5nN8CVPermqz0fD7HtCXzBJSxzFKxNH9y+cuOD3gZW0tyKZ2CD7WvuAfHbISvjL5Q==}
+
+  '@fontsource/reggae-one@5.2.8':
+    resolution: {integrity: sha512-pRyMofg5J3U9ae6KAYwufXxZXckPegUveeoDha8HLqKHwLKew2QFyrGP7hxTCWJMW3S+zOiJKofJfQnCV71otQ==}
+
+  '@fontsource/rocknroll-one@5.2.8':
+    resolution: {integrity: sha512-iDyuQiKYk/6FstkIOHz6pHN8wNlYHxOU6t3ez+x3r5JEjWBBoDj6J8rns0rgmtHI+DoOjc0hYRz8aJj4AM2Uvg==}
+
+  '@fontsource/sawarabi-gothic@5.2.9':
+    resolution: {integrity: sha512-Pcrjm39+wn/gTn+RaSzORQufSThANbhqp/DlFRaSO2IUDmWWNN+R5/sV8q8W7cxeRY6pwm/FmtDd3oZFz3Qz7w==}
+
+  '@fontsource/sawarabi-mincho@5.2.8':
+    resolution: {integrity: sha512-wRv0jXX1RlwDCHlWX/kKVwwD5yb0yQ944Z9ep0wBzXw8UeIM3ITMG86ms0jvQLkXreyTIGhA45LI4W6B/u8lIA==}
+
+  '@fontsource/shippori-mincho@5.2.8':
+    resolution: {integrity: sha512-GoWDgrzVyB1oUufPKN9suBaM+TpliiBcMwEalqqMeO38xdGJzY/ZwhehZsxyOoR56c1l98vwXbj+tXWHyGefJA==}
+
+  '@fontsource/yomogi@5.2.7':
+    resolution: {integrity: sha512-FtbtAOqRJlsjSK/wlw/S+uOkJXGWVp9yq6/utDmR6YXvvmTMoZQ75/mWimOS87Scg7gWlP4HU9gAgDUup6dLWg==}
+
+  '@fontsource/yuji-syuku@5.2.7':
+    resolution: {integrity: sha512-9zBYh4xHWUJsRvsF+78e7H/axtMea8ZiPemc+KZZ06g+0B+kh24gSt/TLQm5rxWqViVmLMX6N8pEQuiyPsg6Cw==}
+
+  '@fontsource/zen-kaku-gothic-new@5.2.7':
+    resolution: {integrity: sha512-tfGiyBqeeBjUURHm+RIuBJCxIKhZFp46/+LEc+zCxR4sLslKwlVpWda0ZOnX/mTvOHpfr4DYjiV/pVosRXHWaw==}
+
+  '@fontsource/zen-maru-gothic@5.2.8':
+    resolution: {integrity: sha512-6RkH33+rgEJy1hkUdDAf+3PyQ7oUjX3vj7cekmfx/bT/9BEPd07FqrjcGBQDe4uWmUebEKuIZep3phDjsnJ6vA==}
+
+  '@fontsource/zen-old-mincho@5.2.8':
+    resolution: {integrity: sha512-ZMnFdz7/a97kdeR5KNfjiBJZc26BZhyI7+wgO87Z6lh+g6WtTJBvUokHyeQgjiCyXCXybpEuFLmc4zEZtzdNYA==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -1563,6 +1683,46 @@ snapshots:
       levn: 0.4.1
 
   '@exodus/bytes@1.15.1': {}
+
+  '@fontsource/dela-gothic-one@5.2.7': {}
+
+  '@fontsource/dotgothic16@5.2.8': {}
+
+  '@fontsource/hachi-maru-pop@5.2.8': {}
+
+  '@fontsource/kaisei-decol@5.2.7': {}
+
+  '@fontsource/kiwi-maru@5.2.8': {}
+
+  '@fontsource/m-plus-1p@5.2.9': {}
+
+  '@fontsource/m-plus-rounded-1c@5.2.10': {}
+
+  '@fontsource/mochiy-pop-one@5.2.8': {}
+
+  '@fontsource/noto-sans-jp@5.2.9': {}
+
+  '@fontsource/noto-serif-jp@5.2.8': {}
+
+  '@fontsource/reggae-one@5.2.8': {}
+
+  '@fontsource/rocknroll-one@5.2.8': {}
+
+  '@fontsource/sawarabi-gothic@5.2.9': {}
+
+  '@fontsource/sawarabi-mincho@5.2.8': {}
+
+  '@fontsource/shippori-mincho@5.2.8': {}
+
+  '@fontsource/yomogi@5.2.7': {}
+
+  '@fontsource/yuji-syuku@5.2.7': {}
+
+  '@fontsource/zen-kaku-gothic-new@5.2.7': {}
+
+  '@fontsource/zen-maru-gothic@5.2.8': {}
+
+  '@fontsource/zen-old-mincho@5.2.8': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

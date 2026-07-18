@@ -81,7 +81,7 @@
         "fps": { "type": "number", "exclusiveMinimum": 0, "maximum": 120 },
         "duration_ms": {
           "type": "integer",
-          "minimum": 5000,
+          "minimum": 100,
           "maximum": 3600000
         }
       }

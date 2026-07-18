@@ -72,6 +72,7 @@ export function EditorPropertyPanel(props: EditorPropertyPanelProps) {
         audioTracks={project.audio_tracks ?? []}
         cameraEffects={project.camera_effects ?? []}
         captionStyle={project.caption_style}
+        durationMs={props.durationMs}
         onAddAudio={props.onAddAudio}
         onAddCamera={props.onAddCamera}
         onDeleteAudio={props.onDeleteAudio}

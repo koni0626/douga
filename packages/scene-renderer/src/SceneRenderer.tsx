@@ -19,6 +19,7 @@ export interface SceneRendererProps {
   className?: string;
   style?: CSSProperties;
   hideCaption?: boolean;
+  showFullText?: boolean;
 }
 
 function layerTransform(layer: Layer): string {
@@ -33,6 +34,7 @@ function renderLayer(
   layer: Layer,
   timeMs: number,
   assetUrl?: SceneRendererProps["assetUrl"],
+  showFullText = false,
 ): ReactNode {
   if (layer.type === "image") {
     const href = assetUrl?.(layer.asset_id);
@@ -78,7 +80,7 @@ function renderLayer(
     );
   }
 
-  const text = visibleTextAtTime(layer, timeMs);
+  const text = visibleTextAtTime(layer, timeMs, showFullText);
   const vertical = layer.writing_mode === "vertical";
   const neon = layer.text_style === "neon";
   const safeId = layer.id.replace(/[^a-zA-Z0-9_-]/gu, "-");
@@ -172,6 +174,7 @@ export function SceneRenderer({
   className,
   style,
   hideCaption = false,
+  showFullText = false,
 }: SceneRendererProps) {
   const scene = project.scenes[sceneIndex];
   if (!scene) {
@@ -240,7 +243,12 @@ export function SceneRenderer({
         ) : null}
         {scene.layers.map((layer) =>
           isLayerVisibleAtTime(layer, timeMs)
-            ? renderLayer(resolveLayerAtTime(layer, timeMs), timeMs, assetUrl)
+            ? renderLayer(
+                resolveLayerAtTime(layer, timeMs),
+                timeMs,
+                assetUrl,
+                showFullText,
+              )
             : null,
         )}
         {!hideCaption && resolved.page ? (

@@ -1,9 +1,4 @@
-import {
-  type DragEvent as ReactDragEvent,
-  type PointerEvent,
-  useEffect,
-  useState,
-} from "react";
+import { type PointerEvent, useEffect, useState } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import type { LayerEasing } from "@douga/scene-renderer";
@@ -35,6 +30,11 @@ type DragState = {
   trackWidth: number;
 };
 type ClipMenu = { layerId: string; x: number; y: number };
+type OrderDragState = {
+  layerId: string;
+  originX: number;
+  originY: number;
+};
 
 export interface LayerTimelineTracksProps {
   audioTrackCount: number;
@@ -138,6 +138,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
   }>();
   const [drag, setDrag] = useState<DragState>();
   const [draggedLayerId, setDraggedLayerId] = useState<string>();
+  const [orderDrag, setOrderDrag] = useState<OrderDragState>();
   const [clipDropTargetId, setClipDropTargetId] = useState<string>();
   const [dropTarget, setDropTarget] = useState<{
     layerId: string;
@@ -209,6 +210,68 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
     };
   }, [drag, durationMs, onChange, onMoveToTrack, onSeek]);
 
+  useEffect(() => {
+    if (!orderDrag) return;
+    const targetAt = (event: globalThis.PointerEvent) => {
+      const target = document
+        .elementsFromPoint(event.clientX, event.clientY)
+        .map((element) =>
+          element.closest<HTMLElement>("[data-layer-order-target]"),
+        )
+        .find(Boolean);
+      if (!target) return undefined;
+      const bounds = target.getBoundingClientRect();
+      return {
+        layerId: target.dataset.layerOrderTarget,
+        position:
+          event.clientY < bounds.top + bounds.height / 2
+            ? ("before" as const)
+            : ("after" as const),
+      };
+    };
+    const moved = (event: globalThis.PointerEvent) =>
+      Math.abs(event.clientX - orderDrag.originX) >= 4 ||
+      Math.abs(event.clientY - orderDrag.originY) >= 4;
+    const move = (event: globalThis.PointerEvent) => {
+      if (!moved(event)) return;
+      const target = targetAt(event);
+      setDropTarget(
+        target?.layerId
+          ? { layerId: target.layerId, position: target.position }
+          : undefined,
+      );
+    };
+    const finish = (event: globalThis.PointerEvent) => {
+      const target = moved(event) ? targetAt(event) : undefined;
+      const sourceIndex = layers.findIndex(
+        (layer) => layer.id === orderDrag.layerId,
+      );
+      const targetIndex = layers.findIndex(
+        (layer) => layer.id === target?.layerId,
+      );
+      if (
+        target &&
+        sourceIndex >= 0 &&
+        targetIndex >= 0 &&
+        sourceIndex !== targetIndex
+      )
+        onReorder(
+          sourceIndex,
+          targetIndex,
+          target.position === "before" ? "after" : "before",
+        );
+      setOrderDrag(undefined);
+      setDraggedLayerId(undefined);
+      setDropTarget(undefined);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", finish, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+    };
+  }, [layers, onReorder, orderDrag]);
+
   function beginDrag(
     event: PointerEvent<HTMLDivElement>,
     layer: Layer,
@@ -236,36 +299,19 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
     });
   }
 
-  function orderDragOver(event: ReactDragEvent<HTMLElement>, layerId: string) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    const bounds = event.currentTarget.getBoundingClientRect();
-    setDropTarget({
-      layerId,
-      position:
-        event.clientY < bounds.top + bounds.height / 2 ? "before" : "after",
-    });
-  }
-
-  function orderDrop(
-    event: ReactDragEvent<HTMLElement>,
-    targetLayerId: string,
+  function beginOrderDrag(
+    event: PointerEvent<HTMLButtonElement>,
+    layer: Layer,
   ) {
-    event.preventDefault();
-    const sourceLayerId =
-      draggedLayerId || event.dataTransfer.getData("application/x-douga-layer");
-    const sourceIndex = layers.findIndex((layer) => layer.id === sourceLayerId);
-    const targetIndex = layers.findIndex((layer) => layer.id === targetLayerId);
-    const position = dropTarget?.position ?? "before";
-    setDraggedLayerId(undefined);
-    setDropTarget(undefined);
-    if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex)
-      return;
-    onReorder(
-      sourceIndex,
-      targetIndex,
-      position === "before" ? "after" : "before",
-    );
+    if (event.button !== 0 || layer.locked) return;
+    event.stopPropagation();
+    onSelect(layer.id);
+    setDraggedLayerId(layer.id);
+    setOrderDrag({
+      layerId: layer.id,
+      originX: event.clientX,
+      originY: event.clientY,
+    });
   }
 
   return (
@@ -298,13 +344,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
             keyframeLabels={keyframeLabels}
             label={`${labelFor(layer)}${trackLayers.length > 1 ? ` (${trackLayers.length})` : ""}`}
             layer={layer}
-            onDragEnd={() => {
-              setDraggedLayerId(undefined);
-              setDropTarget(undefined);
-            }}
-            onDragOver={orderDragOver}
-            onDragStart={setDraggedLayerId}
-            onDrop={orderDrop}
+            onOrderPointerDown={beginOrderDrag}
             onOpenClipMenu={(x, y) =>
               setClipMenu({
                 layerId: layer.id,

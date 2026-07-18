@@ -40,9 +40,9 @@ function project(): ProjectDocument {
 }
 
 describe("resolveSceneDurationMs", () => {
-  it("uses five seconds as the minimum and rounds up", () => {
-    expect(roundVideoDurationMs(0)).toBe(5000);
-    expect(roundVideoDurationMs(12_001)).toBe(15_000);
+  it("uses a short minimum and snaps to the editor precision", () => {
+    expect(roundVideoDurationMs(0)).toBe(100);
+    expect(roundVideoDurationMs(12_001)).toBe(12_050);
   });
 
   it("extends to the latest layer and keyframe", () => {
@@ -77,7 +77,7 @@ describe("resolveSceneDurationMs", () => {
       ],
     });
 
-    expect(resolveSceneDurationMs(value)).toBe(15_000);
+    expect(resolveSceneDurationMs(value)).toBe(12_100);
   });
 
   it("includes manual duration and audio", () => {
@@ -99,7 +99,7 @@ describe("resolveSceneDurationMs", () => {
       },
     ];
 
-    expect(resolveSceneDurationMs(value)).toBe(20_000);
+    expect(resolveSceneDurationMs(value)).toBe(16_000);
   });
 
   it("includes camera effects", () => {
@@ -115,6 +115,6 @@ describe("resolveSceneDurationMs", () => {
       },
     ];
 
-    expect(resolveSceneDurationMs(value)).toBe(15_000);
+    expect(resolveSceneDurationMs(value)).toBe(12_050);
   });
 });

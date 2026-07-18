@@ -305,7 +305,7 @@ class ProjectService:
 
     @staticmethod
     def _estimated_duration(document: dict[str, Any]) -> int:
-        maximum = max(5000, int(document.get("video", {}).get("duration_ms", 0)))
+        maximum = max(100, int(document.get("video", {}).get("duration_ms", 0)))
         for scene in document["scenes"]:
             dialogue_end = 0
             for dialogue in scene["dialogues"]:
@@ -328,7 +328,7 @@ class ProjectService:
             )
         for effect in document.get("camera_effects", []):
             maximum = max(maximum, int(effect["end_ms"]))
-        return ((maximum + 4999) // 5000) * 5000
+        return ((maximum + 49) // 50) * 50
 
     @staticmethod
     def _revision(

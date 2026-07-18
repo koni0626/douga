@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
 import {
+  MIN_VIDEO_DURATION_MS,
   resolveSceneDurationMs,
   roundVideoDurationMs,
   type LayerEasing,
@@ -21,6 +22,10 @@ import {
   snapKeyframeTime,
 } from "../lib/layerKeyframes";
 import type { TimelineRange } from "../lib/timelineRange";
+import {
+  cutTimelineAt as cutProjectTimelineAt,
+  resizeTimeline,
+} from "../lib/timelineCut";
 import {
   moveLayerClipToTrack,
   updateLayerTimelineRange,
@@ -268,10 +273,24 @@ export function useLayerEditorActions({
     });
   }
 
-  function setManualDuration(requestedDurationMs: number) {
+  function cutTimelineAt(requestedTimeMs: number) {
+    let cutMs = MIN_VIDEO_DURATION_MS;
     mutate((document) => {
-      document.video.duration_ms = roundVideoDurationMs(requestedDurationMs);
+      cutMs = cutProjectTimelineAt(document, requestedTimeMs);
     });
+    return cutMs;
+  }
+
+  function resizeTimelineTo(requestedDurationMs: number) {
+    let resizedDurationMs = MIN_VIDEO_DURATION_MS;
+    mutate((document) => {
+      resizedDurationMs = resizeTimeline(
+        document,
+        requestedDurationMs,
+        sceneIndex,
+      );
+    });
+    return resizedDurationMs;
   }
 
   function updateLayerRange(layerId: string, range: TimelineRange) {
@@ -292,6 +311,7 @@ export function useLayerEditorActions({
     addUploadedImageLayer,
     applyAnimationPreset: applyAnimation,
     clearAnimation,
+    cutTimelineAt,
     deleteLayer,
     deleteKeyframe,
     duplicateKeyframe,
@@ -299,7 +319,7 @@ export function useLayerEditorActions({
     moveLayerToTrack,
     pasteTextLayer,
     reorderLayer,
-    setManualDuration,
+    resizeTimelineTo,
     splitLayerTrack,
     updateKeyframeEasing,
     updateLayer,

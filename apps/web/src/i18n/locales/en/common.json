@@ -167,7 +167,11 @@
     "renameObject": "Rename object",
     "collapseTimeline": "Collapse timeline",
     "expandTimeline": "Expand timeline",
-    "extendTimeline": "Extend by 5 seconds",
+    "cutTimelineAtPlayhead": "End at playhead",
+    "resizeTimelineDuration": "Change video end position",
+    "timelineDurationValue": "Video length: {{seconds}}s",
+    "trimAudioStart": "Trim audio clip start",
+    "trimAudioEnd": "Trim audio clip end",
     "resizeTimeline": "Resize timeline height",
     "mergeTrackAbove": "Merge into layer above",
     "mergeTrackBelow": "Merge into layer below",
@@ -210,12 +214,22 @@
       "fontMonospace": "Monospace",
       "fontJapaneseGothic": "Japanese Gothic",
       "fontJapaneseMincho": "Japanese Mincho",
+      "fontCategory": {
+        "system": "System fonts",
+        "gothic": "Japanese sans serif",
+        "mincho": "Japanese serif and brush",
+        "display": "Rounded, handwritten, and display"
+      },
       "neon": "Neon gradient",
       "neonColor": "Neon color",
       "displayEffect": "Display effect",
       "effectInstant": "Show all at once",
       "effectTypewriter": "Typewriter",
       "charactersPerSecond": "Characters per second"
+    },
+    "shapeStyle": {
+      "title": "Shape settings",
+      "transparency": "Transparency"
     },
     "keyframe": {
       "label": "Keyframe",
@@ -238,7 +252,7 @@
     "sceneName": "Scene name",
     "backgroundColor": "Background color",
     "videoDurationSeconds": "Video length (seconds)",
-    "durationAutoHint": "Automatically extends in 5-second steps to fit objects, keyframes, captions, and audio.",
+    "durationAutoHint": "Automatically extends to fit the end of objects, keyframes, captions, and audio.",
     "dialogues": "Script and captions",
     "addDialogue": "Add caption",
     "newDialogue": "Enter your caption here.",
@@ -268,6 +282,8 @@
     "audioRole": "Role",
     "audioTrack": "Audio",
     "audioStartSeconds": "Playback start (seconds)",
+    "audioTrimStartSeconds": "Source start (seconds)",
+    "audioDurationSeconds": "Clip duration (seconds)",
     "fadeInSeconds": "Fade in (seconds)",
     "fadeOutSeconds": "Fade out (seconds)",
     "volume": "Volume",

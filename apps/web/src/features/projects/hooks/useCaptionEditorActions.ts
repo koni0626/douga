@@ -10,6 +10,8 @@ import {
 import type { Dialogue, Scene } from "../lib/editorTypes";
 import type { TimelineRange } from "../lib/timelineRange";
 
+const DEFAULT_CAPTION_DISPLAY_EFFECT: Dialogue["display_effect"] = "typewriter";
+
 export interface CaptionEditorActionsOptions {
   captionDraft: string;
   documentRef: MutableRefObject<ProjectDocument | undefined>;
@@ -35,7 +37,7 @@ export function useCaptionEditorActions({
         id: crypto.randomUUID(),
         speaker: null,
         text: t("editor.newDialogue"),
-        display_effect: "typewriter",
+        display_effect: DEFAULT_CAPTION_DISPLAY_EFFECT,
         duration_mode: "auto",
         duration_ms: null,
         manual_page_breaks: [],
@@ -44,19 +46,21 @@ export function useCaptionEditorActions({
   }
 
   function addCaptionAt(startMs: number) {
+    const dialogueId = crypto.randomUUID();
     updateScene((scene) => {
       scene.dialogues.push({
-        id: crypto.randomUUID(),
+        id: dialogueId,
         speaker: null,
         start_ms: Math.max(0, Math.round(startMs / 50) * 50),
         text: t("editor.newDialogue"),
-        display_effect: "instant",
+        display_effect: DEFAULT_CAPTION_DISPLAY_EFFECT,
         duration_mode: "manual",
         duration_ms: 3000,
         manual_page_breaks: [],
       });
       sortDialogues(scene);
     });
+    return dialogueId;
   }
 
   function updateCaptionRange(dialogueId: string, range: TimelineRange) {
@@ -106,7 +110,7 @@ export function useCaptionEditorActions({
           speaker: null,
           start_ms: Math.round(timeMs),
           text,
-          display_effect: "typewriter",
+          display_effect: DEFAULT_CAPTION_DISPLAY_EFFECT,
           duration_mode: "auto",
           duration_ms: null,
           manual_page_breaks: [],

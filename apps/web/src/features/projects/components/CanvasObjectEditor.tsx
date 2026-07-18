@@ -24,6 +24,7 @@ import { CanvasInlineTextEditor } from "./CanvasInlineTextEditor";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type TextLayer = Extract<Layer, { type: "text" }>;
+type ShapeLayer = Extract<Layer, { type: "shape" }>;
 export type LayerTransformPatch = Partial<
   Pick<
     Layer,
@@ -279,6 +280,11 @@ export function CanvasObjectEditor({
     onCommit(menuLayer.id, patch);
   }
 
+  function commitShapeStyle(patch: Partial<ShapeLayer>) {
+    if (!menuLayer || menuLayer.type !== "shape") return;
+    onCommit(menuLayer.id, patch);
+  }
+
   function fillCanvas() {
     if (!menuLayer || menuLayer.type !== "image") return;
     const scale = Math.max(width / menuLayer.width, height / menuLayer.height);
@@ -442,6 +448,7 @@ export function CanvasObjectEditor({
           onClose={() => setContextMenu(undefined)}
           onFillCanvas={fillCanvas}
           onPatch={commitFromMenu}
+          onShapePatch={commitShapeStyle}
           onTextPatch={commitTextStyle}
           textSettingsLabel={textSettingsLabel}
           unlockLabel={unlockLabel}

@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
+
+import { FONT_CATEGORIES, FONT_OPTIONS } from "../lib/fontCatalog";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type TextLayer = Extract<Layer, { type: "text" }>;
@@ -11,28 +14,41 @@ interface TextStyleMenuProps {
   onPatch: (patch: Partial<TextLayer>) => void;
 }
 
-const FONT_OPTIONS = [
-  { value: "sans-serif", labelKey: "editor.textStyle.fontSans" },
-  { value: "serif", labelKey: "editor.textStyle.fontSerif" },
-  { value: "monospace", labelKey: "editor.textStyle.fontMonospace" },
-  {
-    value: '"Noto Sans JP", "Yu Gothic", sans-serif',
-    labelKey: "editor.textStyle.fontJapaneseGothic",
-  },
-  {
-    value: '"Noto Serif JP", "Yu Mincho", serif',
-    labelKey: "editor.textStyle.fontJapaneseMincho",
-  },
-] as const;
-
 function colorValue(value: string | undefined, fallback: string): string {
   return /^#[\da-f]{6}$/iu.test(value ?? "") ? (value ?? fallback) : fallback;
 }
 
 export function TextStyleMenu({ layer, onBack, onPatch }: TextStyleMenuProps) {
   const { t } = useTranslation();
+  const [fontSizeDraft, setFontSizeDraft] = useState(String(layer.font_size));
+  const selectedFont = layer.font_family ?? "sans-serif";
+  const selectedFontIsKnown = FONT_OPTIONS.some(
+    (option) => option.family === selectedFont,
+  );
   const typewriter = layer.display_effect === "typewriter";
   const neon = layer.text_style === "neon";
+
+  useEffect(() => {
+    setFontSizeDraft(String(layer.font_size));
+  }, [layer.font_size]);
+
+  function updateFontSize(value: string) {
+    setFontSizeDraft(value);
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= 8 && parsed <= 500)
+      onPatch({ font_size: parsed });
+  }
+
+  function finishFontSizeInput() {
+    const parsed = Number(fontSizeDraft);
+    if (Number.isFinite(parsed) && parsed >= 8 && parsed <= 500) {
+      setFontSizeDraft(String(parsed));
+      if (parsed !== layer.font_size) onPatch({ font_size: parsed });
+      return;
+    }
+    setFontSizeDraft(String(layer.font_size));
+  }
+
   return (
     <div className="text-style-menu">
       <div className="animation-preset-header">
@@ -62,13 +78,30 @@ export function TextStyleMenu({ layer, onBack, onPatch }: TextStyleMenuProps) {
       <label>
         <span>{t("editor.textStyle.font")}</span>
         <select
-          value={layer.font_family ?? "sans-serif"}
+          value={selectedFont}
+          style={{ fontFamily: selectedFont }}
           onChange={(event) => onPatch({ font_family: event.target.value })}
         >
-          {FONT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {t(option.labelKey)}
-            </option>
+          {!selectedFontIsKnown ? (
+            <option value={selectedFont}>{selectedFont}</option>
+          ) : null}
+          {FONT_CATEGORIES.map((category) => (
+            <optgroup
+              key={category}
+              label={t(`editor.textStyle.fontCategory.${category}`)}
+            >
+              {FONT_OPTIONS.filter(
+                (option) => option.category === category,
+              ).map((option) => (
+                <option
+                  key={option.family}
+                  style={{ fontFamily: option.family }}
+                  value={option.family}
+                >
+                  {option.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </label>
@@ -79,11 +112,11 @@ export function TextStyleMenu({ layer, onBack, onPatch }: TextStyleMenuProps) {
           min={8}
           max={500}
           step={1}
-          value={layer.font_size}
-          onChange={(event) => {
-            const value = event.target.valueAsNumber;
-            if (Number.isFinite(value) && value >= 8 && value <= 500)
-              onPatch({ font_size: value });
+          value={fontSizeDraft}
+          onBlur={finishFontSizeInput}
+          onChange={(event) => updateFontSize(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
           }}
         />
       </label>

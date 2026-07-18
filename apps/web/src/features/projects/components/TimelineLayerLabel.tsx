@@ -1,7 +1,7 @@
 import {
   type CSSProperties,
-  type DragEvent as ReactDragEvent,
   type KeyboardEvent,
+  type PointerEvent,
   useState,
 } from "react";
 
@@ -15,10 +15,7 @@ interface TimelineLayerLabelProps {
   grabbed: boolean;
   label: string;
   layer: Layer;
-  onDragEnd: () => void;
-  onDragOver: (event: ReactDragEvent<HTMLElement>) => void;
-  onDragStart: (event: ReactDragEvent<HTMLElement>) => void;
-  onDrop: (event: ReactDragEvent<HTMLElement>) => void;
+  onPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
   onRename: (name?: string) => void;
   onSelect: () => void;
   renameLabel: string;
@@ -31,10 +28,7 @@ export function TimelineLayerLabel({
   grabbed,
   label,
   layer,
-  onDragEnd,
-  onDragOver,
-  onDragStart,
-  onDrop,
+  onPointerDown,
   onRename,
   onSelect,
   renameLabel,
@@ -96,17 +90,14 @@ export function TimelineLayerLabel({
       type="button"
       aria-grabbed={grabbed}
       className={className}
-      draggable={!layer.locked}
-      onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
-      onDragStart={onDragStart}
-      onDrop={onDrop}
+      data-layer-order-target={layer.id}
       onClick={onSelect}
       onDoubleClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
         beginRename();
       }}
+      onPointerDown={onPointerDown}
       title={renameLabel}
       style={style}
     >

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
@@ -7,10 +8,12 @@ import {
   AnimationPresetMenu,
   type AnimationPresetLabels,
 } from "./AnimationPresetMenu";
+import { ShapeStyleMenu } from "./ShapeStyleMenu";
 import { TextStyleMenu } from "./TextStyleMenu";
 
 type Layer = ProjectDocument["scenes"][number]["layers"][number];
 type TextLayer = Extract<Layer, { type: "text" }>;
+type ShapeLayer = Extract<Layer, { type: "shape" }>;
 type MenuPatch = Partial<Pick<Layer, "flip_x" | "flip_y" | "locked">>;
 
 interface CanvasObjectContextMenuProps {
@@ -25,6 +28,7 @@ interface CanvasObjectContextMenuProps {
   onClose: () => void;
   onFillCanvas: () => void;
   onPatch: (patch: MenuPatch) => void;
+  onShapePatch: (patch: Partial<ShapeLayer>) => void;
   onTextPatch: (patch: Partial<TextLayer>) => void;
   textSettingsLabel: string;
   unlockLabel: string;
@@ -44,13 +48,17 @@ export function CanvasObjectContextMenu({
   onClose,
   onFillCanvas,
   onPatch,
+  onShapePatch,
   onTextPatch,
   textSettingsLabel,
   unlockLabel,
   x,
   y,
 }: CanvasObjectContextMenuProps) {
-  const [panel, setPanel] = useState<"animation" | "effect" | "text">();
+  const { t } = useTranslation();
+  const [panel, setPanel] = useState<
+    "animation" | "effect" | "shape" | "text"
+  >();
 
   return (
     <div
@@ -68,6 +76,12 @@ export function CanvasObjectContextMenu({
           layer={layer}
           onBack={() => setPanel(undefined)}
           onPatch={onTextPatch}
+        />
+      ) : panel === "shape" && layer.type === "shape" ? (
+        <ShapeStyleMenu
+          layer={layer}
+          onBack={() => setPanel(undefined)}
+          onPatch={onShapePatch}
         />
       ) : panel ? (
         <AnimationPresetMenu
@@ -119,6 +133,16 @@ export function CanvasObjectContextMenu({
               onClick={() => setPanel("text")}
             >
               {textSettingsLabel} ›
+            </button>
+          ) : null}
+          {layer.type === "shape" ? (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={layer.locked}
+              onClick={() => setPanel("shape")}
+            >
+              {t("editor.shapeStyle.title")} ›
             </button>
           ) : null}
           <button
