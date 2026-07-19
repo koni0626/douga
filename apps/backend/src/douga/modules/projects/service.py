@@ -212,6 +212,7 @@ class ProjectService:
         if status is not None:
             project.status = status
         await self.uow.commit()
+        await self.repository.refresh(project)
         return self._summary(project)
 
     async def duplicate_project(self, project_id: UUID, user_id: UUID) -> ProjectDetail:
