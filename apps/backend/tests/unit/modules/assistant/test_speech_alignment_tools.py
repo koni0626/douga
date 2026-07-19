@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from typing import cast
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -150,9 +150,21 @@ async def test_replaces_narration_and_creates_exact_measured_captions(
     monkeypatch.setattr(speech_alignment_tools, "ProjectToolService", FakeProjectToolService)
     monkeypatch.setattr(speech_alignment_tools, "AssetRepository", FakeAssetRepository)
     monkeypatch.setattr(speech_alignment_tools, "SpeechService", FakeSpeechService)
+    progress_events: list[dict[str, Any]] = []
+
+    async def emit_progress(event: dict[str, Any]) -> None:
+        progress_events.append(event)
+
+    tool_context = ToolContext(
+        session=cast(AsyncSession, object()),
+        run_id=uuid4(),
+        project_id=uuid4(),
+        user_id=user_id,
+        emit_progress=emit_progress,
+    )
 
     result = await speech_alignment_tools.create_synced_captions_from_narration(
-        context(user_id),
+        tool_context,
         {
             "audio_clip_ids": [audio_clip_id],
             "max_chars_per_caption": 30,
@@ -173,6 +185,9 @@ async def test_replaces_narration_and_creates_exact_measured_captions(
     ]
     assert result.data["alignment_method"] == "segmented_synthesis_v1"
     assert result.revision_number == 2
+    assert progress_events == [
+        {"phase": "narration_caption_sync", "progress": 100}
+    ]
 
 
 @pytest.mark.asyncio

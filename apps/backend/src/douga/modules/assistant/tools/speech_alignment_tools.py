@@ -162,7 +162,7 @@ async def create_synced_captions_from_narration(
             await context.emit_progress(
                 {
                     "phase": "narration_caption_sync",
-                    "progress": round((index + 1) / len(sources), 3),
+                    "progress": round(((index + 1) / len(sources)) * 100),
                 }
             )
 
