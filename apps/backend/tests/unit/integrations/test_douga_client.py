@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[5]))
 
+from scripts.douga.assistant_client import DougaAssistantClient
 from scripts.douga.client import DougaClient
 
 
@@ -70,3 +72,59 @@ def test_asset_upload_streams_file_through_three_step_protocol(tmp_path: Path) -
 
     assert result["status"] == "ready"
     assert observed_put == content
+
+
+def test_assistant_client_runs_the_same_project_chat_flow() -> None:
+    observed_requests: list[tuple[str, str, dict[str, object]]] = []
+    run_reads = 0
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        nonlocal run_reads
+        payload = json.loads(request.content) if request.content else {}
+        observed_requests.append((request.method, request.url.path, payload))
+        if request.method == "POST" and request.url.path.endswith("/assistant/threads"):
+            assert request.headers.get("Idempotency-Key")
+            return httpx.Response(201, json={"id": "thread-1", "title": "API chat"})
+        if request.method == "POST" and request.url.path.endswith("/messages"):
+            assert request.headers.get("Idempotency-Key")
+            return httpx.Response(202, json={"run_id": "run-1", "status": "queued"})
+        if request.method == "GET" and request.url.path.endswith("/runs/run-1"):
+            run_reads += 1
+            return httpx.Response(
+                200,
+                json={"id": "run-1", "status": "running" if run_reads == 1 else "completed"},
+            )
+        if request.method == "GET" and request.url.path.endswith("/threads/thread-1"):
+            return httpx.Response(
+                200,
+                json={
+                    "thread": {"id": "thread-1", "title": "API chat"},
+                    "messages": [{"role": "assistant", "content": "動画へ反映しました"}],
+                    "runs": [],
+                    "tool_calls": [],
+                },
+            )
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    with configured_client(httpx.MockTransport(handle)) as client:
+        result = DougaAssistantClient(client).chat(
+            "project-1",
+            "この内容で動画を作って",
+            title="API chat",
+            context={
+                "time_ms": 0,
+                "visible_start_ms": 0,
+                "visible_end_ms": 10_000,
+                "attachment_asset_ids": ["asset-1"],
+            },
+        )
+
+    assert result["run"]["status"] == "completed"
+    message_request = next(item for item in observed_requests if item[1].endswith("/messages"))
+    assert message_request[2]["content"] == "この内容で動画を作って"
+    assert message_request[2]["context"] == {
+        "time_ms": 0,
+        "visible_start_ms": 0,
+        "visible_end_ms": 10_000,
+        "attachment_asset_ids": ["asset-1"],
+    }

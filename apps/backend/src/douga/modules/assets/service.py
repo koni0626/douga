@@ -1,6 +1,8 @@
 import asyncio
+import io
 import json
 import subprocess
+import wave
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -235,6 +237,47 @@ class AssetService:
         if asset.status != "ready" or asset.kind != expected_kind:
             raise NotFoundError("ASSET_NOT_FOUND", "errors.assetNotFound")
 
+    async def create_generated_audio(
+        self,
+        user_id: UUID,
+        *,
+        name: str,
+        content: bytes,
+        metadata: dict[str, object],
+    ) -> AssetView:
+        if not content or len(content) > self.settings.max_audio_upload_bytes:
+            raise ApplicationError("GENERATED_AUDIO_INVALID", "errors.speechGenerationFailed", 502)
+        duration_ms = self._inspect_wav(content)
+        if duration_ms > self.settings.max_audio_duration_ms:
+            raise ApplicationError("MEDIA_DURATION_TOO_LONG", "errors.uploadInvalid", 422)
+        asset_id = uuid4()
+        storage_key = f"users/{user_id}/assets/{asset_id}/original"
+        size, digest = await self.storage.write_bytes(storage_key, content)
+        asset = Asset(
+            id=asset_id,
+            user_id=user_id,
+            scope="private",
+            kind="audio",
+            source="generated",
+            status="ready",
+            name=name[:255],
+            original_filename=f"{asset_id}.wav",
+            storage_key=storage_key,
+            mime_type="audio/wav",
+            size_bytes=size,
+            sha256=digest,
+            duration_ms=duration_ms,
+            asset_metadata=metadata,
+        )
+        try:
+            await self.repository.add(asset)
+            await self.uow.commit()
+        except Exception:
+            await self.uow.rollback()
+            await self.storage.delete(storage_key)
+            raise
+        return await self._view(asset)
+
     async def _owned(self, asset_id: UUID, user_id: UUID) -> Asset:
         asset = await self.repository.get_owned(asset_id, user_id)
         if asset is None:
@@ -278,6 +321,20 @@ class AssetService:
             if image.width * image.height > self.settings.max_image_pixels:
                 raise ApplicationError("IMAGE_DIMENSIONS_TOO_LARGE", "errors.uploadInvalid", 422)
             return mime_types[image.format], image.width, image.height
+
+    @staticmethod
+    def _inspect_wav(content: bytes) -> int:
+        try:
+            with wave.open(io.BytesIO(content), "rb") as stream:
+                frame_rate = stream.getframerate()
+                frame_count = stream.getnframes()
+                if frame_rate <= 0 or frame_count <= 0:
+                    raise ValueError("WAV has no audio frames")
+                return max(1, round(frame_count / frame_rate * 1000))
+        except (EOFError, wave.Error, ValueError) as error:
+            raise ApplicationError(
+                "GENERATED_AUDIO_INVALID", "errors.speechGenerationFailed", 502
+            ) from error
 
     async def _inspect_media(self, asset: Asset, path: Path) -> None:
         try:

@@ -112,7 +112,7 @@ export function SettingsPage() {
             />
           </label>
           <label>
-            <span>{t("settings.fps")}</span>
+            <span>{t("settings.defaultFps")}</span>
             <input
               type="number"
               min={1}
@@ -126,6 +126,7 @@ export function SettingsPage() {
                 })
               }
             />
+            <small>{t("settings.defaultFpsHint")}</small>
           </label>
         </div>
         {errorKey ? (

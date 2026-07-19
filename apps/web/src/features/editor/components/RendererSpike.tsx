@@ -35,6 +35,12 @@ export function RendererSpike({ renderMode }: { renderMode: boolean }) {
 
   const project = window.__DOUGA_RENDER_PROJECT__ ?? sampleProject;
   const assetMap = window.__DOUGA_RENDER_ASSETS__ ?? {};
+  const renderDimensions = renderMode
+    ? {
+        width: `${project.video.width}px`,
+        height: `${project.video.height}px`,
+      }
+    : undefined;
   window.__DOUGA_RENDER_INFO__ = {
     sceneDurationsMs: project.scenes.map((_, index) =>
       resolveSceneDurationMs(project, index),
@@ -58,7 +64,10 @@ export function RendererSpike({ renderMode }: { renderMode: boolean }) {
   }, [playing]);
 
   return (
-    <main className={renderMode ? "app app--render" : "app"}>
+    <main
+      className={renderMode ? "app app--render" : "app"}
+      style={renderDimensions}
+    >
       {!renderMode ? (
         <header className="toolbar">
           <div>
@@ -91,12 +100,13 @@ export function RendererSpike({ renderMode }: { renderMode: boolean }) {
           </div>
         </header>
       ) : null}
-      <section className="canvas-shell">
+      <section className="canvas-shell" style={renderDimensions}>
         <SceneRenderer
           project={project}
           sceneIndex={sceneIndex}
           timeMs={timeMs}
           assetUrl={(assetId) => assetMap[assetId]}
+          style={renderDimensions}
         />
       </section>
       {!renderMode ? (

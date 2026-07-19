@@ -63,6 +63,7 @@ class OpenAIResponsesProvider:
             timeout=settings.openai_timeout_seconds,
         )
         self.model = settings.openai_assistant_model
+        self.compact_token_threshold = settings.assistant_context_compact_token_threshold
 
     async def respond(
         self,
@@ -73,6 +74,7 @@ class OpenAIResponsesProvider:
         tools: tuple[AssistantProviderTool, ...] = (),
         continuation: tuple[dict[str, Any], ...] = (),
     ) -> AssistantProviderResult:
+        compact_token_threshold = getattr(self, "compact_token_threshold", 120_000)
         input_items: Any = [
             {"role": item.role, "content": item.content} for item in messages
         ] + list(continuation)
@@ -92,6 +94,12 @@ class OpenAIResponsesProvider:
                 instructions=instructions,
                 input=input_items,
                 include=REASONING_CONTEXT_INCLUDE,
+                context_management=[
+                    {
+                        "type": "compaction",
+                        "compact_threshold": compact_token_threshold,
+                    }
+                ],
                 store=False,
                 tools=provider_tools,
                 parallel_tool_calls=False,
@@ -107,6 +115,12 @@ class OpenAIResponsesProvider:
             instructions=instructions,
             input=input_items,
             include=REASONING_CONTEXT_INCLUDE,
+            context_management=[
+                {
+                    "type": "compaction",
+                    "compact_threshold": compact_token_threshold,
+                }
+            ],
             store=False,
             tools=provider_tools,
             parallel_tool_calls=False,
@@ -116,6 +130,8 @@ class OpenAIResponsesProvider:
     @staticmethod
     def _result(response: Any) -> AssistantProviderResult:
         usage = response.usage
+        input_details = getattr(usage, "input_tokens_details", None)
+        cached_input_tokens = int(getattr(input_details, "cached_tokens", 0) or 0)
         output_items = tuple(
             OpenAIResponsesProvider._continuation_item(item) for item in response.output
         )
@@ -135,6 +151,7 @@ class OpenAIResponsesProvider:
                 "input_tokens": usage.input_tokens,
                 "output_tokens": usage.output_tokens,
                 "total_tokens": usage.total_tokens,
+                "cached_input_tokens": cached_input_tokens,
             }
             if usage
             else None,
@@ -168,6 +185,13 @@ class FakeAssistantProvider:
         tools: tuple[AssistantProviderTool, ...] = (),
         continuation: tuple[dict[str, Any], ...] = (),
     ) -> AssistantProviderResult:
+        if "CONVERSATION_COMPACTION" in instructions:
+            content = messages[-1].content[-8_000:] if messages else ""
+            return AssistantProviderResult(
+                content=content,
+                response_id="fake-response-compaction",
+                usage={"input_tokens": 100, "output_tokens": 50, "total_tokens": 150},
+            )
         del instructions, tools
         prompt = messages[-1].content if messages else ""
         arguments: dict[str, Any]

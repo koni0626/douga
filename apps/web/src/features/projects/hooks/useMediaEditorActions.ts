@@ -41,23 +41,29 @@ export function useMediaEditorActions({
   const [audioDropActive, setAudioDropActive] = useState(false);
   const [uploadErrorKey, setUploadErrorKey] = useState<string>();
 
-  function addAudioTrack(asset: AssetDto, startMs = 0) {
+  function addAudioTrack(
+    asset: AssetDto,
+    startMs = 0,
+    role: AudioTrack["role"] = "bgm",
+    speechSynthesis?: AudioTrack["speech_synthesis"],
+  ) {
     mutate((document) => {
       document.audio_tracks ??= [];
       document.audio_tracks.push({
         id: crypto.randomUUID(),
         asset_id: asset.id,
-        role: "bgm",
+        role,
         scene_id: null,
         dialogue_id: null,
         start_ms: startMs,
         duration_ms: asset.duration_ms ?? undefined,
         trim_start_ms: 0,
-        volume: 0.7,
+        volume: role === "bgm" ? 0.7 : 1,
         loop: false,
         fade_in_ms: 0,
         fade_out_ms: 0,
-        ducking: true,
+        ducking: role === "bgm",
+        speech_synthesis: speechSynthesis,
       });
     });
   }
@@ -186,10 +192,19 @@ export function useMediaEditorActions({
     });
   }
 
+  function deleteAudioTrack(trackId: string) {
+    mutate((document) => {
+      document.audio_tracks = document.audio_tracks?.filter(
+        (track) => track.id !== trackId,
+      );
+    });
+  }
+
   return {
     addAudioTrack,
     addCameraEffect,
     audioDropActive,
+    deleteAudioTrack,
     deleteCameraEffect,
     dropActive,
     dropAudioOnTimeline,

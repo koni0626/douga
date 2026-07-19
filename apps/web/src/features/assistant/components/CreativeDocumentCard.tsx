@@ -12,14 +12,23 @@ function textValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function itemCount(document: CreativeDocumentDto): number | undefined {
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function itemCount(
+  document: CreativeDocumentDto,
+  content: Record<string, unknown>,
+): number | undefined {
   const key =
     document.kind === "script"
       ? "blocks"
       : document.kind === "storyboard"
         ? "shots"
         : "sections";
-  const value = document.content[key];
+  const value = content[key];
   return Array.isArray(value) ? value.length : undefined;
 }
 
@@ -29,14 +38,13 @@ export function CreativeDocumentCard({
   adopting,
 }: CreativeDocumentCardProps) {
   const { t } = useTranslation();
+  const content = recordValue(document.content);
   const title =
-    textValue(document.content.title) ??
-    textValue(document.content.purpose) ??
+    textValue(content.title) ??
+    textValue(content.purpose) ??
     t(`assistant.artifacts.${document.kind}`);
-  const summary =
-    textValue(document.content.logline) ??
-    textValue(document.content.core_message);
-  const count = itemCount(document);
+  const summary = textValue(content.logline) ?? textValue(content.core_message);
+  const count = itemCount(document, content);
 
   return (
     <article className="assistant-artifact-card">

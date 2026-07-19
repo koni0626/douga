@@ -341,6 +341,7 @@ export function LayerTimelineTracks(props: LayerTimelineTracksProps) {
             durationMs={durationMs}
             grabbed={draggedLayerId === layer.id}
             isRepresentative={isRepresentative}
+            key={layer.id}
             keyframeLabels={keyframeLabels}
             label={`${labelFor(layer)}${trackLayers.length > 1 ? ` (${trackLayers.length})` : ""}`}
             layer={layer}

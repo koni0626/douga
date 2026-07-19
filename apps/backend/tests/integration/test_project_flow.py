@@ -76,6 +76,7 @@ async def test_project_revision_conflict_duplicate_delete_and_tenant_isolation()
         assert detail["document"]["project_id"] == str(project_id)
         assert detail["document"]["video"]["width"] == 1080
         assert detail["document"]["video"]["height"] == 1920
+        assert detail["document"]["video"]["fps"] == 10
         assert detail["document"]["caption_style"] == {
             "x": 72,
             "y": 1440,

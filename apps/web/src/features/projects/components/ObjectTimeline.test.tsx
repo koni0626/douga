@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProjectDocument } from "@douga/project-schema";
@@ -69,6 +69,7 @@ function props(
     labelFor: (layer) => layer.id,
     onChange: noop,
     onAudioChange: noop,
+    onAudioDelete: noop,
     onAddCamera: noop,
     onAddCaption: noop,
     onAddTextHorizontal: noop,
@@ -83,6 +84,8 @@ function props(
     onCaptionTextChange: noop,
     onOpenLayerSettings: noop,
     onCut: noop,
+    onDeleteRange: noop,
+    onInsertRange: noop,
     onDurationChange: noop,
     onPlay: noop,
     onDeleteKeyframe: noop,
@@ -100,6 +103,16 @@ function props(
     collapseLabel: "Collapse",
     cutDisabled: false,
     cutLabel: "End at playhead",
+    deleteRangeCancelLabel: "Cancel",
+    deleteRangeConfirmLabel: (duration) =>
+      `Selected: ${(duration / 1000).toFixed(2)}s`,
+    deleteRangeInstruction: "Drag the ruler",
+    deleteRangeLabel: "Delete range",
+    insertRangeConfirmLabel: (atMs, durationMs) =>
+      `Insert ${(durationMs / 1000).toFixed(2)}s at ${(atMs / 1000).toFixed(2)}s`,
+    insertRangeDurationLabel: "Time to add",
+    insertRangeInstruction: "Select insertion point",
+    insertRangeLabel: "Insert time",
     expandLabel: "Expand",
     resizeLabel: "Resize",
     playLabel: "Play",
@@ -221,6 +234,78 @@ describe("ObjectTimeline", () => {
     view.unmount();
   });
 
+  it("deletes the focused audio clip with the Delete key", () => {
+    const onAudioDelete = vi.fn();
+    const view = render(
+      <ObjectTimeline
+        {...props({
+          audioTrackLabel: () => "voice.wav",
+          audioTracks: [
+            {
+              id: "audio-1",
+              asset_id: "asset-1",
+              role: "narration",
+              start_ms: 0,
+              duration_ms: 1000,
+              trim_start_ms: 0,
+              volume: 1,
+              loop: false,
+              fade_in_ms: 0,
+              fade_out_ms: 0,
+              ducking: false,
+            },
+          ],
+          onAudioDelete,
+        })}
+      />,
+    );
+    const clip = view.getByLabelText("voice.wav");
+
+    clip.focus();
+    fireEvent.keyDown(clip, { key: "Delete" });
+
+    expect(onAudioDelete).toHaveBeenCalledOnce();
+    expect(onAudioDelete).toHaveBeenCalledWith("audio-1");
+    view.unmount();
+  });
+
+  it("opens settings for the right-clicked audio clip", () => {
+    const onOpenAudioSettings = vi.fn();
+    const view = render(
+      <ObjectTimeline
+        {...props({
+          audioTrackLabel: () => "voice.wav",
+          audioTracks: [
+            {
+              id: "audio-1",
+              asset_id: "asset-1",
+              role: "narration",
+              start_ms: 0,
+              duration_ms: 1000,
+              trim_start_ms: 0,
+              volume: 1,
+              loop: false,
+              fade_in_ms: 0,
+              fade_out_ms: 0,
+              ducking: false,
+            },
+          ],
+          onOpenAudioSettings,
+        })}
+      />,
+    );
+
+    fireEvent.contextMenu(view.getByLabelText("voice.wav"), {
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.click(view.getByRole("menuitem", { name: "Settings" }));
+
+    expect(onOpenAudioSettings).toHaveBeenCalledOnce();
+    expect(onOpenAudioSettings).toHaveBeenCalledWith("audio-1");
+    view.unmount();
+  });
+
   it("cuts the timeline at the selected playhead position", () => {
     const onCut = vi.fn();
     const view = render(<ObjectTimeline {...props({ onCut })} />);
@@ -278,6 +363,67 @@ describe("ObjectTimeline", () => {
 
     expect(onSeek).toHaveBeenLastCalledWith(6000);
     expect(onSeek).toHaveBeenCalledTimes(3);
+  });
+
+  it("selects a ruler range and requests that interval be deleted", () => {
+    const onDeleteRange = vi.fn();
+    const view = render(<ObjectTimeline {...props({ onDeleteRange })} />);
+    const timeline = within(view.container);
+    fireEvent.click(timeline.getByRole("button", { name: "Delete range" }));
+    const ruler = timeline.getByRole("slider", { name: "Timeline" });
+    Object.defineProperty(ruler, "getBoundingClientRect", {
+      value: () => ({ left: 0, right: 500, width: 500 }),
+    });
+    Object.defineProperties(ruler, {
+      setPointerCapture: { value: vi.fn() },
+      hasPointerCapture: { value: vi.fn(() => true) },
+      releasePointerCapture: { value: vi.fn() },
+    });
+
+    fireEvent.pointerDown(ruler, { button: 0, clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(ruler, { clientX: 300, pointerId: 1 });
+    fireEvent.pointerUp(ruler, { clientX: 300, pointerId: 1 });
+
+    expect(timeline.getByText("Selected: 4.00s")).toBeInTheDocument();
+    expect(
+      view.container.querySelector(".object-timeline-delete-selection"),
+    ).toHaveStyle({ left: "20%", width: "40%" });
+    fireEvent.click(timeline.getByRole("button", { name: "Delete range" }));
+
+    expect(onDeleteRange).toHaveBeenCalledWith(2000, 6000);
+  });
+
+  it("selects an insertion point and requests time to be inserted", () => {
+    const onInsertRange = vi.fn();
+    const view = render(<ObjectTimeline {...props({ onInsertRange })} />);
+    const timeline = within(view.container);
+    fireEvent.click(timeline.getByRole("button", { name: "Insert time" }));
+    const ruler = timeline.getByRole("slider", { name: "Timeline" });
+    Object.defineProperty(ruler, "getBoundingClientRect", {
+      value: () => ({ left: 0, right: 500, width: 500 }),
+    });
+    Object.defineProperties(ruler, {
+      setPointerCapture: { value: vi.fn() },
+      hasPointerCapture: { value: vi.fn(() => true) },
+      releasePointerCapture: { value: vi.fn() },
+    });
+
+    fireEvent.pointerDown(ruler, { button: 0, clientX: 300, pointerId: 1 });
+    fireEvent.pointerUp(ruler, { clientX: 300, pointerId: 1 });
+    fireEvent.change(
+      timeline.getByRole("spinbutton", { name: "Time to add" }),
+      {
+        target: { value: "2.5" },
+      },
+    );
+
+    expect(timeline.getByText("Insert 2.50s at 6.00s")).toBeInTheDocument();
+    expect(
+      view.container.querySelector(".object-timeline-insert-position"),
+    ).toHaveStyle({ left: "60%" });
+    fireEvent.click(timeline.getByRole("button", { name: "Insert time" }));
+
+    expect(onInsertRange).toHaveBeenCalledWith(6000, 2500);
   });
 
   it("scrolls the time area to keep playback visible", () => {

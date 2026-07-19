@@ -88,7 +88,7 @@ class AssistantService:
         thread = await self.repository.get_thread(thread_id, project_id, user_id)
         if thread is None:
             raise NotFoundError("ASSISTANT_THREAD_NOT_FOUND", "errors.assistantThreadNotFound")
-        messages = await self.repository.list_messages(thread_id, user_id)
+        messages = await self.repository.list_conversation_messages(thread_id, user_id)
         runs = await self.repository.list_runs(thread_id, user_id)
         tool_calls = await self.repository.list_thread_tool_calls(thread_id, user_id)
         return AssistantThreadDetail(

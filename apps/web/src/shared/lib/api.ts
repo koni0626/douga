@@ -77,6 +77,35 @@ export interface AssetListDto {
   total: number;
 }
 
+export interface SpeechVoiceStyleDto {
+  id: number;
+  name: string;
+}
+
+export interface SpeechVoiceDto {
+  speaker_uuid: string;
+  name: string;
+  styles: SpeechVoiceStyleDto[];
+}
+
+export interface SpeechVoiceListDto {
+  items: SpeechVoiceDto[];
+}
+
+export interface SpeechSynthesisDto {
+  asset: AssetDto;
+}
+
+export interface SpeechSynthesisSettingsDto {
+  provider: "aivis_speech";
+  text: string;
+  style_id: number;
+  speed_scale: number;
+  intonation_scale: number;
+  tempo_dynamics_scale: number;
+  volume_scale: number;
+}
+
 export interface UploadTargetDto {
   asset: AssetDto;
   upload_path: string;

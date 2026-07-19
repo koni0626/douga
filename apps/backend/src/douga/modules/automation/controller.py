@@ -23,6 +23,12 @@ OPERATION_READ_SCOPES = {
     "asset_upload_complete": "assets:read",
     "image_generation_create": "image-generations:read",
     "export_create": "exports:read",
+    "assistant_thread_create": "assistant:read",
+    "assistant_message_send": "assistant:read",
+    "assistant_run_cancel": "assistant:read",
+    "assistant_run_undo": "assistant:read",
+    "assistant_tool_approve": "assistant:read",
+    "assistant_tool_reject": "assistant:read",
 }
 
 

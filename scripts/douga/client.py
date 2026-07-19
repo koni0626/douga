@@ -83,7 +83,7 @@ class DougaClient:
         payload = {"name": name, "content_locale": locale}
         if aspect_ratio is not None:
             payload["aspect_ratio"] = aspect_ratio
-        return self._request(
+        return self.request(
             "POST",
             "/projects",
             json=payload,
@@ -91,7 +91,7 @@ class DougaClient:
         )
 
     def get_project(self, project_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/projects/{project_id}")
+        return self.request("GET", f"/projects/{project_id}")
 
     def upload_asset(self, path: Path, kind: str, *, name: str | None = None) -> dict[str, Any]:
         if not path.is_file():
@@ -108,15 +108,15 @@ class DougaClient:
             "size_bytes": size_bytes,
             "sha256": digest,
         }
-        started = self._request(
+        started = self.request(
             "POST", "/assets/uploads", json=payload, idempotency_key=f"{key_base}-begin"
         )
         asset_id = started["asset"]["id"]
-        current = self._request("GET", f"/assets/{asset_id}")
+        current = self.request("GET", f"/assets/{asset_id}")
         if current["status"] == "ready":
             return current
         if current["status"] == "failed":
-            started = self._request(
+            started = self.request(
                 "POST",
                 "/assets/uploads",
                 json=payload,
@@ -131,7 +131,7 @@ class DougaClient:
                 headers={"Content-Type": content_type, "X-Content-SHA256": digest},
             )
         if current["status"] == "processing":
-            return self._request(
+            return self.request(
                 "POST",
                 f"/assets/{asset_id}/complete",
                 idempotency_key=f"{key_base}-complete",
@@ -139,7 +139,7 @@ class DougaClient:
         raise RuntimeError(f"unexpected upload status: {current['status']}")
 
     def validate_project(self, project_id: str, document: dict[str, Any]) -> dict[str, Any]:
-        return self._request(
+        return self.request(
             "POST",
             f"/projects/{project_id}/validate",
             json={"document": document},
@@ -155,7 +155,7 @@ class DougaClient:
         change_summary: str,
         key: str | None = None,
     ) -> dict[str, Any]:
-        return self._request(
+        return self.request(
             "POST",
             f"/projects/{project_id}/revisions",
             json={
@@ -172,7 +172,7 @@ class DougaClient:
                 "utf-8"
             )
         ).hexdigest()[:32]
-        return self._request(
+        return self.request(
             "POST",
             f"/projects/{project_id}/creative-documents",
             json={"kind": "storyboard", "status": "draft", "content": content},
@@ -180,14 +180,14 @@ class DougaClient:
         )
 
     def render_preview(self, project_id: str, *, start_ms: int, end_ms: int) -> dict[str, Any]:
-        return self._request(
+        return self.request(
             "POST",
             f"/projects/{project_id}/previews",
             json={"range_start_ms": start_ms, "range_end_ms": end_ms},
             idempotency_key=f"preview-{project_id}-{start_ms}-{end_ms}",
         )
 
-    def _request(
+    def request(
         self,
         method: str,
         path: str,

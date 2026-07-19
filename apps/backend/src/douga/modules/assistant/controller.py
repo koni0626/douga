@@ -31,7 +31,7 @@ from douga.modules.assistant.schemas import (
     AssistantUndoResponse,
 )
 from douga.modules.assistant.service import AssistantService, process_assistant_run
-from douga.modules.auth.dependencies import csrf_protected_auth, current_auth
+from douga.modules.auth.dependencies import scoped_auth, scoped_write_auth
 from douga.modules.auth.service import AuthContext
 
 router = APIRouter(prefix="/projects/{project_id}/assistant", tags=["assistant"])
@@ -68,7 +68,7 @@ def tool_call_response(call: AssistantToolCall) -> AssistantToolCallResponse:
 @router.get("/metrics", response_model=AssistantMetricsResponse)
 async def get_metrics(
     project_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assistant:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantMetricsResponse:
     result = await AssistantService(session).metrics(project_id, context.user.id)
@@ -78,7 +78,7 @@ async def get_metrics(
 @router.get("/audit", response_model=AssistantAuditResponse)
 async def get_audit_log(
     project_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assistant:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> AssistantAuditResponse:
@@ -89,7 +89,7 @@ async def get_audit_log(
 @router.get("/threads", response_model=AssistantThreadListResponse)
 async def list_threads(
     project_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assistant:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantThreadListResponse:
     items = await AssistantService(session).list_threads(project_id, context.user.id)
@@ -102,7 +102,7 @@ async def list_threads(
 async def create_thread(
     project_id: UUID,
     payload: AssistantThreadCreateRequest,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assistant:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantThreadResponse:
     return thread_response(
@@ -114,7 +114,7 @@ async def create_thread(
 async def get_thread(
     project_id: UUID,
     thread_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assistant:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantThreadDetailResponse:
     detail = await AssistantService(session).get_thread(project_id, thread_id, context.user.id)
@@ -136,7 +136,7 @@ async def send_message(
     thread_id: UUID,
     payload: AssistantMessageCreateRequest,
     background_tasks: BackgroundTasks,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assistant:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantRunStartedResponse:
     result = await AssistantService(session).start_run(
@@ -158,7 +158,7 @@ async def send_message(
 async def get_run(
     project_id: UUID,
     run_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assistant:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantRunResponse:
     return run_response(
@@ -170,7 +170,7 @@ async def get_run(
 async def cancel_run(
     project_id: UUID,
     run_id: UUID,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assistant:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantRunResponse:
     return run_response(
@@ -182,7 +182,7 @@ async def cancel_run(
 async def undo_run(
     project_id: UUID,
     run_id: UUID,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assistant:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantUndoResponse:
     result = await AssistantService(session).undo_run(project_id, run_id, context.user.id)
@@ -198,7 +198,7 @@ async def approve_tool_call(
     project_id: UUID,
     call_id: UUID,
     background_tasks: BackgroundTasks,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assistant:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantRunResponse:
     run = await AssistantService(session).approve_tool_call(project_id, call_id, context.user.id)
@@ -211,7 +211,7 @@ async def reject_tool_call(
     project_id: UUID,
     call_id: UUID,
     background_tasks: BackgroundTasks,
-    context: Annotated[AuthContext, Depends(csrf_protected_auth)],
+    context: Annotated[AuthContext, Depends(scoped_write_auth("assistant:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AssistantRunResponse:
     run = await AssistantService(session).reject_tool_call(project_id, call_id, context.user.id)
@@ -223,7 +223,7 @@ async def reject_tool_call(
 async def stream_run_events(
     project_id: UUID,
     run_id: UUID,
-    context: Annotated[AuthContext, Depends(current_auth)],
+    context: Annotated[AuthContext, Depends(scoped_auth("assistant:read"))],
     session: Annotated[AsyncSession, Depends(get_session)],
     after: Annotated[int, Query(ge=0)] = 0,
     last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,

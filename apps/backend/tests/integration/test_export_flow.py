@@ -113,10 +113,18 @@ async def test_fixed_revision_export_download_and_tenant_isolation() -> None:
         assert saved.status_code == 200
         exported = await owner.post(
             "/api/v1/exports",
-            json={"project_id": project_id},
+            json={
+                "project_id": project_id,
+                "width": 320,
+                "height": 180,
+                "fps": 10,
+                "filename": "custom export",
+            },
             headers={"X-CSRF-Token": csrf},
         )
         assert exported.status_code == 202
+        assert exported.json()["name"] == "custom export.mp4"
+        assert exported.json()["fps"] == 10
         export_id = exported.json()["id"]
         result = await owner.get(f"/api/v1/exports/{export_id}")
         assert result.json()["status"] == "succeeded"

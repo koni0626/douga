@@ -17,6 +17,7 @@ type TimelineActions = Pick<
   | "onAddTextHorizontal"
   | "onAddTextVertical"
   | "onAudioChange"
+  | "onAudioDelete"
   | "onCaptionChange"
   | "onCaptionDelete"
   | "onCaptionSelect"
@@ -26,6 +27,8 @@ type TimelineActions = Pick<
   | "onDeleteLayer"
   | "onDuplicateKeyframe"
   | "onCut"
+  | "onDeleteRange"
+  | "onInsertRange"
   | "onDurationChange"
   | "onKeyframeEasingChange"
   | "onMergeTrack"
@@ -46,6 +49,7 @@ interface EditorTimelineAreaProps {
   captions: CaptionTimelineClip[];
   durationMs: number;
   onDrop: (event: DragEvent<HTMLElement>) => void;
+  onOpenAudioSettings: (trackId?: string) => void;
   playing: boolean;
   project: ProjectDocument;
   scene?: Scene;
@@ -68,6 +72,7 @@ export function EditorTimelineArea({
   captions,
   durationMs,
   onDrop,
+  onOpenAudioSettings,
   playing,
   project,
   scene,
@@ -108,6 +113,23 @@ export function EditorTimelineArea({
           collapseLabel={t("editor.collapseTimeline")}
           cutDisabled={timeMs < MIN_VIDEO_DURATION_MS || timeMs >= durationMs}
           cutLabel={t("editor.cutTimelineAtPlayhead")}
+          deleteRangeCancelLabel={t("editor.deleteTimelineRangeCancel")}
+          deleteRangeConfirmLabel={(value) =>
+            t("editor.deleteTimelineRangeConfirm", {
+              seconds: (value / 1000).toFixed(2),
+            })
+          }
+          deleteRangeInstruction={t("editor.deleteTimelineRangeInstruction")}
+          deleteRangeLabel={t("editor.deleteTimelineRange")}
+          insertRangeConfirmLabel={(atMs, value) =>
+            t("editor.insertTimelineRangeConfirm", {
+              position: (atMs / 1000).toFixed(2),
+              seconds: (value / 1000).toFixed(2),
+            })
+          }
+          insertRangeDurationLabel={t("editor.insertTimelineRangeDuration")}
+          insertRangeInstruction={t("editor.insertTimelineRangeInstruction")}
+          insertRangeLabel={t("editor.insertTimelineRange")}
           durationHandleLabel={t("editor.resizeTimelineDuration")}
           durationInputLabel={t("editor.videoDurationSeconds")}
           durationMs={durationMs}
@@ -169,7 +191,7 @@ export function EditorTimelineArea({
             keyframe: t("editor.keyframe.label"),
           }}
           onAddCamera={() => setActiveTool("camera")}
-          onOpenAudioSettings={() => setActiveTool("audio")}
+          onOpenAudioSettings={onOpenAudioSettings}
           onOpenCameraSettings={() => setActiveTool("camera")}
           onOpenCaptionSettings={() => setActiveTool("caption")}
           onOpenLayerSettings={() => setActiveTool("layers")}

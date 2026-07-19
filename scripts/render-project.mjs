@@ -1,16 +1,28 @@
 import { spawn, spawnSync } from "node:child_process";
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
 import { chromium } from "@playwright/test";
 
+import {
+  buildRenderAssetUrls,
+  renderAssetPathPrefix,
+  resolveRenderAssetFile,
+} from "./render-assets.mjs";
+import {
+  buildFfmpegArgs,
+  captureProcessResult,
+  endFrameStream,
+  writeFrame,
+} from "./render-stream.mjs";
+
 const inputPath = process.argv[2];
 if (!inputPath) throw new Error("Usage: render-project.mjs <input.json>");
 const input = JSON.parse(await readFile(inputPath, "utf8"));
 const root = path.resolve(import.meta.dirname, "..");
-const framesDir = path.join(path.dirname(inputPath), "frames");
 const serverUrl = "http://127.0.0.1:4174/?render=1";
+const progressPrefix = "DOUGA_PROGRESS=";
 const webRoot = path.join(root, "apps", "web");
 const viteEntrypoint = path.join(
   webRoot,
@@ -41,8 +53,32 @@ function stopProcess(child) {
   } else child.kill("SIGTERM");
 }
 
-await rm(framesDir, { recursive: true, force: true });
-await mkdir(framesDir, { recursive: true });
+let lastProgress = -1;
+let lastProgressSignalAt = 0;
+function emitProgress(progress) {
+  const normalized = Math.max(0, Math.min(100, Math.round(progress)));
+  const now = Date.now();
+  if (normalized < lastProgress) return;
+  if (normalized === lastProgress && now - lastProgressSignalAt < 5_000) return;
+  lastProgress = Math.max(lastProgress, normalized);
+  lastProgressSignalAt = now;
+  process.stderr.write(`${progressPrefix}${normalized}\n`);
+}
+
+function countFramesInRange(sceneDurationsMs, fps, rangeStartMs, rangeEndMs) {
+  let count = 0;
+  let sceneOffsetMs = 0;
+  for (const durationMs of sceneDurationsMs) {
+    const sceneFrames = Math.max(1, Math.ceil((durationMs / 1000) * fps));
+    for (let frame = 0; frame < sceneFrames; frame += 1) {
+      const globalTimeMs = sceneOffsetMs + Math.round((frame * 1000) / fps);
+      if (globalTimeMs >= rangeStartMs && globalTimeMs < rangeEndMs) count += 1;
+    }
+    sceneOffsetMs += durationMs;
+  }
+  return count;
+}
+
 await mkdir(path.dirname(input.output_path), { recursive: true });
 const server = spawn(
   process.execPath,
@@ -54,6 +90,7 @@ const server = spawn(
 );
 
 let browser;
+let ffmpeg;
 try {
   await waitForServer(serverUrl);
   browser = await chromium.launch({
@@ -65,12 +102,37 @@ try {
     viewport: { width, height },
     deviceScaleFactor: 1,
   });
+  const imageFiles = input.image_files ?? {};
+  const serverOrigin = new URL(serverUrl).origin;
+  const assetUrls = buildRenderAssetUrls(imageFiles, serverOrigin);
+  await page.route(
+    `${serverOrigin}${renderAssetPathPrefix}**`,
+    async (route) => {
+      const imageFile = resolveRenderAssetFile(
+        imageFiles,
+        route.request().url(),
+      );
+      if (!imageFile) {
+        await route.abort("blockedbyclient");
+        return;
+      }
+      await route.fulfill({
+        path: imageFile.path,
+        contentType: imageFile.mime_type ?? "application/octet-stream",
+      });
+    },
+  );
   await page.addInitScript(
     ({ project, assets }) => {
       window.__DOUGA_RENDER_PROJECT__ = project;
       window.__DOUGA_RENDER_ASSETS__ = assets;
     },
-    { project: input.project, assets: input.asset_data_urls },
+    {
+      project: input.project,
+      assets: Object.keys(assetUrls).length
+        ? assetUrls
+        : (input.asset_data_urls ?? {}),
+    },
   );
   await page.goto(serverUrl, { waitUntil: "networkidle" });
   const canvas = page.locator("[data-render-canvas]");
@@ -80,6 +142,27 @@ try {
 
   const rangeStartMs = input.range_start_ms ?? 0;
   const rangeEndMs = input.range_end_ms ?? Number.POSITIVE_INFINITY;
+  const totalFrames = countFramesInRange(
+    info.sceneDurationsMs,
+    fps,
+    rangeStartMs,
+    rangeEndMs,
+  );
+  if (totalFrames === 0) throw new Error("Render range produced no frames");
+  const durationSeconds = totalFrames / fps;
+  const ffmpegArgs = buildFfmpegArgs(input, { fps, durationSeconds });
+  ffmpeg = spawn(input.ffmpeg_path ?? "ffmpeg", ffmpegArgs, {
+    stdio: ["pipe", "ignore", "pipe"],
+  });
+  if (!ffmpeg.stdin) throw new Error("FFmpeg input pipe was not created");
+  ffmpeg.stdin.on("error", () => {
+    // writeFrame reports the same pipe failure to the render loop.
+  });
+  const ffmpegResult = captureProcessResult(ffmpeg);
+  ffmpegResult.completion.catch(() => {
+    // The failure is observed after the input stream is closed or by writeFrame.
+  });
+  emitProgress(5);
   let frameNumber = 0;
   let sceneOffsetMs = 0;
   for (
@@ -104,80 +187,21 @@ try {
         await globalThis.document.fonts.ready;
         await new Promise((resolve) => requestAnimationFrame(() => resolve()));
       });
-      await canvas.screenshot({
-        path: path.join(
-          framesDir,
-          `frame-${String(frameNumber).padStart(7, "0")}.png`,
-        ),
-      });
+      const renderedFrame = await canvas.screenshot({ type: "png" });
+      await writeFrame(ffmpeg.stdin, renderedFrame);
       frameNumber += 1;
+      const frameProgress = Math.min(
+        90,
+        Math.floor(5 + (frameNumber / totalFrames) * 85),
+      );
+      emitProgress(frameProgress);
     }
     sceneOffsetMs += durationMs;
   }
-  if (frameNumber === 0) throw new Error("Render range produced no frames");
-
-  const args = [
-    "-hide_banner",
-    "-loglevel",
-    "error",
-    "-framerate",
-    String(fps),
-    "-i",
-    path.join(framesDir, "frame-%07d.png"),
-  ];
-  const audio = input.audio_inputs ?? [];
-  for (const track of audio) {
-    if (track.loop) args.push("-stream_loop", "-1");
-    args.push("-i", track.path);
-  }
-  if (audio.length) {
-    const filters = audio.map((track, index) => {
-      const chain = [];
-      if (track.trim_start_ms > 0)
-        chain.push(
-          `atrim=start=${track.trim_start_ms / 1000}`,
-          "asetpts=PTS-STARTPTS",
-        );
-      chain.push(`volume=${Math.max(0, Math.min(2, track.volume))}`);
-      if (track.fade_in_ms > 0)
-        chain.push(`afade=t=in:st=0:d=${track.fade_in_ms / 1000}`);
-      if (track.fade_out_ms > 0 && track.duration_ms > 0)
-        chain.push(
-          `afade=t=out:st=${Math.max(0, track.duration_ms - track.fade_out_ms) / 1000}:d=${track.fade_out_ms / 1000}`,
-        );
-      const delay = Math.max(0, track.start_ms);
-      chain.push(`adelay=${delay}|${delay}`);
-      return `[${index + 1}:a]${chain.join(",")}[a${index}]`;
-    });
-    filters.push(
-      `${audio.map((_, index) => `[a${index}]`).join("")}amix=inputs=${audio.length}:normalize=0[aout]`,
-    );
-    args.push(
-      "-filter_complex",
-      filters.join(";"),
-      "-map",
-      "0:v",
-      "-map",
-      "[aout]",
-    );
-  } else args.push("-an");
-  args.push(
-    "-c:v",
-    "libx264",
-    "-pix_fmt",
-    "yuv420p",
-    "-movflags",
-    "+faststart",
-    "-t",
-    String(frameNumber / fps),
-    "-y",
-    input.output_path,
-  );
-  const result = spawnSync(input.ffmpeg_path ?? "ffmpeg", args, {
-    encoding: "utf8",
-  });
-  if (result.status !== 0)
-    throw new Error(result.stderr || `FFmpeg failed: ${result.status}`);
+  emitProgress(92);
+  await endFrameStream(ffmpeg.stdin);
+  await ffmpegResult.completion;
+  emitProgress(99);
   process.stdout.write(
     JSON.stringify({
       frame_count: frameNumber,
@@ -186,6 +210,6 @@ try {
   );
 } finally {
   if (browser) await browser.close();
+  if (ffmpeg?.exitCode === null) stopProcess(ffmpeg);
   stopProcess(server);
-  await rm(framesDir, { recursive: true, force: true });
 }

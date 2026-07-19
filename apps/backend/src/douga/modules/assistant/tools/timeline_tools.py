@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -69,6 +70,12 @@ class AddAudioArgs(StrictToolArgs):
     fade_in_ms: int = Field(ge=0, le=3_600_000)
     fade_out_ms: int = Field(ge=0, le=3_600_000)
     ducking: bool
+
+
+class DuplicateAudioClipArgs(StrictToolArgs):
+    clip_id: str = Field(min_length=1, max_length=100)
+    start_ms: int = Field(ge=0, le=3_600_000)
+    end_ms: int = Field(gt=0, le=3_600_000)
 
 
 class ClipTimingArgs(StrictToolArgs):
@@ -203,6 +210,75 @@ async def add_audio_clip(context: ToolContext, arguments: dict[str, Any]) -> Too
 
     detail, run = await ProjectToolService(context).mutate(mutate, "AI: add audio clip")
     return mutation_result(detail, run, {"clip_id": clip_id})
+
+
+async def duplicate_audio_clip(
+    context: ToolContext, arguments: dict[str, Any]
+) -> ToolExecutionResult:
+    values = DuplicateAudioClipArgs.model_validate(arguments)
+    validate_time_range(values.start_ms, values.end_ms)
+    project_tools = ProjectToolService(context)
+    current_detail = await project_tools.detail()
+    kind, source, _ = find_clip(current_detail.document, values.clip_id)
+    if kind != "audio":
+        raise ApplicationError("CLIP_TYPE_INVALID", "errors.assistantToolArgumentsInvalid", 422)
+    source_duration_ms = int(source.get("duration_ms") or 0)
+    if source_duration_ms <= 0:
+        raise ApplicationError(
+            "AUDIO_DURATION_INVALID", "errors.assistantToolArgumentsInvalid", 422
+        )
+    video_duration_ms = int(current_detail.document["video"].get("duration_ms", 5_000))
+    if values.end_ms > video_duration_ms:
+        raise ApplicationError(
+            "AUDIO_RANGE_OUT_OF_TIMELINE", "errors.assistantToolArgumentsInvalid", 422
+        )
+    copy_count = (
+        values.end_ms - values.start_ms + source_duration_ms - 1
+    ) // source_duration_ms
+    if copy_count > 200:
+        raise ApplicationError(
+            "AUDIO_DUPLICATE_LIMIT_EXCEEDED", "errors.assistantToolArgumentsInvalid", 422
+        )
+    asset_id = UUID(str(source["asset_id"]))
+    await AssetService(context.session).assert_ready_kind(asset_id, context.user_id, "audio")
+    clip_ids = [str(uuid4()) for _ in range(copy_count)]
+
+    def mutate(document: dict[str, Any]) -> None:
+        current_kind, current_source, _ = find_clip(document, values.clip_id)
+        if current_kind != "audio":
+            raise ApplicationError(
+                "CLIP_TYPE_INVALID", "errors.assistantToolArgumentsInvalid", 422
+            )
+        tracks = document.setdefault("audio_tracks", [])
+        cursor_ms = values.start_ms
+        for clip_id in clip_ids:
+            duration_ms = min(source_duration_ms, values.end_ms - cursor_ms)
+            payload = deepcopy(current_source)
+            payload.update(
+                {
+                    "id": clip_id,
+                    "start_ms": cursor_ms,
+                    "duration_ms": duration_ms,
+                    "fade_in_ms": min(int(payload.get("fade_in_ms", 0)), duration_ms),
+                    "fade_out_ms": min(int(payload.get("fade_out_ms", 0)), duration_ms),
+                    "scene_id": None,
+                    "dialogue_id": None,
+                }
+            )
+            tracks.append(payload)
+            cursor_ms += duration_ms
+
+    detail, run = await project_tools.mutate(mutate, "AI: duplicate audio clip")
+    return mutation_result(
+        detail,
+        run,
+        {
+            "source_clip_id": values.clip_id,
+            "clip_ids": clip_ids,
+            "start_ms": values.start_ms,
+            "end_ms": values.end_ms,
+        },
+    )
 
 
 async def update_clip_timing(
@@ -345,6 +421,15 @@ def timeline_tool_definitions() -> tuple[ToolDefinition, ...]:
         ),
         definition(
             "add_audio_clip", "Add one user-owned audio asset clip.", AddAudioArgs, add_audio_clip
+        ),
+        definition(
+            "duplicate_audio_clip",
+            (
+                "Repeat an existing audio clip contiguously to fill an exact timeline range. "
+                "Preserve its asset and audio settings, and trim the final copy to end_ms."
+            ),
+            DuplicateAudioClipArgs,
+            duplicate_audio_clip,
         ),
         definition(
             "add_asset_to_timeline",

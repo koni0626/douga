@@ -27,6 +27,7 @@ from douga.modules.exports.preview_controller import router as previews_router
 from douga.modules.health.controller import router as health_router
 from douga.modules.image_generations.controller import router as image_generations_router
 from douga.modules.projects.controller import router as projects_router
+from douga.modules.speech.controller import router as speech_router
 
 
 async def json_body_too_large(request: Request, maximum_bytes: int) -> bool:
@@ -135,6 +136,7 @@ def create_app() -> FastAPI:
     app.include_router(automation_router, prefix="/api/v1")
     app.include_router(projects_router, prefix="/api/v1")
     app.include_router(assets_router, prefix="/api/v1")
+    app.include_router(speech_router, prefix="/api/v1")
     app.include_router(assistant_router, prefix="/api/v1")
     app.include_router(creative_router, prefix="/api/v1")
     app.include_router(image_generations_router, prefix="/api/v1")

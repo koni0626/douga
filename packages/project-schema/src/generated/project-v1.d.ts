@@ -209,6 +209,15 @@ export interface AudioTrack {
   fade_in_ms: number;
   fade_out_ms: number;
   ducking: boolean;
+  speech_synthesis?: {
+    provider: "aivis_speech";
+    text: string;
+    style_id: number;
+    speed_scale: number;
+    intonation_scale: number;
+    tempo_dynamics_scale: number;
+    volume_scale: number;
+  };
 }
 export interface CameraEffect {
   id: string;

@@ -19,9 +19,15 @@ import {
   resolveSceneDurationMs,
 } from "@douga/scene-renderer";
 
+import type {
+  AssetDto,
+  SpeechSynthesisSettingsDto,
+} from "../../../shared/lib/api";
+
 import { EditorPropertyPanel } from "../components/EditorPropertyPanel";
 import { EditorCanvasWorkspace } from "../components/EditorCanvasWorkspace";
 import { EditorTimelineArea } from "../components/EditorTimelineArea";
+import { ProjectSettingsDialog } from "../components/ProjectSettingsDialog";
 import type { LayerTransformPatch } from "../components/CanvasObjectEditor";
 import { buildCaptionTimelineClips } from "../lib/captionTimeline";
 import type { EditorTool } from "../lib/editorTypes";
@@ -60,6 +66,7 @@ export function ProjectEditorPage() {
   } = useProjectDocumentEditor(projectId);
   const [selectedLayerId, setSelectedLayerId] = useState<string>();
   const [selectedCaptionId, setSelectedCaptionId] = useState<string>();
+  const [selectedAudioTrackId, setSelectedAudioTrackId] = useState<string>();
   const selectLayer = useCallback<Dispatch<SetStateAction<string | undefined>>>(
     (value) => {
       setSelectedLayerId(value);
@@ -75,6 +82,7 @@ export function ProjectEditorPage() {
   const [playing, setPlaying] = useState(false);
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(true);
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
   const [assistantWidth, setAssistantWidth] = useState(400);
   const [captionDraft, setCaptionDraft] = useState("");
   const [captionEditing, setCaptionEditing] = useState(false);
@@ -110,9 +118,11 @@ export function ProjectEditorPage() {
     applyAnimationPreset,
     clearAnimation,
     cutTimelineAt,
+    deleteTimelineRange,
     deleteLayer,
     deleteKeyframe,
     duplicateKeyframe,
+    insertTimelineRange,
     mergeLayerTrack,
     moveLayerToTrack,
     pasteTextLayer,
@@ -135,6 +145,7 @@ export function ProjectEditorPage() {
     addAudioTrack,
     addCameraEffect,
     audioDropActive,
+    deleteAudioTrack,
     deleteCameraEffect,
     dropActive,
     dropAudioOnTimeline,
@@ -183,6 +194,15 @@ export function ProjectEditorPage() {
       );
     },
     [deleteCaption],
+  );
+  const deleteAudioTrackAndClearSelection = useCallback(
+    (trackId: string) => {
+      deleteAudioTrack(trackId);
+      setSelectedAudioTrackId((selected) =>
+        selected === trackId ? undefined : selected,
+      );
+    },
+    [deleteAudioTrack],
   );
 
   useEffect(() => {
@@ -324,6 +344,35 @@ export function ProjectEditorPage() {
   );
   const imageAssets = assets.filter((asset) => asset.kind === "image");
   const audioAssets = assets.filter((asset) => asset.kind === "audio");
+  function addGeneratedSpeech(
+    asset: AssetDto,
+    settings: SpeechSynthesisSettingsDto,
+  ) {
+    setAssets((current) => [asset, ...current]);
+    const selectedTrack = project.audio_tracks?.find(
+      (track) => track.id === selectedAudioTrackId,
+    );
+    if (!selectedTrack) {
+      addAudioTrack(asset, timeMs, "narration", settings);
+      return;
+    }
+    const durationMs = asset.duration_ms ?? selectedTrack.duration_ms;
+    const fadeInMs = Math.min(
+      selectedTrack.fade_in_ms,
+      durationMs ?? selectedTrack.fade_in_ms,
+    );
+    updateAudioTrack(selectedTrack.id, {
+      asset_id: asset.id,
+      duration_ms: durationMs,
+      trim_start_ms: 0,
+      fade_in_ms: fadeInMs,
+      fade_out_ms: Math.min(
+        selectedTrack.fade_out_ms,
+        Math.max(0, (durationMs ?? selectedTrack.fade_out_ms) - fadeInMs),
+      ),
+      speech_synthesis: settings,
+    });
+  }
 
   return (
     <main className="editor-shell">
@@ -331,6 +380,17 @@ export function ProjectEditorPage() {
         className={`editor-workspace${assistantOpen ? " editor-workspace--assistant-open" : ""}`}
         style={{ "--assistant-width": `${assistantWidth}px` } as CSSProperties}
       >
+        <button
+          aria-label={t("projects.settings.open")}
+          className="project-settings-open"
+          title={t("projects.settings.open")}
+          type="button"
+          onClick={() => setProjectSettingsOpen(true)}
+        >
+          <span aria-hidden="true">⚙</span>
+          <strong>{project.video.fps} fps</strong>
+        </button>
+
         <EditorCanvasWorkspace
           applyAnimationPreset={applyAnimationPreset}
           captionDraft={captionDraft}
@@ -366,6 +426,7 @@ export function ProjectEditorPage() {
             onAddTextHorizontal: () => addTextLayer("horizontal"),
             onAddTextVertical: () => addTextLayer("vertical"),
             onAudioChange: updateAudioTrack,
+            onAudioDelete: deleteAudioTrackAndClearSelection,
             onCaptionChange: updateCaptionRange,
             onCaptionDelete: deleteCaptionAndClearSelection,
             onCaptionSelect: selectCaption,
@@ -379,6 +440,18 @@ export function ProjectEditorPage() {
               setPlaying(false);
               const cutMs = cutTimelineAt(timeMs);
               setTimeMs(Math.max(0, cutMs - 1));
+            },
+            onDeleteRange: (startMs, endMs) => {
+              setPlaying(false);
+              const result = deleteTimelineRange(startMs, endMs);
+              setTimeMs(
+                Math.min(result.startMs, Math.max(0, result.durationMs - 1)),
+              );
+            },
+            onInsertRange: (atMs, insertedMs) => {
+              setPlaying(false);
+              const result = insertTimelineRange(atMs, insertedMs);
+              setTimeMs(result.atMs);
             },
             onDurationChange: (requestedDurationMs) => {
               setPlaying(false);
@@ -409,6 +482,10 @@ export function ProjectEditorPage() {
           captions={captionClips}
           durationMs={durationMs}
           onDrop={dropAudioOnTimeline}
+          onOpenAudioSettings={(trackId) => {
+            setSelectedAudioTrackId(trackId);
+            setActiveTool("audio");
+          }}
           playing={playing}
           project={project}
           scene={scene}
@@ -457,19 +534,16 @@ export function ProjectEditorPage() {
             audioAssets={audioAssets}
             durationMs={durationMs}
             imageAssets={imageAssets}
-            onAddAudio={addAudioTrack}
+            onGeneratedSpeech={addGeneratedSpeech}
             onAddCamera={addCameraEffect}
             onAddDialogue={addDialogue}
             onAddImage={addImageLayer}
             onAddLayer={addLayer}
-            onClose={() => setActiveTool(null)}
-            onDeleteAudio={(trackId) =>
-              mutate((document) => {
-                document.audio_tracks = document.audio_tracks?.filter(
-                  (track) => track.id !== trackId,
-                );
-              })
-            }
+            onClose={() => {
+              setActiveTool(null);
+              setSelectedAudioTrackId(undefined);
+            }}
+            onDeleteAudio={deleteAudioTrackAndClearSelection}
             onDeleteCamera={deleteCameraEffect}
             onDeleteDialogue={(dialogueId) =>
               updateScene((item) => {
@@ -493,6 +567,20 @@ export function ProjectEditorPage() {
             scene={scene}
             selectedLayer={selectedLayer}
             selectedLayerId={selectedLayerId}
+            selectedAudioTrackId={selectedAudioTrackId}
+          />
+        ) : null}
+
+        {projectSettingsOpen ? (
+          <ProjectSettingsDialog
+            fps={project.video.fps}
+            onApply={(fps) => {
+              mutate((document) => {
+                document.video.fps = fps;
+              });
+              setProjectSettingsOpen(false);
+            }}
+            onClose={() => setProjectSettingsOpen(false)}
           />
         ) : null}
       </div>

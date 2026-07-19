@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { ProjectDocument } from "@douga/project-schema";
 
 import { cutTimelineAt, resizeTimeline } from "./timelineCut";
+import { deleteTimelineRange } from "./timelineRangeDelete";
+import { insertTimelineRange } from "./timelineRangeInsert";
 
 function project(): ProjectDocument {
   return {
@@ -142,5 +144,211 @@ describe("cutTimelineAt", () => {
     expect(resizeTimeline(value, 6251)).toBe(6000);
     expect(value.video.duration_ms).toBe(6000);
     expect(value.scenes[0]?.layers).toHaveLength(1);
+  });
+});
+
+describe("deleteTimelineRange", () => {
+  it("removes the selected interval and shifts every later track", () => {
+    const value = project();
+    value.scenes[0]!.dialogues = [
+      {
+        id: "caption-before",
+        text: "before",
+        start_ms: 0,
+        duration_mode: "manual",
+        duration_ms: 2000,
+        display_effect: "instant",
+        manual_page_breaks: [],
+      },
+      {
+        id: "caption-after",
+        text: "after",
+        start_ms: 7000,
+        duration_mode: "manual",
+        duration_ms: 1000,
+        display_effect: "instant",
+        manual_page_breaks: [],
+      },
+    ];
+
+    const result = deleteTimelineRange(
+      value,
+      3000,
+      6000,
+      0,
+      () => "split-audio",
+    );
+
+    expect(result).toEqual({
+      startMs: 3000,
+      endMs: 6000,
+      deletedMs: 3000,
+      durationMs: 7000,
+    });
+    expect(value.video.duration_ms).toBe(7000);
+    expect(value.scenes[0]?.layers[0]).toMatchObject({
+      id: "before-cut",
+      start_ms: 0,
+      end_ms: 7000,
+      keyframes: [
+        expect.objectContaining({ id: "after-keyframe", time_ms: 6000 }),
+      ],
+    });
+    expect(value.scenes[0]?.layers[1]).toMatchObject({
+      id: "after-cut",
+      start_ms: 5000,
+      end_ms: 7000,
+    });
+    expect(value.scenes[0]?.dialogues[1]).toMatchObject({
+      id: "caption-after",
+      start_ms: 4000,
+      duration_ms: 1000,
+    });
+    expect(value.audio_tracks).toEqual([
+      expect.objectContaining({
+        id: "audio-1",
+        start_ms: 1000,
+        duration_ms: 2000,
+      }),
+      expect.objectContaining({
+        id: "split-audio",
+        start_ms: 3000,
+        duration_ms: 4000,
+        trim_start_ms: 5000,
+      }),
+    ]);
+    expect(value.camera_effects?.[0]).toMatchObject({
+      start_ms: 0,
+      end_ms: 7000,
+    });
+  });
+
+  it("removes clips fully contained in the selected interval", () => {
+    const value = project();
+    value.scenes[0]!.layers = [
+      { ...value.scenes[0]!.layers[1]!, start_ms: 3500, end_ms: 4500 },
+    ];
+    value.audio_tracks = [
+      { ...value.audio_tracks![0]!, start_ms: 3500, duration_ms: 1000 },
+    ];
+    value.camera_effects = [
+      { ...value.camera_effects![0]!, start_ms: 3500, end_ms: 4500 },
+    ];
+
+    deleteTimelineRange(value, 3000, 5000, 0, () => "unused");
+
+    expect(value.scenes[0]?.layers).toEqual([]);
+    expect(value.audio_tracks).toEqual([]);
+    expect(value.camera_effects).toEqual([]);
+  });
+});
+
+describe("insertTimelineRange", () => {
+  it("inserts a blank interval and shifts or splits every affected track", () => {
+    const value = project();
+    value.scenes[0]!.dialogues = [
+      {
+        id: "caption-crossing",
+        text: "crossing",
+        start_ms: 2000,
+        duration_mode: "manual",
+        duration_ms: 4000,
+        display_effect: "instant",
+        manual_page_breaks: [],
+      },
+      {
+        id: "caption-after",
+        text: "after",
+        start_ms: 7000,
+        duration_mode: "manual",
+        duration_ms: 1000,
+        display_effect: "instant",
+        manual_page_breaks: [],
+      },
+    ];
+    const ids = ["layer-right", "caption-right", "audio-right", "camera-right"];
+
+    const result = insertTimelineRange(value, 4000, 2000, 0, () =>
+      ids.shift()!,
+    );
+
+    expect(result).toEqual({
+      atMs: 4000,
+      insertedMs: 2000,
+      durationMs: 12_000,
+    });
+    expect(value.video.duration_ms).toBe(12_000);
+    expect(value.scenes[0]?.layers).toEqual([
+      expect.objectContaining({
+        id: "before-cut",
+        track_id: "before-cut",
+        start_ms: 0,
+        end_ms: 4000,
+        keyframes: [],
+      }),
+      expect.objectContaining({
+        id: "layer-right",
+        track_id: "before-cut",
+        start_ms: 6000,
+        end_ms: 12_000,
+        keyframes: [expect.objectContaining({ time_ms: 11_000 })],
+      }),
+      expect.objectContaining({
+        id: "after-cut",
+        start_ms: 10_000,
+        end_ms: 12_000,
+      }),
+    ]);
+    expect(value.scenes[0]?.dialogues).toEqual([
+      expect.objectContaining({
+        id: "caption-crossing",
+        start_ms: 2000,
+        duration_ms: 2000,
+      }),
+      expect.objectContaining({
+        id: "caption-right",
+        start_ms: 6000,
+        duration_ms: 2000,
+      }),
+      expect.objectContaining({
+        id: "caption-after",
+        start_ms: 9000,
+        duration_ms: 1000,
+      }),
+    ]);
+    expect(value.audio_tracks).toEqual([
+      expect.objectContaining({
+        id: "audio-1",
+        start_ms: 1000,
+        duration_ms: 3000,
+      }),
+      expect.objectContaining({
+        id: "audio-right",
+        start_ms: 6000,
+        duration_ms: 6000,
+        trim_start_ms: 3000,
+      }),
+    ]);
+    expect(value.camera_effects).toEqual([
+      expect.objectContaining({ id: "camera-1", start_ms: 0, end_ms: 4000 }),
+      expect.objectContaining({
+        id: "camera-right",
+        start_ms: 6000,
+        end_ms: 12_000,
+      }),
+    ]);
+  });
+
+  it("moves clips that start at the insertion point without splitting them", () => {
+    const value = project();
+    value.scenes[0]!.layers = [
+      { ...value.scenes[0]!.layers[1]!, start_ms: 4000, end_ms: 5000 },
+    ];
+
+    insertTimelineRange(value, 4000, 1000);
+
+    expect(value.scenes[0]?.layers).toEqual([
+      expect.objectContaining({ start_ms: 5000, end_ms: 6000 }),
+    ]);
   });
 });

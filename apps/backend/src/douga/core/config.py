@@ -17,7 +17,10 @@ class Settings(BaseSettings):
     app_secret_key: str = Field(min_length=32)
     database_url: str = "postgresql+asyncpg://douga:douga-local-only@127.0.0.1:5432/douga"
     test_database_url: str | None = None
-    allowed_origins: tuple[str, ...] = ("http://127.0.0.1:5173",)
+    allowed_origins: tuple[str, ...] = (
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    )
     session_cookie_name: str = "douga_session"
     csrf_cookie_name: str = "douga_csrf"
     session_lifetime_hours: int = Field(default=336, ge=1, le=24 * 90)
@@ -44,12 +47,21 @@ class Settings(BaseSettings):
     openai_assistant_model: str = "gpt-5.6"
     openai_max_retries: int = Field(default=2, ge=0, le=5)
     openai_timeout_seconds: float = Field(default=120, ge=5, le=600)
+    aivis_base_url: str = "http://127.0.0.1:10101"
+    aivis_engine_path: Path | None = None
+    aivis_auto_start: bool = True
+    aivis_request_timeout_seconds: float = Field(default=180, ge=5, le=600)
+    aivis_startup_timeout_seconds: float = Field(default=300, ge=5, le=600)
+    aivis_max_text_length: int = Field(default=500, ge=1, le=5_000)
     assistant_provider: Literal["auto", "fake", "openai"] = "auto"
     assistant_history_limit: int = Field(default=30, ge=1, le=100)
-    assistant_max_tool_calls: int = Field(default=30, ge=1, le=100)
+    assistant_recent_history_limit: int = Field(default=12, ge=2, le=50)
+    assistant_context_compact_token_threshold: int = Field(default=120_000, ge=32_000, le=1_000_000)
+    assistant_cached_input_token_weight: float = Field(default=0.1, ge=0, le=1)
+    assistant_max_tool_calls: int = Field(default=1_000, ge=1, le=1_000)
     assistant_run_limit_per_hour: int = Field(default=60, ge=1, le=1000)
-    assistant_token_limit_per_run: int = Field(default=200_000, ge=1_000, le=10_000_000)
-    assistant_token_limit_per_hour: int = Field(default=1_000_000, ge=1_000, le=100_000_000)
+    assistant_token_limit_per_run: int = Field(default=600_000, ge=1_000, le=10_000_000)
+    assistant_token_limit_per_hour: int = Field(default=2_000_000, ge=1_000, le=100_000_000)
     image_provider: Literal["fake", "openai"] = "fake"
     image_generation_limit_per_hour: int = Field(default=20, ge=1, le=1000)
     export_timeout_seconds: int = Field(default=900, ge=30, le=7200)
@@ -67,8 +79,23 @@ class Settings(BaseSettings):
             return tuple(origin.strip() for origin in value.split(",") if origin.strip())
         return value
 
+    @field_validator("aivis_engine_path", mode="before")
+    @classmethod
+    def parse_optional_path(cls, value: object) -> object:
+        return None if value == "" else value
+
     @model_validator(mode="after")
     def validate_production_security(self) -> Settings:
+        if self.app_env == "development":
+            self.allowed_origins = tuple(
+                dict.fromkeys(
+                    (
+                        *self.allowed_origins,
+                        "http://127.0.0.1:5173",
+                        "http://localhost:5173",
+                    )
+                )
+            )
         if "*" in self.allowed_origins:
             raise ValueError("Wildcard CORS origins are not allowed with credentials")
         if self.app_env == "production" and any(

@@ -6,6 +6,10 @@ from douga.modules.assistant.tools.creative_tools import creative_tool_definitio
 from douga.modules.assistant.tools.image_edit_tools import image_edit_tool_definitions
 from douga.modules.assistant.tools.output_tools import output_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
+from douga.modules.assistant.tools.speech_alignment_tools import (
+    speech_alignment_tool_definitions,
+)
+from douga.modules.assistant.tools.speech_tools import speech_tool_definitions
 from douga.modules.assistant.tools.timeline_tools import timeline_tool_definitions
 
 
@@ -36,6 +40,8 @@ def test_creative_tool_json_schemas_are_strict() -> None:
         + image_edit_tool_definitions()
         + output_tool_definitions()
         + project_read_tool_definitions()
+        + speech_tool_definitions()
+        + speech_alignment_tool_definitions()
         + timeline_tool_definitions()
     )
     for definition in definitions:
@@ -63,6 +69,8 @@ def test_design_tool_catalog_is_implemented() -> None:
         + animation_tool_definitions()
         + image_edit_tool_definitions()
         + project_read_tool_definitions()
+        + speech_tool_definitions()
+        + speech_alignment_tool_definitions()
         + timeline_tool_definitions()
         + output_tool_definitions()
     )
@@ -83,10 +91,15 @@ def test_design_tool_catalog_is_implemented() -> None:
         "edit_image_asset",
         "edit_visible_image",
         "list_generation_status",
+        "list_speech_voices",
+        "generate_narration",
+        "create_synced_captions_from_narration",
+        "validate_narration_caption_sync",
         "add_text_clip",
         "add_caption_clip",
         "add_shape_clip",
         "add_audio_clip",
+        "duplicate_audio_clip",
         "add_asset_to_timeline",
         "replace_clip_asset",
         "update_clip_timing",

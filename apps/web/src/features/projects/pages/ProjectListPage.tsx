@@ -11,6 +11,10 @@ import {
   type ProjectListDto,
   type ProjectSummaryDto,
 } from "../../../shared/lib/api";
+import {
+  ProjectExportDialog,
+  type ProjectExportOptions,
+} from "../components/ProjectExportDialog";
 
 type ProjectAspectRatio = "16:9" | "9:16";
 
@@ -48,8 +52,20 @@ export function ProjectListPage() {
   const [projects, setProjects] = useState<ProjectListDto>();
   const [name, setName] = useState("");
   const [aspectRatio, setAspectRatio] = useState<ProjectAspectRatio>("16:9");
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createErrorKey, setCreateErrorKey] = useState<string>();
+  const [exportDetail, setExportDetail] = useState<ProjectDetailDto>();
+  const [exporting, setExporting] = useState(false);
+  const [exportErrorKey, setExportErrorKey] = useState<string>();
+  const [loadingExportProjectId, setLoadingExportProjectId] =
+    useState<string>();
   const [search, setSearch] = useState("");
   const [errorKey, setErrorKey] = useState<string>();
+  const [editingProjectId, setEditingProjectId] = useState<string>();
+  const [editingProjectName, setEditingProjectName] = useState("");
+  const [renamingProjectId, setRenamingProjectId] = useState<string>();
+  const [renameErrorKey, setRenameErrorKey] = useState<string>();
 
   async function load(query = search) {
     try {
@@ -69,9 +85,20 @@ export function ProjectListPage() {
     void load("");
   }, []);
 
+  useEffect(() => {
+    if (!createDialogOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !creating) setCreateDialogOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [createDialogOpen, creating]);
+
   async function create(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || creating) return;
+    setCreating(true);
+    setCreateErrorKey(undefined);
     try {
       const result = await apiRequest<ProjectDetailDto>("/projects", {
         method: "POST",
@@ -82,10 +109,19 @@ export function ProjectListPage() {
       });
       navigate(`/projects/${result.project.id}`);
     } catch (error) {
-      setErrorKey(
+      setCreateErrorKey(
         error instanceof ApiError ? error.messageKey : "errors.unknown",
       );
+    } finally {
+      setCreating(false);
     }
+  }
+
+  function openCreateDialog() {
+    setName("");
+    setAspectRatio("16:9");
+    setCreateErrorKey(undefined);
+    setCreateDialogOpen(true);
   }
 
   async function duplicate(projectId: string) {
@@ -100,12 +136,97 @@ export function ProjectListPage() {
     await load();
   }
 
-  async function exportProject(projectId: string) {
-    await apiRequest<ExportDto>("/exports", {
-      method: "POST",
-      body: JSON.stringify({ project_id: projectId }),
-    });
-    navigate("/exports");
+  function startRenaming(project: ProjectSummaryDto) {
+    setEditingProjectId(project.id);
+    setEditingProjectName(project.name);
+    setRenameErrorKey(undefined);
+  }
+
+  function cancelRenaming() {
+    if (renamingProjectId) return;
+    setEditingProjectId(undefined);
+    setEditingProjectName("");
+    setRenameErrorKey(undefined);
+  }
+
+  async function renameProject(event: FormEvent, project: ProjectSummaryDto) {
+    event.preventDefault();
+    const nextName = editingProjectName.trim();
+    if (!nextName || renamingProjectId) return;
+
+    if (nextName === project.name) {
+      cancelRenaming();
+      return;
+    }
+
+    setRenamingProjectId(project.id);
+    setRenameErrorKey(undefined);
+    try {
+      const updatedProject = await apiRequest<ProjectSummaryDto>(
+        `/projects/${project.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ name: nextName }),
+        },
+      );
+      setProjects((current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.map((item) =>
+                item.id === updatedProject.id ? updatedProject : item,
+              ),
+            }
+          : current,
+      );
+      setEditingProjectId(undefined);
+      setEditingProjectName("");
+    } catch (error) {
+      setRenameErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setRenamingProjectId(undefined);
+    }
+  }
+
+  async function openExportDialog(projectId: string) {
+    setLoadingExportProjectId(projectId);
+    setExportErrorKey(undefined);
+    try {
+      setExportDetail(
+        await apiRequest<ProjectDetailDto>(`/projects/${projectId}`),
+      );
+    } catch (error) {
+      setErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setLoadingExportProjectId(undefined);
+    }
+  }
+
+  async function exportProject(options: ProjectExportOptions) {
+    if (!exportDetail || exporting) return;
+    setExporting(true);
+    setExportErrorKey(undefined);
+    try {
+      await apiRequest<ExportDto>("/exports", {
+        method: "POST",
+        body: JSON.stringify({
+          project_id: exportDetail.project.id,
+          ...options,
+        }),
+      });
+      setExportDetail(undefined);
+      navigate("/exports");
+    } catch (error) {
+      setExportErrorKey(
+        error instanceof ApiError ? error.messageKey : "errors.unknown",
+      );
+    } finally {
+      setExporting(false);
+    }
   }
 
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
@@ -121,57 +242,112 @@ export function ProjectListPage() {
           <h1>{t("projects.title")}</h1>
           <p className="projects-lead">{t("projects.lead")}</p>
         </div>
-        <form
-          className="project-create-form"
-          onSubmit={(event) => void create(event)}
+        <button
+          type="button"
+          className="project-create-button"
+          onClick={openCreateDialog}
         >
-          <label className="sr-only" htmlFor="new-project-name">
-            {t("projects.newName")}
-          </label>
-          <input
-            id="new-project-name"
-            value={name}
-            maxLength={200}
-            placeholder={t("projects.newName")}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <fieldset className="project-aspect-picker">
-            <legend>{t("projects.aspectRatio")}</legend>
-            {(["16:9", "9:16"] as const).map((ratio) => (
-              <label
-                className={aspectRatio === ratio ? "selected" : undefined}
-                key={ratio}
-              >
+          <span aria-hidden="true">＋</span>
+          {t("projects.create")}
+        </button>
+        {createDialogOpen ? (
+          <div
+            className="project-create-dialog-backdrop"
+            onPointerDown={(event) => {
+              if (event.target === event.currentTarget && !creating)
+                setCreateDialogOpen(false);
+            }}
+          >
+            <section
+              aria-labelledby="project-create-dialog-title"
+              aria-modal="true"
+              className="project-create-dialog"
+              role="dialog"
+            >
+              <h2 id="project-create-dialog-title">
+                {t("projects.createDialogTitle")}
+              </h2>
+              <form onSubmit={(event) => void create(event)}>
+                <label htmlFor="new-project-name">
+                  {t("projects.newName")}
+                </label>
                 <input
-                  type="radio"
-                  name="project-aspect-ratio"
-                  value={ratio}
-                  checked={aspectRatio === ratio}
-                  onChange={() => setAspectRatio(ratio)}
+                  autoFocus
+                  id="new-project-name"
+                  value={name}
+                  maxLength={200}
+                  onChange={(event) => setName(event.target.value)}
                 />
-                <span
-                  className={`project-aspect-icon ${ratio === "9:16" ? "portrait" : "landscape"}`}
-                  aria-hidden="true"
-                />
-                <span>
-                  <strong>{ratio}</strong>
-                  <small>
-                    {t(
-                      ratio === "16:9"
-                        ? "projects.aspectLandscape"
-                        : "projects.aspectPortrait",
-                    )}
-                  </small>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <button type="submit">
-            <span aria-hidden="true">＋</span>
-            {t("projects.create")}
-          </button>
-        </form>
+                <fieldset className="project-aspect-picker">
+                  <legend>{t("projects.aspectRatio")}</legend>
+                  {(["16:9", "9:16"] as const).map((ratio) => (
+                    <label
+                      className={aspectRatio === ratio ? "selected" : undefined}
+                      key={ratio}
+                    >
+                      <input
+                        type="radio"
+                        name="project-aspect-ratio"
+                        value={ratio}
+                        checked={aspectRatio === ratio}
+                        onChange={() => setAspectRatio(ratio)}
+                      />
+                      <span
+                        className={`project-aspect-icon ${ratio === "9:16" ? "portrait" : "landscape"}`}
+                        aria-hidden="true"
+                      />
+                      <span>
+                        <strong>{ratio}</strong>
+                        <small>
+                          {t(
+                            ratio === "16:9"
+                              ? "projects.aspectLandscape"
+                              : "projects.aspectPortrait",
+                          )}
+                        </small>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+                {createErrorKey ? (
+                  <p role="alert" className="form-error">
+                    {t(createErrorKey)}
+                  </p>
+                ) : null}
+                <footer className="project-create-dialog-actions">
+                  <button
+                    type="button"
+                    disabled={creating}
+                    onClick={() => setCreateDialogOpen(false)}
+                  >
+                    {t("projects.cancel")}
+                  </button>
+                  <button
+                    type="submit"
+                    className="primary"
+                    disabled={creating || !name.trim()}
+                  >
+                    <span aria-hidden="true">＋</span>
+                    {t("projects.confirmCreate")}
+                  </button>
+                </footer>
+              </form>
+            </section>
+          </div>
+        ) : null}
       </header>
+
+      {exportDetail ? (
+        <ProjectExportDialog
+          busy={exporting}
+          detail={exportDetail}
+          errorKey={exportErrorKey}
+          onClose={() => {
+            if (!exporting) setExportDetail(undefined);
+          }}
+          onExport={(options) => void exportProject(options)}
+        />
+      ) : null}
 
       <div className="projects-toolbar">
         <form
@@ -207,7 +383,7 @@ export function ProjectListPage() {
       ) : projects.items.length === 0 ? (
         <p className="empty-state">{t("projects.empty")}</p>
       ) : (
-        <div className="project-grid">
+        <div className="project-grid project-grid--projects">
           {projects.items.map((project) => (
             <article className="project-card" key={project.id}>
               <ProjectThumbnail
@@ -219,9 +395,69 @@ export function ProjectListPage() {
                 }}
               />
               <div className="project-card-body">
-                <Link to={`/projects/${project.id}`}>
-                  <h2>{project.name}</h2>
-                </Link>
+                {editingProjectId === project.id ? (
+                  <form
+                    className="project-title-edit-form"
+                    onSubmit={(event) => void renameProject(event, project)}
+                  >
+                    <input
+                      autoFocus
+                      aria-label={t("projects.renameInput")}
+                      maxLength={200}
+                      value={editingProjectName}
+                      onChange={(event) =>
+                        setEditingProjectName(event.target.value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") cancelRenaming();
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      className="primary"
+                      disabled={
+                        renamingProjectId === project.id ||
+                        !editingProjectName.trim()
+                      }
+                    >
+                      {t(
+                        renamingProjectId === project.id
+                          ? "projects.renameSaving"
+                          : "projects.renameSave",
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={renamingProjectId === project.id}
+                      onClick={cancelRenaming}
+                    >
+                      {t("projects.cancel")}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="project-card-title-row">
+                    <Link to={`/projects/${project.id}`}>
+                      <h2>{project.name}</h2>
+                    </Link>
+                    <button
+                      type="button"
+                      className="project-rename-button"
+                      aria-label={t("projects.rename")}
+                      title={t("projects.rename")}
+                      onClick={() => startRenaming(project)}
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="m4 16.5-.75 4.25L7.5 20 18.35 9.15l-3.5-3.5L4 16.5Z" />
+                        <path d="m13.75 6.75 3.5 3.5" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                {editingProjectId === project.id && renameErrorKey ? (
+                  <p role="alert" className="form-error project-rename-error">
+                    {t(renameErrorKey)}
+                  </p>
+                ) : null}
                 <p className="project-updated">
                   {t("projects.updated", {
                     date: dateFormatter.format(new Date(project.updated_at)),
@@ -237,9 +473,14 @@ export function ProjectListPage() {
                     <button
                       type="button"
                       className="project-export-button"
-                      onClick={() => void exportProject(project.id)}
+                      disabled={loadingExportProjectId === project.id}
+                      onClick={() => void openExportDialog(project.id)}
                     >
-                      {t("projects.export")}
+                      {t(
+                        loadingExportProjectId === project.id
+                          ? "projects.exportLoading"
+                          : "projects.export",
+                      )}
                     </button>
                     <button
                       type="button"

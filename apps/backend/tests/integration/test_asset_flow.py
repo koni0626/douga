@@ -1,10 +1,13 @@
 import base64
+import io
 import os
+import wave
 from hashlib import sha256
 
 import pytest
 from douga.api_main import create_app
 from douga.db.session import session_factory
+from douga.integrations.aivis_speech import AivisSpeechClient
 from douga.modules.assets.models import Asset, AssetDerivative, AssetTag, Tag
 from douga.modules.auth.models import User, UserSession
 from douga.modules.exports.models import Export
@@ -129,5 +132,49 @@ async def test_image_upload_validation_tags_and_tenant_isolation() -> None:
         remaining = (await owner.get("/api/v1/assets")).json()
         assert remaining["total"] == 1
         assert remaining["items"][0]["status"] == "failed"
+
+    await clear_all_data()
+
+
+async def test_generated_speech_is_private_to_the_authenticated_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await clear_all_data()
+
+    output = io.BytesIO()
+    with wave.open(output, "wb") as stream:
+        stream.setnchannels(1)
+        stream.setsampwidth(2)
+        stream.setframerate(24_000)
+        stream.writeframes(b"\0\0" * 4_800)
+    generated_wav = output.getvalue()
+
+    async def fake_synthesize(self: AivisSpeechClient, **_: object) -> bytes:
+        return generated_wav
+
+    monkeypatch.setattr(AivisSpeechClient, "synthesize", fake_synthesize)
+    transport = ASGITransport(app=create_app())
+    async with (
+        AsyncClient(transport=transport, base_url="http://testserver") as owner,
+        AsyncClient(transport=transport, base_url="http://testserver") as outsider,
+        AsyncClient(transport=transport, base_url="http://testserver") as anonymous,
+    ):
+        csrf = await register(owner, "speech-owner@example.com")
+        await register(outsider, "speech-outsider@example.com")
+        created = await owner.post(
+            "/api/v1/speech/syntheses",
+            json={"text": "こんにちは", "style_id": 42},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert created.status_code == 201
+        asset = created.json()["asset"]
+        assert asset["source"] == "generated"
+        assert asset["kind"] == "audio"
+        assert asset["duration_ms"] == 200
+        assert (await owner.get(f"/api/v1/assets/{asset['id']}/content")).content == generated_wav
+        assert (await outsider.get(f"/api/v1/assets/{asset['id']}/content")).status_code == 404
+        assert (
+            await anonymous.post("/api/v1/speech/syntheses", json={"text": "拒否", "style_id": 42})
+        ).status_code == 401
 
     await clear_all_data()

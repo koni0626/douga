@@ -5,7 +5,7 @@ export const sampleProject: ProjectDocument = {
   project_id: "phase-0-spike",
   name: "Renderer spike",
   content_locale: "ja",
-  video: { width: 1920, height: 1080, fps: 30 },
+  video: { width: 1920, height: 1080, fps: 10 },
   caption_style: {
     x: 140,
     y: 760,

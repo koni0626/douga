@@ -202,6 +202,80 @@ async def test_api_token_management_requires_browser_csrf() -> None:
     await clear_data()
 
 
+async def test_assistant_api_supports_personal_tokens_with_dedicated_scopes() -> None:
+    await clear_data()
+    transport = ASGITransport(app=create_app())
+    async with AsyncClient(transport=transport, base_url="http://testserver") as browser:
+        csrf = await register(browser)
+        project = await browser.post(
+            "/api/v1/projects",
+            headers={"X-CSRF-Token": csrf},
+            json={"name": "Assistant API", "content_locale": "ja"},
+        )
+        assert project.status_code == 201
+        project_id = project.json()["project"]["id"]
+
+        async def issue(name: str, scopes: list[str]) -> str:
+            response = await browser.post(
+                "/api/v1/settings/api-tokens",
+                headers={"X-CSRF-Token": csrf},
+                json={"name": name, "scopes": scopes},
+            )
+            assert response.status_code == 201
+            return str(response.json()["token"])
+
+        full_token = await issue("Assistant client", ["assistant:read", "assistant:write"])
+        read_token = await issue("Assistant reader", ["assistant:read"])
+        unrelated_token = await issue("Project reader", ["projects:read"])
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+            headers={"Authorization": f"Bearer {full_token}"},
+        ) as full_client:
+            created = await full_client.post(
+                f"/api/v1/projects/{project_id}/assistant/threads",
+                json={"title": "REST conversation"},
+                headers={"Idempotency-Key": "assistant-thread-0001"},
+            )
+            assert created.status_code == 201
+            thread_id = created.json()["id"]
+            assert (
+                await full_client.get(
+                    f"/api/v1/projects/{project_id}/assistant/threads/{thread_id}"
+                )
+            ).status_code == 200
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+            headers={"Authorization": f"Bearer {read_token}"},
+        ) as read_client:
+            assert (
+                await read_client.get(f"/api/v1/projects/{project_id}/assistant/threads")
+            ).status_code == 200
+            denied_write = await read_client.post(
+                f"/api/v1/projects/{project_id}/assistant/threads",
+                json={"title": "Must not be created"},
+                headers={"Idempotency-Key": "assistant-thread-denied-0001"},
+            )
+            assert denied_write.status_code == 403
+            assert denied_write.json()["error"]["code"] == "API_TOKEN_SCOPE_REQUIRED"
+
+        async with AsyncClient(
+            transport=transport,
+            base_url="http://testserver",
+            headers={"Authorization": f"Bearer {unrelated_token}"},
+        ) as unrelated_client:
+            denied_read = await unrelated_client.get(
+                f"/api/v1/projects/{project_id}/assistant/threads"
+            )
+            assert denied_read.status_code == 403
+            assert denied_read.json()["error"]["code"] == "API_TOKEN_SCOPE_REQUIRED"
+
+    await clear_data()
+
+
 async def test_transient_post_response_is_not_cached_by_idempotency() -> None:
     await clear_data()
     app = create_app()

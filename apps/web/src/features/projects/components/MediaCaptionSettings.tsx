@@ -2,7 +2,10 @@ import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
-import type { AssetDto } from "../../../shared/lib/api";
+import type {
+  AssetDto,
+  SpeechSynthesisSettingsDto,
+} from "../../../shared/lib/api";
 import type {
   AudioTrack,
   CameraEffect,
@@ -10,6 +13,8 @@ import type {
   EditorTool,
 } from "../lib/editorTypes";
 import { AudioTrackSettings } from "./AudioTrackSettings";
+import { AivisSpeechPanel } from "./AivisSpeechPanel";
+import { CaptionStyleSettings } from "./CaptionStyleSettings";
 import { NumberField } from "./EditorFields";
 
 export interface MediaCaptionSettingsProps {
@@ -18,7 +23,10 @@ export interface MediaCaptionSettingsProps {
   captionStyle: ProjectDocument["caption_style"];
   cameraEffects: CameraEffect[];
   durationMs: number;
-  onAddAudio: (asset: AssetDto) => void;
+  onGeneratedSpeech: (
+    asset: AssetDto,
+    settings: SpeechSynthesisSettingsDto,
+  ) => void;
   onAddCamera: (preset: CameraPreset) => void;
   onDeleteAudio: (trackId: string) => void;
   onDeleteCamera: (effectId: string) => void;
@@ -26,6 +34,7 @@ export interface MediaCaptionSettingsProps {
   onUpdateCamera: (effectId: string, patch: Partial<CameraEffect>) => void;
   onUpdateCaption: (patch: Partial<ProjectDocument["caption_style"]>) => void;
   audioTracks: AudioTrack[];
+  selectedAudioTrackId?: string;
 }
 
 export function MediaCaptionSettings({
@@ -35,15 +44,22 @@ export function MediaCaptionSettings({
   cameraEffects,
   captionStyle,
   durationMs,
-  onAddAudio,
+  onGeneratedSpeech,
   onAddCamera,
   onDeleteAudio,
   onDeleteCamera,
   onUpdateAudio,
   onUpdateCamera,
   onUpdateCaption,
+  selectedAudioTrackId,
 }: MediaCaptionSettingsProps) {
   const { t } = useTranslation();
+  const selectedAudioTrack = audioTracks.find(
+    (track) => track.id === selectedAudioTrackId,
+  );
+  const selectedAudioAsset = audioAssets.find(
+    (asset) => asset.id === selectedAudioTrack?.asset_id,
+  );
   return (
     <>
       <details open hidden={activeTool !== "camera"}>
@@ -131,68 +147,37 @@ export function MediaCaptionSettings({
 
       <details open hidden={activeTool !== "audio"}>
         <summary>{t("editor.audio")}</summary>
-        <div className="audio-picker">
-          {audioAssets.map((asset) => (
-            <button
-              type="button"
-              key={asset.id}
-              onClick={() => onAddAudio(asset)}
-            >
-              {asset.name}
-            </button>
-          ))}
-        </div>
-        {audioTracks.map((track) => (
+        {selectedAudioTrack ? null : (
+          <AivisSpeechPanel onGenerated={onGeneratedSpeech} />
+        )}
+        {selectedAudioTrack &&
+        (selectedAudioAsset?.source === "generated" ||
+          selectedAudioTrack.speech_synthesis) ? (
+          <AivisSpeechPanel
+            key={selectedAudioTrack.id}
+            initialSettings={selectedAudioTrack.speech_synthesis}
+            initialText={selectedAudioAsset?.name}
+            onGenerated={onGeneratedSpeech}
+            submitLabel={t("editor.speech.regenerate")}
+          />
+        ) : null}
+        {selectedAudioTrack ? (
           <AudioTrackSettings
             fallbackDurationMs={durationMs}
-            key={track.id}
-            onDelete={() => onDeleteAudio(track.id)}
-            onUpdate={(patch) => onUpdateAudio(track.id, patch)}
-            sourceDurationMs={
-              audioAssets.find((asset) => asset.id === track.asset_id)
-                ?.duration_ms ?? undefined
-            }
-            track={track}
+            onDelete={() => onDeleteAudio(selectedAudioTrack.id)}
+            onUpdate={(patch) => onUpdateAudio(selectedAudioTrack.id, patch)}
+            sourceDurationMs={selectedAudioAsset?.duration_ms ?? undefined}
+            track={selectedAudioTrack}
           />
-        ))}
+        ) : null}
       </details>
 
       <details open hidden={activeTool !== "caption"}>
         <summary>{t("editor.captionStyle")}</summary>
-        <div className="property-grid">
-          {(["x", "y", "width", "height"] as const).map((key) => (
-            <NumberField
-              key={key}
-              label={key}
-              value={captionStyle[key]}
-              min={key === "width" || key === "height" ? 1 : undefined}
-              onChange={(value) => onUpdateCaption({ [key]: value })}
-            />
-          ))}
-          <NumberField
-            label={t("editor.fontSize")}
-            value={captionStyle.font_size}
-            min={8}
-            onChange={(value) => onUpdateCaption({ font_size: value })}
-          />
-          <NumberField
-            label={t("editor.maxLines")}
-            value={captionStyle.max_lines}
-            min={1}
-            max={20}
-            onChange={(value) => onUpdateCaption({ max_lines: value })}
-          />
-          <label>
-            <span>{t("editor.textColor")}</span>
-            <input
-              type="color"
-              value={captionStyle.text_color}
-              onChange={(event) =>
-                onUpdateCaption({ text_color: event.target.value })
-              }
-            />
-          </label>
-        </div>
+        <CaptionStyleSettings
+          captionStyle={captionStyle}
+          onUpdate={onUpdateCaption}
+        />
       </details>
     </>
   );

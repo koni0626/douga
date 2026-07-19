@@ -79,7 +79,7 @@ class UserSettings(TimestampMixin, Base):
     default_video_width: Mapped[int] = mapped_column(Integer, nullable=False, default=1920)
     default_video_height: Mapped[int] = mapped_column(Integer, nullable=False, default=1080)
     default_video_fps: Mapped[Decimal] = mapped_column(
-        Numeric(6, 3), nullable=False, default=Decimal("30")
+        Numeric(6, 3), nullable=False, default=Decimal("10"), server_default="10"
     )
     default_caption_settings: Mapped[dict[str, Any]] = mapped_column(
         JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict

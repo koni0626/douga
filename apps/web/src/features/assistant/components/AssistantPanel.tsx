@@ -20,6 +20,7 @@ import {
 import { ApprovalCard } from "./ApprovalCard";
 import { AssistantAttachmentStrip } from "./AssistantAttachmentStrip";
 import { CreativeDocumentCard } from "./CreativeDocumentCard";
+import { creativeDocument } from "./creativeDocument";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageArtifactCard } from "./ImageArtifactCard";
 import { VideoArtifactCard } from "./VideoArtifactCard";
@@ -369,11 +370,13 @@ export function AssistantPanel({
         ]);
         return;
       }
-      const document = artifact as CreativeDocumentDto;
-      setDocuments((current) => [
-        document,
-        ...current.filter((item) => item.kind !== document.kind),
-      ]);
+      const document = creativeDocument(artifact);
+      if (document) {
+        setDocuments((current) => [
+          document,
+          ...current.filter((item) => item.kind !== document.kind),
+        ]);
+      }
     });
     source.addEventListener("tool.waiting_approval", (event) => {
       const value = JSON.parse(event.data) as {

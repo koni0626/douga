@@ -150,6 +150,19 @@ class AutomationMiddleware(BaseHTTPMiddleware):
                 return "creative_document_save"
             if segments[2] == "previews":
                 return "preview_create"
+            if len(segments) >= 4 and segments[2] == "assistant":
+                if segments[3] == "threads" and len(segments) == 4:
+                    return "assistant_thread_create"
+                if segments[3] == "threads" and segments[-1] == "messages":
+                    return "assistant_message_send"
+                if segments[3] == "runs" and segments[-1] == "cancel":
+                    return "assistant_run_cancel"
+                if segments[3] == "runs" and segments[-1] == "undo":
+                    return "assistant_run_undo"
+                if segments[3] == "tool-calls" and segments[-1] == "approve":
+                    return "assistant_tool_approve"
+                if segments[3] == "tool-calls" and segments[-1] == "reject":
+                    return "assistant_tool_reject"
         if relative == "assets/uploads":
             return "asset_upload_begin"
         if len(segments) == 3 and segments[0] == "assets" and segments[2] == "complete":

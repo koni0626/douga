@@ -64,6 +64,11 @@ export function ExportListPage() {
               <p>
                 {t(`jobs.${item.status}`)} ({item.progress}%)
               </p>
+              {item.status === "failed" ? (
+                <p role="alert" className="form-error">
+                  {t("errors.exportFailed")}
+                </p>
+              ) : null}
               <div className="card-actions">
                 {item.status === "succeeded" ? (
                   <a className="button-link" href={exportContentUrl(item.id)}>

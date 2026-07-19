@@ -22,6 +22,8 @@ API_TOKEN_SCOPES = frozenset(
         "assets:write",
         "creative:read",
         "creative:write",
+        "assistant:read",
+        "assistant:write",
         "previews:read",
         "previews:write",
         "exports:read",

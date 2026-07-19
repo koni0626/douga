@@ -143,6 +143,39 @@ describe("validateProjectDocument", () => {
     });
   });
 
+  it("accepts editable speech synthesis settings on an audio track", () => {
+    const project = validProject();
+    project.audio_tracks = [
+      {
+        id: "narration-1",
+        asset_id: "audio-asset-1",
+        role: "narration",
+        start_ms: 0,
+        duration_ms: 2000,
+        trim_start_ms: 0,
+        volume: 1,
+        loop: false,
+        fade_in_ms: 0,
+        fade_out_ms: 0,
+        ducking: false,
+        speech_synthesis: {
+          provider: "aivis_speech",
+          text: "Editable narration",
+          style_id: 42,
+          speed_scale: 1,
+          intonation_scale: 1,
+          tempo_dynamics_scale: 1,
+          volume_scale: 1,
+        },
+      },
+    ];
+
+    expect(validateProjectDocument(project)).toEqual({
+      valid: true,
+      errors: [],
+    });
+  });
+
   it("rejects an unsupported locale", () => {
     expect(
       validateProjectDocument({ ...validProject(), content_locale: "fr" }),

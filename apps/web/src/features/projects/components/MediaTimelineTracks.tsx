@@ -81,9 +81,10 @@ export interface AudioTimelineTracksProps {
   durationMs: number;
   label: string;
   labelFor: (track: AudioTrack) => string;
-  onOpenMenu: (x: number, y: number) => void;
+  onOpenMenu: (trackId: string, x: number, y: number) => void;
   onSeek: (timeMs: number) => void;
   onChange: (trackId: string, patch: Partial<AudioTrack>) => void;
+  onDelete: (trackId: string) => void;
   sourceDurationFor: (track: AudioTrack) => number | undefined;
   tracks: AudioTrack[];
   trimEndLabel: string;
@@ -97,6 +98,7 @@ export function AudioTimelineTracks({
   onOpenMenu,
   onSeek,
   onChange,
+  onDelete,
   sourceDurationFor,
   tracks,
   trimEndLabel,
@@ -171,6 +173,8 @@ export function AudioTimelineTracks({
     ) => {
       event.preventDefault();
       event.stopPropagation();
+      const clip = event.currentTarget.closest(".audio-timeline-clip");
+      if (clip instanceof HTMLElement) clip.focus();
       const timelineTrack = event.currentTarget.closest(
         ".audio-timeline-track",
       );
@@ -203,6 +207,7 @@ export function AudioTimelineTracks({
           onPointerDown={(event) => seek(event, durationMs, onSeek)}
         >
           <div
+            aria-label={labelFor(track)}
             className="audio-timeline-clip"
             style={{
               left: `${(range.startMs * 100) / durationMs}%`,
@@ -211,9 +216,20 @@ export function AudioTimelineTracks({
             onContextMenu={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              onOpenMenu(event.clientX, event.clientY);
+              onOpenMenu(track.id, event.clientX, event.clientY);
+            }}
+            onKeyDown={(event) => {
+              if (
+                event.key !== "Delete" ||
+                event.target !== event.currentTarget
+              )
+                return;
+              event.preventDefault();
+              event.stopPropagation();
+              onDelete(track.id);
             }}
             onPointerDown={(event) => beginDrag(event, "move")}
+            tabIndex={0}
           >
             <span
               aria-label={trimStartLabel}

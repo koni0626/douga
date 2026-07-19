@@ -44,6 +44,7 @@ type DurationDrag = {
   originX: number;
   trackWidth: number;
 };
+type TimelineDeleteSelection = { startMs: number; endMs: number };
 const DEFAULT_TIMELINE_HEIGHT_PX = 180;
 const MIN_TIMELINE_HEIGHT_PX = 96;
 const TIMELINE_VIEWPORT_RESERVE_PX = 360;
@@ -76,12 +77,13 @@ export interface ObjectTimelineProps {
   labelFor: (layer: Layer) => string;
   onChange: (layerId: string, range: TimelineRange) => void;
   onAudioChange: (trackId: string, patch: Partial<AudioTrack>) => void;
+  onAudioDelete: (trackId: string) => void;
   onAddCamera: () => void;
   onAddCaption: (startMs: number) => void;
   onAddTextHorizontal: () => void;
   onAddTextVertical: () => void;
   onAddShape: () => void;
-  onOpenAudioSettings: () => void;
+  onOpenAudioSettings: (trackId?: string) => void;
   onOpenCameraSettings: () => void;
   onOpenCaptionSettings: () => void;
   onCaptionChange: (captionId: string, range: TimelineRange) => void;
@@ -90,6 +92,8 @@ export interface ObjectTimelineProps {
   onCaptionTextChange: (captionId: string, text: string) => void;
   onOpenLayerSettings: () => void;
   onCut: () => void;
+  onDeleteRange: (startMs: number, endMs: number) => void;
+  onInsertRange: (atMs: number, durationMs: number) => void;
   onDurationChange: (durationMs: number) => void;
   onPlay: () => void;
   onDeleteKeyframe: (layerId: string, keyframeId: string) => void;
@@ -124,6 +128,14 @@ export interface ObjectTimelineProps {
   expandLabel: string;
   cutDisabled: boolean;
   cutLabel: string;
+  deleteRangeCancelLabel: string;
+  deleteRangeConfirmLabel: (durationMs: number) => string;
+  deleteRangeInstruction: string;
+  deleteRangeLabel: string;
+  insertRangeConfirmLabel: (atMs: number, durationMs: number) => string;
+  insertRangeDurationLabel: string;
+  insertRangeInstruction: string;
+  insertRangeLabel: string;
   resizeLabel: string;
   playLabel: string;
   seekLabel: string;
@@ -174,6 +186,7 @@ export function ObjectTimeline({
   labelFor,
   onChange,
   onAudioChange,
+  onAudioDelete,
   onAddCamera,
   onAddCaption,
   onAddTextHorizontal,
@@ -188,6 +201,8 @@ export function ObjectTimeline({
   onCaptionTextChange,
   onOpenLayerSettings,
   onCut,
+  onDeleteRange,
+  onInsertRange,
   onDurationChange,
   onDeleteKeyframe,
   onDeleteLayer,
@@ -206,6 +221,14 @@ export function ObjectTimeline({
   expandLabel,
   cutDisabled,
   cutLabel,
+  deleteRangeCancelLabel,
+  deleteRangeConfirmLabel,
+  deleteRangeInstruction,
+  deleteRangeLabel,
+  insertRangeConfirmLabel,
+  insertRangeDurationLabel,
+  insertRangeInstruction,
+  insertRangeLabel,
   resizeLabel,
   playLabel,
   seekLabel,
@@ -232,6 +255,13 @@ export function ObjectTimeline({
   const [timelineMenu, setTimelineMenu] = useState<TimelineMenuState>();
   const [durationDrag, setDurationDrag] = useState<DurationDrag>();
   const [draftDurationMs, setDraftDurationMs] = useState<number>();
+  const [deleteRangeActive, setDeleteRangeActive] = useState(false);
+  const [deleteSelection, setDeleteSelection] =
+    useState<TimelineDeleteSelection>();
+  const [insertRangeActive, setInsertRangeActive] = useState(false);
+  const [insertRangeAtMs, setInsertRangeAtMs] = useState(timeMs);
+  const [insertRangeDurationMs, setInsertRangeDurationMs] = useState(1000);
+  const deleteRangeAnchorRef = useRef<number | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const trackWidth = timelineTrackWidth(durationMs);
   const secondWidth = timelineSecondWidth(durationMs);
@@ -240,34 +270,56 @@ export function ObjectTimeline({
     (_, index) => index,
   );
 
-  function seekAt(clientX: number, element: HTMLDivElement) {
+  function timeAt(clientX: number, element: HTMLDivElement) {
     const bounds = element.getBoundingClientRect();
-    onSeek(
-      Math.max(
-        0,
-        Math.min(
-          durationMs,
-          Math.round(((clientX - bounds.left) / bounds.width) * durationMs),
-        ),
+    return Math.max(
+      0,
+      Math.min(
+        durationMs,
+        Math.round(((clientX - bounds.left) / bounds.width) * durationMs),
       ),
     );
+  }
+
+  function updateDeleteSelection(timeMs: number) {
+    const anchorMs = deleteRangeAnchorRef.current;
+    if (anchorMs === undefined) return;
+    setDeleteSelection({
+      startMs: Math.min(anchorMs, timeMs),
+      endMs: Math.max(anchorMs, timeMs),
+    });
   }
 
   function beginSeek(event: PointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    seekAt(event.clientX, event.currentTarget);
+    const selectedTimeMs = timeAt(event.clientX, event.currentTarget);
+    if (deleteRangeActive) {
+      deleteRangeAnchorRef.current = selectedTimeMs;
+      updateDeleteSelection(selectedTimeMs);
+    } else if (insertRangeActive) {
+      setInsertRangeAtMs(selectedTimeMs);
+    } else {
+      onSeek(selectedTimeMs);
+    }
   }
 
   function dragSeek(event: PointerEvent<HTMLDivElement>) {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    seekAt(event.clientX, event.currentTarget);
+    const selectedTimeMs = timeAt(event.clientX, event.currentTarget);
+    if (deleteRangeActive) updateDeleteSelection(selectedTimeMs);
+    else if (insertRangeActive) setInsertRangeAtMs(selectedTimeMs);
+    else onSeek(selectedTimeMs);
   }
 
   function finishSeek(event: PointerEvent<HTMLDivElement>) {
     if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-    seekAt(event.clientX, event.currentTarget);
+    const selectedTimeMs = timeAt(event.clientX, event.currentTarget);
+    if (deleteRangeActive) updateDeleteSelection(selectedTimeMs);
+    else if (insertRangeActive) setInsertRangeAtMs(selectedTimeMs);
+    else onSeek(selectedTimeMs);
     event.currentTarget.releasePointerCapture(event.pointerId);
+    deleteRangeAnchorRef.current = undefined;
   }
 
   useEffect(() => {
@@ -343,6 +395,66 @@ export function ObjectTimeline({
         playLabel={playLabel}
         playing={playing}
         resizeLabel={resizeLabel}
+        rangeControls={{
+          cancelLabel: deleteRangeCancelLabel,
+          deleteRangeActive,
+          deleteRangeDurationMs: deleteSelection
+            ? Math.max(0, deleteSelection.endMs - deleteSelection.startMs)
+            : 0,
+          deleteRangeInstruction,
+          deleteRangeLabel,
+          formatDeleteRangeConfirmLabel: deleteRangeConfirmLabel,
+          formatInsertRangeConfirmLabel: insertRangeConfirmLabel,
+          insertRangeActive,
+          insertRangeAtMs,
+          insertRangeDurationLabel,
+          insertRangeDurationMs,
+          insertRangeInstruction,
+          insertRangeLabel,
+          maximumInsertDurationMs: MAX_VIDEO_DURATION_MS - durationMs,
+          onDeleteRangeCancel: () => {
+            setDeleteRangeActive(false);
+            setDeleteSelection(undefined);
+            deleteRangeAnchorRef.current = undefined;
+          },
+          onDeleteRangeConfirm: () => {
+            if (
+              !deleteSelection ||
+              deleteSelection.endMs <= deleteSelection.startMs
+            )
+              return;
+            onDeleteRange(deleteSelection.startMs, deleteSelection.endMs);
+            setDeleteRangeActive(false);
+            setDeleteSelection(undefined);
+          },
+          onDeleteRangeStart: () => {
+            setDeleteRangeActive(true);
+            setDeleteSelection(undefined);
+            setInsertRangeActive(false);
+          },
+          onInsertRangeCancel: () => setInsertRangeActive(false),
+          onInsertRangeConfirm: () => {
+            if (insertRangeDurationMs <= 0) return;
+            onInsertRange(insertRangeAtMs, insertRangeDurationMs);
+            setInsertRangeActive(false);
+          },
+          onInsertRangeDurationChange: (value) =>
+            setInsertRangeDurationMs(
+              Math.max(
+                0,
+                Math.min(MAX_VIDEO_DURATION_MS - durationMs, value || 0),
+              ),
+            ),
+          onInsertRangeStart: () => {
+            setInsertRangeActive(true);
+            setInsertRangeAtMs(timeMs);
+            setInsertRangeDurationMs(
+              Math.min(1000, MAX_VIDEO_DURATION_MS - durationMs),
+            );
+            setDeleteRangeActive(false);
+            setDeleteSelection(undefined);
+          },
+        }}
         stopLabel={stopLabel}
         timeMs={timeMs}
         durationMs={durationMs}
@@ -383,20 +495,25 @@ export function ObjectTimeline({
               aria-valuemax={durationMs}
               aria-valuemin={0}
               aria-valuenow={Math.round(timeMs)}
-              className="object-timeline-ruler"
+              className={
+                deleteRangeActive || insertRangeActive
+                  ? "object-timeline-ruler object-timeline-ruler--selecting"
+                  : "object-timeline-ruler"
+              }
               onKeyDown={(event) => {
                 if (event.key !== "ArrowLeft" && event.key !== "ArrowRight")
                   return;
                 event.preventDefault();
-                onSeek(
-                  Math.max(
-                    0,
-                    Math.min(
-                      durationMs - 1,
-                      timeMs + (event.key === "ArrowRight" ? 50 : -50),
-                    ),
+                const nextTimeMs = Math.max(
+                  0,
+                  Math.min(
+                    durationMs - 1,
+                    (insertRangeActive ? insertRangeAtMs : timeMs) +
+                      (event.key === "ArrowRight" ? 50 : -50),
                   ),
                 );
+                if (insertRangeActive) setInsertRangeAtMs(nextTimeMs);
+                else onSeek(nextTimeMs);
               }}
               onPointerCancel={finishSeek}
               onPointerDown={beginSeek}
@@ -451,14 +568,16 @@ export function ObjectTimeline({
               durationMs={durationMs}
               label={audioLabel}
               labelFor={audioTrackLabel}
-              onOpenMenu={(x, y) =>
+              onOpenMenu={(trackId, x, y) =>
                 setTimelineMenu({
                   kind: "audio",
+                  trackId,
                   ...timelineMenuPosition(x, y, 1),
                 })
               }
               onSeek={onSeek}
               onChange={onAudioChange}
+              onDelete={onAudioDelete}
               sourceDurationFor={audioTrackSourceDuration}
               tracks={audioTracks}
               trimEndLabel={audioTrimEndLabel}
@@ -493,6 +612,26 @@ export function ObjectTimeline({
               timeMs={timeMs}
             />
             <div className="object-timeline-playhead-area">
+              {deleteSelection &&
+              deleteSelection.endMs > deleteSelection.startMs ? (
+                <div
+                  className="object-timeline-delete-selection"
+                  style={{
+                    left: `${(deleteSelection.startMs * 100) / durationMs}%`,
+                    width: `${
+                      ((deleteSelection.endMs - deleteSelection.startMs) *
+                        100) /
+                      durationMs
+                    }%`,
+                  }}
+                />
+              ) : null}
+              {insertRangeActive ? (
+                <div
+                  className="object-timeline-insert-position"
+                  style={{ left: `${(insertRangeAtMs * 100) / durationMs}%` }}
+                />
+              ) : null}
               <div
                 className="object-timeline-playhead"
                 style={{ left: `${(timeMs * 100) / durationMs}%` }}

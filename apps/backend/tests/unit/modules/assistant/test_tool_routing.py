@@ -20,6 +20,17 @@ from douga.modules.assistant.orchestrator import AssistantOrchestrator
         ("Edit the visible image", "edit_visible_image", "export_video"),
         ("アップロードした画像を青空に編集して", "edit_image_asset", "export_video"),
         ("画面に表示中の画像を編集して", "edit_visible_image", "export_video"),
+        ("落ち着いた声でナレーションを生成して", "generate_narration", "export_video"),
+        (
+            "Synchronize captions with narration",
+            "create_synced_captions_from_narration",
+            "export_video",
+        ),
+        (
+            "セリフとテロップを同じタイミングにして",
+            "validate_narration_caption_sync",
+            "export_video",
+        ),
     ],
 )
 def test_tool_catalog_is_routed_to_the_current_intent(
@@ -41,3 +52,15 @@ def test_attached_image_exposes_edit_tool_without_prompt_keyword_matching() -> N
 
     assert "edit_image_asset" in names
     assert "generate_image" not in names
+
+
+def test_existing_mp3_request_exposes_audio_add_and_duplicate_tools() -> None:
+    orchestrator = AssistantOrchestrator(MagicMock(), FakeAssistantProvider())
+
+    names = orchestrator._tool_names_for(
+        "透き通る隙間.mp3を動画尺21:42.028まで複製してください"
+    )
+
+    assert "list_assets" in names
+    assert "add_audio_clip" in names
+    assert "duplicate_audio_clip" in names

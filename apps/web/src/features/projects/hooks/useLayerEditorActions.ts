@@ -26,6 +26,8 @@ import {
   cutTimelineAt as cutProjectTimelineAt,
   resizeTimeline,
 } from "../lib/timelineCut";
+import { deleteTimelineRange as deleteProjectTimelineRange } from "../lib/timelineRangeDelete";
+import { insertTimelineRange as insertProjectTimelineRange } from "../lib/timelineRangeInsert";
 import {
   moveLayerClipToTrack,
   updateLayerTimelineRange,
@@ -293,6 +295,32 @@ export function useLayerEditorActions({
     return resizedDurationMs;
   }
 
+  function deleteTimelineRange(startMs: number, endMs: number) {
+    let result = {
+      startMs,
+      endMs: startMs,
+      deletedMs: 0,
+      durationMs,
+    };
+    mutate((document) => {
+      result = deleteProjectTimelineRange(document, startMs, endMs, sceneIndex);
+    });
+    return result;
+  }
+
+  function insertTimelineRange(atMs: number, insertedMs: number) {
+    let result = { atMs, insertedMs: 0, durationMs };
+    mutate((document) => {
+      result = insertProjectTimelineRange(
+        document,
+        atMs,
+        insertedMs,
+        sceneIndex,
+      );
+    });
+    return result;
+  }
+
   function updateLayerRange(layerId: string, range: TimelineRange) {
     mutate((document) => {
       const layer = document.scenes[sceneIndex]?.layers.find(
@@ -312,9 +340,11 @@ export function useLayerEditorActions({
     applyAnimationPreset: applyAnimation,
     clearAnimation,
     cutTimelineAt,
+    deleteTimelineRange,
     deleteLayer,
     deleteKeyframe,
     duplicateKeyframe,
+    insertTimelineRange,
     mergeLayerTrack,
     moveLayerToTrack,
     pasteTextLayer,

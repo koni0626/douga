@@ -340,6 +340,42 @@ flowchart LR
 9. 最終メッセージと変更サマリーを保存する。
 10. UIへ完了イベントと最新リビジョンを通知する。
 
+### 10.1 会話から動画ドラフトへ進む条件
+
+- 会話は単発の質問応答ではなく、動画の目的、視聴者、尺、比率、トーン、採用案、
+  制約を積み上げる制作仕様として扱う。
+- 相談・比較・アイデア出しだけを求められている間は、プロジェクトを変更しない。
+- 利用者が会話内容を動画またはドラフトにする意図を示したら、特定の固定文言や、
+  事前に`approved`へ変更された文書を必須条件にしない。
+- 最新の採用方針を基に、不足する企画概要、プロット、台本、絵コンテを補い、素材、
+  ナレーション、テロップ、タイムライン、カメラワーク、検証まで連続して進める。
+- 結果を大きく変える未決事項だけを質問し、利用者が確認工程を指定していない限り、
+  中間成果物の承認待ちだけを理由に停止しない。
+
+### 10.2 コンテキスト圧縮
+
+長い会話は次の3層でモデルへ渡す。
+
+1. 古い会話から作成した永続的な「制作メモ」
+2. 要約していない直近のユーザー・アシスタント発言
+3. 現在のプロジェクト、選択レイヤー、再生位置などの実状態
+
+制作メモは`assistant_messages.role=system_summary`として保存し、目的、視聴者、尺、
+比率、トーン、採用済みの構成、素材・レイヤー参照、却下案、未決事項、制作状況、
+次の作業を保持する。内部メモは通常のチャット履歴には表示しない。要約済み境界は
+`content_json.through_message_id`で記録し、同じ発言を重複して要約しない。
+
+Responses APIの1回のツール実行ループでは`context_management`のcompactionを有効にし、
+設定した閾値でサーバー側圧縮を行う。最新のcompaction itemより前の継続入力は破棄し、
+再送ペイロードを増やさない。制作メモ化とサーバー側compactionは併用する。
+
+コンテキスト上限回避と費用上限は別に扱う。自動圧縮後も、ユーザー単位の1 Run・
+1時間あたりの利用量上限は維持し、監査用の`usage_json`へ集計する。
+Responses APIのツールループでは同じシステム指示とツール定義が繰り返し入力されるため、
+上限判定には未キャッシュ入力、出力、キャッシュ済み入力の重み付き量を使用する。
+生の`total_tokens`と`cached_input_tokens`は監査用に保持し、キャッシュ済み入力を未キャッシュ
+入力と同額として数えて長い制作処理を不必要に停止しない。重みは環境設定で変更可能とする。
+
 1回のRunに以下の上限を設ける。
 
 - 最大ツール呼び出し回数
@@ -349,6 +385,10 @@ flowchart LR
 - 最大トークンまたは利用金額相当量
 
 上限到達時は勝手に継続せず、現状と続行に必要な確認を提示する。
+
+動画ドラフト生成はテロップ、テキスト、素材、アニメーションを細かな編集ツールへ
+分解するため、1 Runのツール呼び出し上限は1,000回とする。引数エラーの連続停止、
+トークン・時間・外部API費用の上限は別に維持する。
 
 ## 11. ツール設計
 
@@ -406,6 +446,11 @@ flowchart LR
 | `add_caption_clip` | テロップを追加 |
 | `add_shape_clip` | 図形を追加 |
 | `add_audio_clip` | 音声を追加 |
+| `duplicate_audio_clip` | 既存音声クリップを指定区間へ連続複製し、最後のクリップを区間末尾でトリム |
+| `list_speech_voices` | AivisSpeechの話者とスタイルIDを取得 |
+| `generate_narration` | 読み上げ音声を生成してユーザー専用音声素材へ登録 |
+| `create_synced_captions_from_narration` | ナレーションをテロップ単位で再合成し、実測尺で同期テロップを作成 |
+| `validate_narration_caption_sync` | 合成時の実測区間とテロップ本文・開始終了時刻を照合 |
 | `update_clip_timing` | 開始、終了、トラックを変更 |
 | `update_clip_transform` | 位置、サイズ、回転、反転、不透明度を変更 |
 | `update_clip_content` | テキスト、色、画像などを変更 |
@@ -414,6 +459,17 @@ flowchart LR
 | `apply_effect` | フェードなどの効果を適用 |
 | `apply_camera_effect` | 画面全体のカメラワークを適用 |
 | `extend_timeline` | 動画全体の尺を延長 |
+
+ナレーション生成では、既知の正確なスタイルIDがない限り`list_speech_voices`を先に呼ぶ。
+`generate_narration`が返す音声素材IDと実測時間を使い、続けて`add_audio_clip`で
+`narration`トラックへ配置する。話者IDを推測して生成しない。
+
+AivisSpeech Engineはモデルの特性上、`Mora.consonant_length`と`vowel_length`から
+発話時刻を取得できない。テロップとの厳密な同期が必要な場合は、読み上げ文を
+テロップ単位へ分割して個別に音声合成し、各WAVの実測フレーム長をキューとして
+保存した後に連結する。AIは文字数から区間を推測してはならず、
+`create_synced_captions_from_narration`の後に`validate_narration_caption_sync`を実行する。
+`inspect_frame`と`validate_timeline`は音声内容の同期を検証しない。
 
 ### 11.6 確認・出力ツール
 
@@ -474,6 +530,10 @@ flowchart LR
 | `content_json` | JSONB NULL | カードなどの構造化内容 |
 | `provider_item_id` | VARCHAR NULL | OpenAI側項目識別子 |
 | `created_at` | TIMESTAMP | 作成日時 |
+
+`system_summary`は内部の制作メモであり、`content_json.through_message_id`に要約済みの
+最後の通常メッセージIDを保持する。通常の会話APIレスポンスでは`user`と`assistant`
+だけを返す。
 
 ### 14.3 `assistant_runs`
 
@@ -576,6 +636,7 @@ flowchart LR
 - 動画編集操作はFunction Callingの独自ツールとして定義する。
 - 会話継続にはOpenAI側の会話識別子または直前Response IDを使用できるが、アプリDBを会話と監査の正本とする。
 - `store=false`で推論モデルの出力を手動継続する場合は、`reasoning.encrypted_content`を取得し、Function Call出力とともに後続リクエストへ渡す。
+- 長いツール実行ではResponses APIのserver-side compactionを有効にし、会話をまたぐ長期記憶はアプリDBの制作メモで補う。
 - モデルIDは環境設定とし、コードへ固定しない。
 - ツール引数はstrictなJSON Schemaを使用する。
 - 大量のツール定義を常時渡さず、現在の状態に必要なツール群へ絞る。

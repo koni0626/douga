@@ -12,6 +12,26 @@ def test_comma_separated_origins_are_parsed() -> None:
     assert settings.allowed_origins == ("http://localhost:3000", "https://example.com")
 
 
+def test_empty_aivis_engine_path_is_treated_as_unset() -> None:
+    settings = Settings(
+        app_secret_key="test-secret-key-with-at-least-32-characters",
+        aivis_engine_path="",
+        _env_file=None,
+    )
+
+    assert settings.aivis_engine_path is None
+
+
+def test_assistant_allows_long_video_build_runs() -> None:
+    settings = Settings(
+        app_secret_key="test-secret-key-with-at-least-32-characters",
+        assistant_max_tool_calls=1_000,
+        _env_file=None,
+    )
+
+    assert settings.assistant_max_tool_calls == 1_000
+
+
 def test_production_requires_https_and_real_image_provider() -> None:
     with pytest.raises(ValidationError):
         Settings(

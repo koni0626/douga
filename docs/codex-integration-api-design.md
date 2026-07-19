@@ -141,6 +141,8 @@ Authorization: Bearer dga_pat_<token>
 | `assets:write` | 素材アップロード、更新 |
 | `creative:read` | 企画データ参照 |
 | `creative:write` | 企画、プロット、台本、絵コンテ保存 |
+| `assistant:read` | AI会話、実行状態、監査、イベント参照 |
+| `assistant:write` | AI会話開始、ツール承認・却下、取消、Undo |
 | `previews:read` | プレビュー状態、確認用動画取得 |
 | `previews:write` | 範囲プレビュー開始 |
 | `exports:read` | 書き出し状態、完成物取得 |
@@ -153,6 +155,7 @@ Codex用の推奨初期スコープは次のとおり。
 ```text
 projects:read projects:write assets:read assets:write
 creative:read creative:write previews:read previews:write
+assistant:read assistant:write
 ```
 
 MP4書き出しやDouga側画像生成が必要な場合だけ、それぞれの書き込みスコープを追加する。
@@ -306,6 +309,16 @@ MP4書き出しやDouga側画像生成が必要な場合だけ、それぞれの
 | `GET` | `/api/v1/exports/{export_id}` | `exports:read` | 書き出し状態取得 |
 | `GET` | `/api/v1/exports/{export_id}/content` | `exports:read` | 完成MP4取得 |
 | `DELETE` | `/api/v1/exports/{export_id}` | `exports:write` | 書き出し取消 |
+| `GET` | `/api/v1/projects/{project_id}/assistant/threads` | `assistant:read` | AI会話一覧 |
+| `POST` | `/api/v1/projects/{project_id}/assistant/threads` | `assistant:write` | AI会話作成 |
+| `GET` | `/api/v1/projects/{project_id}/assistant/threads/{thread_id}` | `assistant:read` | メッセージ・実行・ツール履歴取得 |
+| `POST` | `/api/v1/projects/{project_id}/assistant/threads/{thread_id}/messages` | `assistant:write` | AIへメッセージ送信・実行開始 |
+| `GET` | `/api/v1/projects/{project_id}/assistant/runs/{run_id}` | `assistant:read` | AI実行状態取得 |
+| `GET` | `/api/v1/projects/{project_id}/assistant/runs/{run_id}/events` | `assistant:read` | AI実行イベントSSE |
+| `POST` | `/api/v1/projects/{project_id}/assistant/tool-calls/{call_id}/approve` | `assistant:write` | 承認待ちツール実行 |
+| `POST` | `/api/v1/projects/{project_id}/assistant/tool-calls/{call_id}/reject` | `assistant:write` | 承認待ちツール却下 |
+| `POST` | `/api/v1/projects/{project_id}/assistant/runs/{run_id}/cancel` | `assistant:write` | AI実行取消 |
+| `POST` | `/api/v1/projects/{project_id}/assistant/runs/{run_id}/undo` | `assistant:write` | AIによる変更をUndo |
 
 ### 9.2 新設API
 

@@ -289,7 +289,12 @@ async def test_approved_storyboard_is_built_with_multiple_tools_and_validated() 
     assert run.status == "completed"
     assert [call.tool_name for call in calls] == [name for name, _ in provider.steps]
     assert all(call.status == "completed" for call in calls)
-    assert run.usage_json == {"input_tokens": 90, "output_tokens": 45, "total_tokens": 135}
+    assert run.usage_json == {
+        "input_tokens": 90,
+        "output_tokens": 45,
+        "total_tokens": 135,
+        "cached_input_tokens": 0,
+    }
     assert detail.document["video"]["duration_ms"] == 8_000
     assert detail.document["scenes"][0]["layers"][0]["name"] == "Opening panel"
     assert detail.document["scenes"][0]["dialogues"][0]["text"].startswith("小さな工場")

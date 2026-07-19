@@ -15,6 +15,8 @@ Webは`pnpm dev:web`、APIは`.venv\Scripts\uv.exe run douga-api`で起動しま
 
 開発時は `IMAGE_PROVIDER=fake` で課金なしに画像生成フローを確認できます。実際に GPT Image 2 を使う場合だけ `IMAGE_PROVIDER=openai` と `OPENAI_API_KEY` を設定してください。キーはブラウザへ渡しません。
 
+ナレーション生成にはAivisSpeech Engineを利用します。WindowsへAivisSpeechを標準インストールしていれば、最初に音声画面を開いたときにEngineを自動起動します。インストール先を変更した場合やEngineを別に起動する場合は[AivisSpeech連携手順](docs/aivis-speech.md)を参照してください。
+
 ## Codex・NovelCreator連携
 
 設定画面の「外部APIトークン」でPersonal API Tokenを発行し、外部クライアントの`DOUGA_API_TOKEN`へ設定します。トークンは発行時に一度だけ表示され、いつでも設定画面から失効できます。
@@ -30,6 +32,7 @@ $env:DOUGA_API_TOKEN='dga_pat_...'
 ```
 
 API契約、Manifest例、権限、セキュリティ要件は[Codex連携API設計書](docs/codex-integration-api-design.md)を参照してください。
+編集画面と同じAIアシスタントをREST APIから利用する場合は[AIアシスタントREST APIマニュアル](docs/assistant-rest-api.md)を参照してください。
 Codex用Skillは[`skills/douga-video-draft`](skills/douga-video-draft)に同梱しています。個人環境ではこのディレクトリを`$CODEX_HOME/skills/douga-video-draft`へ配置して使用します。
 
 ## 品質チェック

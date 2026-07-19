@@ -57,6 +57,10 @@ async def test_register_settings_logout_flow() -> None:
         me = await client.get("/api/v1/auth/me")
         assert me.status_code == 200
 
+        initial_settings = await client.get("/api/v1/settings")
+        assert initial_settings.status_code == 200
+        assert initial_settings.json()["default_video_fps"] == "10.000"
+
         rejected = await client.patch("/api/v1/settings", json={"preferred_locale": "en"})
         assert rejected.status_code == 403
         assert rejected.json()["error"]["code"] == "CSRF_INVALID"

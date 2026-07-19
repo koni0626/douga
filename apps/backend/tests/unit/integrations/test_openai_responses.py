@@ -62,7 +62,12 @@ def test_openai_response_adapter_extracts_function_calls() -> None:
         },
     )
     response = SimpleNamespace(
-        usage=None,
+        usage=SimpleNamespace(
+            input_tokens=1_000,
+            output_tokens=50,
+            total_tokens=1_050,
+            input_tokens_details=SimpleNamespace(cached_tokens=900),
+        ),
         output=[item],
         output_text="",
         id="response-1",
@@ -72,6 +77,12 @@ def test_openai_response_adapter_extracts_function_calls() -> None:
 
     assert result.tool_calls[0].call_id == "call-1"
     assert result.tool_calls[0].arguments["content"]["title"] == "Plot"
+    assert result.usage == {
+        "input_tokens": 1_000,
+        "output_tokens": 50,
+        "total_tokens": 1_050,
+        "cached_input_tokens": 900,
+    }
     assert result.output_items[0]["id"] == "function-call-item-1"
     assert "status" not in result.output_items[0]
     assert "parsed_arguments" not in result.output_items[0]
@@ -126,6 +137,7 @@ async def test_openai_response_adapter_requests_encrypted_reasoning_context() ->
     request = create.await_args.kwargs
     assert request["store"] is False
     assert request["include"] == ["reasoning.encrypted_content"]
+    assert request["context_management"] == [{"type": "compaction", "compact_threshold": 120_000}]
     assert request["input"][-1] == reasoning_item
 
 
@@ -172,3 +184,4 @@ async def test_openai_stream_requests_encrypted_reasoning_context() -> None:
     assert result.content == "done"
     assert captured["store"] is False
     assert captured["include"] == ["reasoning.encrypted_content"]
+    assert captured["context_management"] == [{"type": "compaction", "compact_threshold": 120_000}]

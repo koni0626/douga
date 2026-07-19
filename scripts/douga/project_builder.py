@@ -107,6 +107,7 @@ def build_project_document(
     height = int(settings.get("height", 1080))
     duration = int(settings["duration_ms"])
     layers: list[dict[str, Any]] = []
+    dialogues: list[dict[str, Any]] = []
     audio_tracks: list[dict[str, Any]] = []
     camera_effects: list[dict[str, Any]] = []
     ordered_clips = sorted(
@@ -127,7 +128,9 @@ def build_project_document(
             asset = assets[clip["asset_key"]]
             layer = _image_layer(clip, asset, width, height)
             layers.append(layer)
-        elif clip_type in {"caption", "text"}:
+        elif clip_type == "caption":
+            dialogues.append(_dialogue(clip))
+        elif clip_type == "text":
             layers.append(_text_layer(clip, width, height))
         elif clip_type == "shape":
             layers.append(_shape_layer(clip))
@@ -156,7 +159,7 @@ def build_project_document(
                 "name": "Timeline",
                 "background": {"type": "color", "color": "#000000"},
                 "layers": layers,
-                "dialogues": [],
+                "dialogues": dialogues,
             }
         ],
         "audio_tracks": audio_tracks,
@@ -205,6 +208,21 @@ def _text_layer(clip: dict[str, Any], canvas_width: int, canvas_height: int) -> 
     )
     layer["keyframes"] = _animation_keyframes(clip, layer)
     return layer
+
+
+def _dialogue(clip: dict[str, Any]) -> dict[str, Any]:
+    start_ms = int(clip["start_ms"])
+    end_ms = int(clip["end_ms"])
+    return {
+        "id": str(clip["id"]),
+        "speaker": clip.get("speaker"),
+        "start_ms": start_ms,
+        "text": str(clip["text"]),
+        "display_effect": clip.get("display_effect", "instant"),
+        "duration_mode": "manual",
+        "duration_ms": end_ms - start_ms,
+        "manual_page_breaks": list(clip.get("manual_page_breaks", [])),
+    }
 
 
 def _shape_layer(clip: dict[str, Any]) -> dict[str, Any]:

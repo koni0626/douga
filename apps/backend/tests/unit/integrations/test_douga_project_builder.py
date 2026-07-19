@@ -28,11 +28,11 @@ def test_manifest_builds_single_timeline_with_ordered_editable_clips() -> None:
                 "id": "caption",
                 "track": "caption",
                 "type": "caption",
-                "text": "テスト",
+                "text": "test caption",
                 "start_ms": 500,
                 "end_ms": 4_000,
                 "z_index": 10,
-                "animation": "fade_in",
+                "display_effect": "fade",
             },
             {
                 "id": "background",
@@ -60,16 +60,24 @@ def test_manifest_builds_single_timeline_with_ordered_editable_clips() -> None:
 
     assert len(document["scenes"]) == 1
     assert document["scenes"][0]["id"] == "timeline-root"
-    assert [layer["id"] for layer in document["scenes"][0]["layers"]] == [
-        "background",
-        "caption",
-    ]
+    assert [layer["id"] for layer in document["scenes"][0]["layers"]] == ["background"]
     assert document["scenes"][0]["layers"][0]["width"] > 1024
     assert (
         document["scenes"][0]["layers"][0]["keyframes"][1]["width"]
         > document["scenes"][0]["layers"][0]["width"]
     )
-    assert document["scenes"][0]["layers"][1]["keyframes"][0]["opacity"] == 0
+    assert document["scenes"][0]["dialogues"] == [
+        {
+            "id": "caption",
+            "speaker": None,
+            "start_ms": 500,
+            "text": "test caption",
+            "display_effect": "fade",
+            "duration_mode": "manual",
+            "duration_ms": 3_500,
+            "manual_page_breaks": [],
+        }
+    ]
     assert repeated == document
     assert list(load_project_validator().iter_errors(document)) == []
 

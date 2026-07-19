@@ -227,7 +227,7 @@ erDiagram
 | `default_content_locale` | `varchar(10)` | NO | `'ja'` | 新規プロジェクト本文言語 |
 | `default_video_width` | `integer` | NO | `1920` | 既定幅 |
 | `default_video_height` | `integer` | NO | `1080` | 既定高さ |
-| `default_video_fps` | `numeric(6,3)` | NO | `30` | 既定FPS |
+| `default_video_fps` | `numeric(6,3)` | NO | `10` | 既定FPS |
 | `default_caption_settings` | `jsonb` | NO | `'{}'` | テロップ既定値 |
 | `created_at` | `timestamptz` | NO | `now()` | 作成日時 |
 | `updated_at` | `timestamptz` | NO | `now()` | 更新日時 |

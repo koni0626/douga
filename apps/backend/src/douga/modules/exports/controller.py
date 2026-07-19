@@ -22,7 +22,14 @@ async def create_export(
     context: Annotated[AuthContext, Depends(scoped_write_auth("exports:write"))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> ExportResponse:
-    result = await ExportService(session).create(payload.project_id, context.user.id)
+    result = await ExportService(session).create(
+        payload.project_id,
+        context.user.id,
+        width=payload.width,
+        height=payload.height,
+        fps=payload.fps,
+        filename=payload.filename,
+    )
     dispatch_export_job(background_tasks, result.job_id)
     return result
 

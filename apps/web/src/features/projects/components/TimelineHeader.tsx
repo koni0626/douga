@@ -5,6 +5,10 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  TimelineRangeControls,
+  type TimelineRangeControlsProps,
+} from "./TimelineRangeControls";
 
 export interface TimelineHeaderProps {
   collapseLabel: string;
@@ -23,6 +27,7 @@ export interface TimelineHeaderProps {
   playLabel: string;
   playing: boolean;
   resizeLabel: string;
+  rangeControls: TimelineRangeControlsProps;
   stopLabel: string;
   timeMs: number;
   durationMs: number;
@@ -48,6 +53,7 @@ export function TimelineHeader({
   playLabel,
   playing,
   resizeLabel,
+  rangeControls,
   stopLabel,
   timeMs,
   durationMs,
@@ -95,6 +101,7 @@ export function TimelineHeader({
           </svg>
           <span>{cutLabel}</span>
         </button>
+        <TimelineRangeControls {...rangeControls} />
         <div className="object-timeline-playback">
           <button
             type="button"

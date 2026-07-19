@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ProjectDocument } from "@douga/project-schema";
 
 import type { AssetDto } from "../../../shared/lib/api";
+import type { SpeechSynthesisSettingsDto } from "../../../shared/lib/api";
 import type {
   AudioTrack,
   CameraEffect,
@@ -20,7 +21,10 @@ export interface EditorPropertyPanelProps {
   audioAssets: AssetDto[];
   durationMs: number;
   imageAssets: AssetDto[];
-  onAddAudio: (asset: AssetDto) => void;
+  onGeneratedSpeech: (
+    asset: AssetDto,
+    settings: SpeechSynthesisSettingsDto,
+  ) => void;
   onAddCamera: (preset: CameraPreset) => void;
   onAddDialogue: () => void;
   onAddImage: (asset: AssetDto) => void;
@@ -40,6 +44,7 @@ export interface EditorPropertyPanelProps {
   scene: Scene;
   selectedLayer?: Layer;
   selectedLayerId?: string;
+  selectedAudioTrackId?: string;
 }
 
 export function EditorPropertyPanel(props: EditorPropertyPanelProps) {
@@ -73,13 +78,14 @@ export function EditorPropertyPanel(props: EditorPropertyPanelProps) {
         cameraEffects={project.camera_effects ?? []}
         captionStyle={project.caption_style}
         durationMs={props.durationMs}
-        onAddAudio={props.onAddAudio}
+        onGeneratedSpeech={props.onGeneratedSpeech}
         onAddCamera={props.onAddCamera}
         onDeleteAudio={props.onDeleteAudio}
         onDeleteCamera={props.onDeleteCamera}
         onUpdateAudio={props.onUpdateAudio}
         onUpdateCamera={props.onUpdateCamera}
         onUpdateCaption={props.onUpdateCaption}
+        selectedAudioTrackId={props.selectedAudioTrackId}
       />
     </aside>
   );

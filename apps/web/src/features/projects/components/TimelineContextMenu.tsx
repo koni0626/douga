@@ -2,6 +2,7 @@ import { useDismissibleMenu } from "../hooks/useDismissibleMenu";
 
 export type TimelineMenuState = {
   kind: "add" | "camera" | "audio";
+  trackId?: string;
   x: number;
   y: number;
 };
@@ -24,7 +25,7 @@ export interface TimelineContextMenuProps {
   onAddTextHorizontal: () => void;
   onAddTextVertical: () => void;
   onClose: () => void;
-  onOpenAudioSettings: () => void;
+  onOpenAudioSettings: (trackId?: string) => void;
   onOpenCameraSettings: () => void;
   onOpenCaptionSettings: () => void;
   settingsLabel: string;
@@ -90,7 +91,9 @@ export function TimelineContextMenu({
         <MenuItem
           label={settingsLabel}
           onClick={action(
-            menu.kind === "camera" ? onOpenCameraSettings : onOpenAudioSettings,
+            menu.kind === "camera"
+              ? onOpenCameraSettings
+              : () => onOpenAudioSettings(menu.trackId),
           )}
         />
       )}

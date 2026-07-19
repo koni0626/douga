@@ -9,6 +9,7 @@ dependencies = [
     "asyncpg>=0.31.0,<0.32",
     "email-validator>=2.3.0,<3",
     "fastapi>=0.139.0,<0.140",
+    "httpx>=0.28.1,<0.29",
     "jsonschema>=4.25.1,<5",
     "aiofiles>=25.1.0,<26",
     "dramatiq[redis]>=2.1.0,<3",

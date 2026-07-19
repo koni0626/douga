@@ -84,6 +84,17 @@ describe("SettingsPage API tokens", () => {
     expect(await screen.findByText("外部APIトークン")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "APIトークンを発行" }));
 
+    await waitFor(() => {
+      const issueCall = fetchMock.mock.calls.find(
+        ([called, options]) =>
+          String(called).endsWith("/settings/api-tokens") &&
+          options?.method === "POST",
+      );
+      const body = JSON.parse(String(issueCall?.[1]?.body));
+      expect(body.scopes).toContain("assistant:read");
+      expect(body.scopes).toContain("assistant:write");
+    });
+
     expect(
       await screen.findByDisplayValue("dga_pat_secret"),
     ).toBeInTheDocument();

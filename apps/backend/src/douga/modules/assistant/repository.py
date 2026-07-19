@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -66,6 +67,35 @@ class AssistantRepository:
                 .order_by(AssistantMessage.created_at.asc())
             )
         return list(await self.session.scalars(statement))
+
+    async def list_conversation_messages(
+        self, thread_id: UUID, user_id: UUID
+    ) -> list[AssistantMessage]:
+        result = await self.session.scalars(
+            select(AssistantMessage)
+            .where(
+                AssistantMessage.thread_id == thread_id,
+                AssistantMessage.user_id == user_id,
+                AssistantMessage.role.in_(("user", "assistant")),
+            )
+            .order_by(AssistantMessage.created_at.asc(), AssistantMessage.id.asc())
+        )
+        return list(result)
+
+    async def get_latest_system_summary(
+        self, thread_id: UUID, user_id: UUID
+    ) -> AssistantMessage | None:
+        result = await self.session.scalars(
+            select(AssistantMessage)
+            .where(
+                AssistantMessage.thread_id == thread_id,
+                AssistantMessage.user_id == user_id,
+                AssistantMessage.role == "system_summary",
+            )
+            .order_by(AssistantMessage.created_at.desc(), AssistantMessage.id.desc())
+            .limit(1)
+        )
+        return result.one_or_none()
 
     async def add_thread(self, thread: AssistantThread) -> None:
         self.session.add(thread)
@@ -184,16 +214,16 @@ class AssistantRepository:
             or 0
         )
 
-    async def recent_token_usage(
+    async def recent_usage_records(
         self, user_id: UUID, since: datetime, *, exclude_run_id: UUID | None = None
-    ) -> int:
+    ) -> list[dict[str, Any]]:
         statement = select(AssistantRun.usage_json).where(
             AssistantRun.user_id == user_id, AssistantRun.created_at >= since
         )
         if exclude_run_id is not None:
             statement = statement.where(AssistantRun.id != exclude_run_id)
         rows = await self.session.scalars(statement)
-        return sum(int((usage or {}).get("total_tokens", 0)) for usage in rows)
+        return [dict(usage or {}) for usage in rows]
 
     async def list_project_runs(
         self, project_id: UUID, user_id: UUID, *, limit: int = 500

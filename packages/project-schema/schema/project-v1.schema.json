@@ -466,7 +466,37 @@
         "loop": { "type": "boolean" },
         "fade_in_ms": { "type": "integer", "minimum": 0 },
         "fade_out_ms": { "type": "integer", "minimum": 0 },
-        "ducking": { "type": "boolean" }
+        "ducking": { "type": "boolean" },
+        "speech_synthesis": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "text",
+            "style_id",
+            "speed_scale",
+            "intonation_scale",
+            "tempo_dynamics_scale",
+            "volume_scale"
+          ],
+          "properties": {
+            "provider": { "const": "aivis_speech" },
+            "text": { "type": "string", "minLength": 1, "maxLength": 5000 },
+            "style_id": { "type": "integer" },
+            "speed_scale": { "type": "number", "minimum": 0.5, "maximum": 2 },
+            "intonation_scale": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "tempo_dynamics_scale": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2
+            },
+            "volume_scale": { "type": "number", "minimum": 0, "maximum": 2 }
+          }
+        }
       }
     }
   }

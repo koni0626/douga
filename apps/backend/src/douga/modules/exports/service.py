@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import json
 import logging
 from copy import deepcopy
@@ -18,7 +17,9 @@ from douga.db.unit_of_work import UnitOfWork
 from douga.modules.assets.models import Asset
 from douga.modules.assets.storage import LocalStorage
 from douga.modules.exports.models import Export
+from douga.modules.exports.render_process import run_render_process
 from douga.modules.exports.repository import ExportRepository
+from douga.modules.exports.runtime import calculate_export_timeout_seconds
 from douga.modules.exports.schemas import ExportResponse
 from douga.modules.jobs.models import Job
 from douga.modules.jobs.repository import JobRepository
@@ -83,6 +84,21 @@ def _scale_transform(value: dict[str, object], scale_x: float, scale_y: float) -
             value[field] = current * factor
 
 
+def build_render_image_files(
+    assets: dict[UUID, Asset], storage: LocalStorage
+) -> dict[str, dict[str, str]]:
+    """Build renderer-only file references without embedding image bytes in JSON."""
+    result: dict[str, dict[str, str]] = {}
+    for asset in assets.values():
+        if asset.kind != "image" or not asset.storage_key:
+            continue
+        result[str(asset.id)] = {
+            "path": str(storage.require_path(asset.storage_key)),
+            "mime_type": asset.mime_type or "application/octet-stream",
+        }
+    return result
+
+
 class ExportService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -103,6 +119,7 @@ class ExportService:
         width: int | None = None,
         height: int | None = None,
         fps: int | None = None,
+        filename: str | None = None,
     ) -> ExportResponse:
         settings = get_settings()
         if await self.jobs.recent_count(user_id, "export") >= settings.export_limit_per_hour:
@@ -141,7 +158,11 @@ class ExportService:
             project_id=project.id,
             project_revision_id=revision.id,
             job_id=job.id,
-            name=(f"{project.name}-preview.mp4" if kind == "preview" else f"{project.name}.mp4"),
+            name=(
+                f"{project.name}-preview.mp4"
+                if kind == "preview"
+                else filename or f"{project.name}.mp4"
+            ),
             kind=kind,
             range_start_ms=start_ms,
             range_end_ms=end_ms,
@@ -247,13 +268,7 @@ async def _render_input(session: AsyncSession, export: Export) -> dict[str, obje
     document = deepcopy(revision.document)
     scale_project_document(document, export.width, export.height)
     document["video"]["fps"] = export.fps
-    data_urls: dict[str, str] = {}
-    for asset in assets.values():
-        if asset.kind == "image" and asset.storage_key:
-            content = await asyncio.to_thread(storage.require_path(asset.storage_key).read_bytes)
-            data_urls[str(asset.id)] = (
-                f"data:{asset.mime_type or 'image/png'};base64,{base64.b64encode(content).decode()}"
-            )
+    image_files = build_render_image_files(assets, storage)
     audio_inputs: list[dict[str, object]] = []
     range_start_ms = export.range_start_ms or 0
     range_end_ms = export.range_end_ms
@@ -289,7 +304,7 @@ async def _render_input(session: AsyncSession, export: Export) -> dict[str, obje
     export.storage_key = storage_key
     return {
         "project": document,
-        "asset_data_urls": data_urls,
+        "image_files": image_files,
         "audio_inputs": audio_inputs,
         "output_path": str(storage.path_for(storage_key)),
         "ffmpeg_path": settings.ffmpeg_path,
@@ -328,25 +343,30 @@ async def process_export_job(job_id: UUID) -> None:
             job.heartbeat_at = datetime.now(UTC)
             await session.commit()
 
-            process = await asyncio.create_subprocess_exec(
-                "node",
-                str(root / "scripts" / "render-project.mjs"),
-                str(input_path),
-                cwd=root,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            async def update_progress(progress: int) -> None:
+                current = await jobs.get(job_id)
+                if current is None or current.status != "running" or progress < current.progress:
+                    return
+                if progress > current.progress:
+                    current.progress = progress
+                current.heartbeat_at = datetime.now(UTC)
+                await session.commit()
+
+            timeout_seconds = calculate_export_timeout_seconds(
+                input_data,
+                minimum_timeout_seconds=settings.export_timeout_seconds,
             )
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(), timeout=settings.export_timeout_seconds
-                )
-            except TimeoutError:
-                process.kill()
-                await process.wait()
-                raise RuntimeError("Export timed out") from None
-            if process.returncode != 0:
-                raise RuntimeError(stderr.decode(errors="replace")[-500:])
-            render_result = json.loads(stdout)
+            process_result = await run_render_process(
+                [
+                    "node",
+                    str(root / "scripts" / "render-project.mjs"),
+                    str(input_path),
+                ],
+                cwd=root,
+                timeout_seconds=timeout_seconds,
+                on_progress=update_progress,
+            )
+            render_result = json.loads(process_result.stdout)
 
             job = await jobs.get(job_id)
             if job is None or job.status == "cancelled":

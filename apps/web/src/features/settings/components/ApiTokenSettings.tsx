@@ -16,6 +16,8 @@ const availableScopes = [
   "assets:write",
   "creative:read",
   "creative:write",
+  "assistant:read",
+  "assistant:write",
   "previews:read",
   "previews:write",
   "exports:read",
@@ -29,7 +31,16 @@ export function ApiTokenSettings() {
   const [tokens, setTokens] = useState<ApiTokenDto[]>([]);
   const [tokenName, setTokenName] = useState("NovelCreator Codex");
   const [tokenScopes, setTokenScopes] = useState<string[]>([
-    ...availableScopes.slice(0, 8),
+    "projects:read",
+    "projects:write",
+    "assets:read",
+    "assets:write",
+    "creative:read",
+    "creative:write",
+    "assistant:read",
+    "assistant:write",
+    "previews:read",
+    "previews:write",
   ]);
   const [expiresAt, setExpiresAt] = useState("");
   const [issuedToken, setIssuedToken] = useState<string>();
