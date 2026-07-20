@@ -1,4 +1,11 @@
 export { SceneRenderer } from "./SceneRenderer";
+export { WebGlSceneRenderer } from "./webgl/WebGlSceneRenderer";
+export { WebGlProjectRenderer } from "./webgl/WebGlProjectRenderer";
+export type {
+  WebGlAssetUrlResolver,
+  WebGlRenderFrameOptions,
+} from "./webgl/WebGlProjectRenderer";
+export type { WebGlSceneRendererProps } from "./webgl/WebGlSceneRenderer";
 export { cameraTransformValue, resolveCameraTransform } from "./camera";
 export type { CameraEffect, CameraTransform } from "./camera";
 export type { SceneRendererProps } from "./SceneRenderer";

@@ -21,7 +21,7 @@ describe("ProjectExportDialog", () => {
     await i18n.changeLanguage("en");
   });
 
-  it("allows a one-time FPS override and reports the estimated frame count", () => {
+  it("defaults to 10 FPS and allows a one-time override", () => {
     const onExport = vi.fn();
     render(
       <ProjectExportDialog
@@ -32,9 +32,7 @@ describe("ProjectExportDialog", () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText("FPS"), {
-      target: { value: "10" },
-    });
+    expect(screen.getByLabelText("FPS")).toHaveValue(10);
     expect(screen.getByText("Estimated frames: 100")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Start export" }));
 

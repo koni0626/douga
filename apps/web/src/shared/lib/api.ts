@@ -280,6 +280,7 @@ export class ApiError extends Error {
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1";
 const apiOrigin = new URL(apiBaseUrl).origin;
+const assetBaseUrl = import.meta.env.DEV ? "/api/v1" : apiBaseUrl;
 
 function cookieValue(name: string): string | undefined {
   const prefix = `${encodeURIComponent(name)}=`;
@@ -339,7 +340,7 @@ export async function apiUpload(path: string, file: File): Promise<AssetDto> {
 }
 
 export function assetContentUrl(assetId: string): string {
-  return `${apiBaseUrl}/assets/${assetId}/content`;
+  return `${assetBaseUrl}/assets/${assetId}/content`;
 }
 
 export function exportContentUrl(exportId: string): string {

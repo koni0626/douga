@@ -19,6 +19,8 @@
 - [キーフレームアニメーション設計](keyframe-animation-design.md)
 - [カメラアニメーション設計](camera-animation-design.md)
 - [AIナレーション付き動画一括作成仕様](ai-narrated-video-composition-design.md)
+- [静止区間再利用型レンダリング設計](static-segment-rendering-design.md)
+- [WebGL / WebCodecs共通レンダリング設計](webgl-webcodecs-rendering-design.md)
 
 ## 2. プロダクト概要
 
@@ -596,6 +598,10 @@ React Editor
 ```
 
 FFmpegはテロップ編集UIそのものではなく、最終的な映像エンコード、音声合成、形式変換に使用する。テロップとレイヤーの描画はブラウザ互換の共通レンダラーが担当し、Reactのプレビューとサーバー書き出しの差異を抑える。デバッグ用として、指定時刻のフレームをPNGへ書き出す機能も用意する。
+
+試験経路として、WebGL2の共通描画器を編集プレビューとブラウザ内書き出しで使用し、WebCodecsでH.264/AACのMP4を生成できるようにする。ブラウザと端末のコーデック対応、メモリ上限、描画互換性を確認する段階では、従来のサーバーFFmpeg書き出しをフォールバックとして維持する。詳細は[WebGL / WebCodecs共通レンダリング設計](webgl-webcodecs-rendering-design.md)を参照する。
+
+書き出し前にProject Documentから決定的なRender Planを生成する。視覚状態が変化しないことを証明できる区間は先頭フレームを1回だけ描画して再利用し、キーフレーム、カメラ、フェード、文字送りなどの区間だけを毎フレーム描画する。未知の効果は動的として扱い、最適化が新機能の表示を壊さないようにする。詳細は[静止区間再利用型レンダリング設計](static-segment-rendering-design.md)を参照する。
 
 画像素材はBase64へ変換してProject JSONへ埋め込まない。ワーカーが所有権と保存先を検証したローカルファイルだけをレンダラー専用URLへ対応付け、ヘッドレスブラウザから要求された素材をPlaywrightが応答する。ブラウザへ渡すProject JSONには素材IDと一時URLだけを含め、ローカルファイルパスはページへ公開しない。
 

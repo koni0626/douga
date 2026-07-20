@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -15,6 +15,15 @@ import {
   ProjectExportDialog,
   type ProjectExportOptions,
 } from "../components/ProjectExportDialog";
+import {
+  BrowserExportError,
+  browserExportDiagnostics,
+} from "../../exports/lib/browserExportError";
+import {
+  createBrowserExportWritable,
+  isBrowserExportPickerCanceled,
+} from "../../exports/lib/browserExportFile";
+import { browserExportSupported } from "../../exports/lib/browserExportSupport";
 
 type ProjectAspectRatio = "16:9" | "9:16";
 
@@ -57,6 +66,9 @@ export function ProjectListPage() {
   const [createErrorKey, setCreateErrorKey] = useState<string>();
   const [exportDetail, setExportDetail] = useState<ProjectDetailDto>();
   const [exporting, setExporting] = useState(false);
+  const [browserExporting, setBrowserExporting] = useState(false);
+  const [browserExportProgress, setBrowserExportProgress] = useState(0);
+  const browserExportAbortRef = useRef<AbortController | undefined>(undefined);
   const [exportErrorKey, setExportErrorKey] = useState<string>();
   const [loadingExportProjectId, setLoadingExportProjectId] =
     useState<string>();
@@ -229,6 +241,52 @@ export function ProjectListPage() {
     }
   }
 
+  async function exportProjectInCurrentBrowser(options: ProjectExportOptions) {
+    if (!exportDetail || browserExporting || exporting) return;
+    const abortController = new AbortController();
+    browserExportAbortRef.current = abortController;
+    setBrowserExporting(true);
+    setBrowserExportProgress(0);
+    setExportErrorKey(undefined);
+    try {
+      const writable = await createBrowserExportWritable(options.filename);
+      const { downloadBrowserExport, exportProjectInBrowser } =
+        await import("../../exports/lib/browserProjectExport");
+      const blob = await exportProjectInBrowser({
+        project: exportDetail.document,
+        assetUrl: assetContentUrl,
+        width: options.width,
+        height: options.height,
+        fps: options.fps,
+        writable,
+        signal: abortController.signal,
+        onProgress: setBrowserExportProgress,
+      });
+      if (blob) downloadBrowserExport(blob, options.filename);
+      setExportDetail(undefined);
+    } catch (error) {
+      if (
+        isBrowserExportPickerCanceled(error) ||
+        (error instanceof BrowserExportError && error.code === "canceled")
+      ) {
+        setExportErrorKey(undefined);
+      } else {
+        console.error(
+          "Browser export failed",
+          JSON.stringify(browserExportDiagnostics(error)),
+        );
+        setExportErrorKey(
+          error instanceof BrowserExportError && error.code === "unsupported"
+            ? "errors.browserExportUnsupported"
+            : "errors.browserExportFailed",
+        );
+      }
+    } finally {
+      browserExportAbortRef.current = undefined;
+      setBrowserExporting(false);
+    }
+  }
+
   const dateFormatter = new Intl.DateTimeFormat(i18n.language, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -340,10 +398,18 @@ export function ProjectListPage() {
       {exportDetail ? (
         <ProjectExportDialog
           busy={exporting}
+          browserBusy={browserExporting}
+          browserProgress={browserExportProgress}
           detail={exportDetail}
           errorKey={exportErrorKey}
+          onBrowserExport={
+            browserExportSupported(exportDetail.document)
+              ? (options) => void exportProjectInCurrentBrowser(options)
+              : undefined
+          }
+          onCancelBrowserExport={() => browserExportAbortRef.current?.abort()}
           onClose={() => {
-            if (!exporting) setExportDetail(undefined);
+            if (!exporting && !browserExporting) setExportDetail(undefined);
           }}
           onExport={(options) => void exportProject(options)}
         />

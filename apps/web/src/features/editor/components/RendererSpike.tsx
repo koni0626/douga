@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { resolveSceneDurationMs, SceneRenderer } from "@douga/scene-renderer";
+import {
+  resolveSceneDurationMs,
+  SceneRenderer,
+  WebGlSceneRenderer,
+} from "@douga/scene-renderer";
 import type { ProjectDocument } from "@douga/project-schema";
 
 import { changeLocale } from "../../../i18n";
@@ -35,6 +39,9 @@ export function RendererSpike({ renderMode }: { renderMode: boolean }) {
 
   const project = window.__DOUGA_RENDER_PROJECT__ ?? sampleProject;
   const assetMap = window.__DOUGA_RENDER_ASSETS__ ?? {};
+  const useWebGl =
+    renderMode &&
+    new URLSearchParams(window.location.search).get("engine") === "webgl";
   const renderDimensions = renderMode
     ? {
         width: `${project.video.width}px`,
@@ -101,13 +108,23 @@ export function RendererSpike({ renderMode }: { renderMode: boolean }) {
         </header>
       ) : null}
       <section className="canvas-shell" style={renderDimensions}>
-        <SceneRenderer
-          project={project}
-          sceneIndex={sceneIndex}
-          timeMs={timeMs}
-          assetUrl={(assetId) => assetMap[assetId]}
-          style={renderDimensions}
-        />
+        {useWebGl ? (
+          <WebGlSceneRenderer
+            project={project}
+            sceneIndex={sceneIndex}
+            timeMs={timeMs}
+            assetUrl={(assetId) => assetMap[assetId]}
+            style={renderDimensions}
+          />
+        ) : (
+          <SceneRenderer
+            project={project}
+            sceneIndex={sceneIndex}
+            timeMs={timeMs}
+            assetUrl={(assetId) => assetMap[assetId]}
+            style={renderDimensions}
+          />
+        )}
       </section>
       {!renderMode ? (
         <p className="time-readout">

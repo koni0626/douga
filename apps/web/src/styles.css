@@ -561,13 +561,29 @@ button,
 }
 
 .project-export-dialog {
-  max-width: 32rem;
+  max-width: 28rem;
+  padding: 0.9rem;
+}
+
+.project-export-dialog h2 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.project-export-dialog form {
+  gap: 0.8rem;
 }
 
 .project-export-dialog form > label,
 .project-export-resolution label {
   display: grid;
-  gap: 0.45rem;
+  font-size: 0.78rem;
+  gap: 0.3rem;
+}
+
+.project-export-dialog input {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.65rem;
 }
 
 .project-export-resolution {
@@ -579,7 +595,8 @@ button,
 
 .project-export-resolution > span {
   color: #8fa9bf;
-  padding-bottom: 0.75rem;
+  font-size: 0.72rem;
+  padding-bottom: 0.6rem;
 }
 
 .project-export-estimate {
@@ -588,8 +605,50 @@ button,
   border-radius: 0.65rem;
   color: #9fd2f7;
   font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
   margin: 0;
-  padding: 0.7rem 0.8rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.project-export-dialog small {
+  font-size: 0.65rem;
+}
+
+.project-browser-export-hint {
+  color: #9fd2f7;
+  font-size: 0.66rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.project-browser-export-progress {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.project-browser-export-progress progress {
+  accent-color: #42aef5;
+  height: 0.55rem;
+  width: 100%;
+}
+
+.project-browser-export-progress span {
+  color: #9fd2f7;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.project-export-dialog .project-create-dialog-actions {
+  display: grid;
+  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+}
+
+.project-export-dialog .project-create-dialog-actions button {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  min-width: 0;
+  padding: 0.5rem 0.4rem;
 }
 
 .projects-toolbar {
@@ -1695,13 +1754,14 @@ button,
   position: relative;
 }
 
+.canvas-stage > canvas,
 .canvas-stage > svg {
   grid-area: 1 / 1;
   height: 100%;
   width: 100%;
 }
 
-.canvas-stage > svg[data-render-canvas] {
+.canvas-stage > [data-render-canvas] {
   box-shadow: 0 20px 60px rgb(0 0 0 / 35%);
 }
 

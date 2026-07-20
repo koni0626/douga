@@ -120,6 +120,10 @@
       "fps": "FPS",
       "estimatedFrames": "推定フレーム数: {{count}}枚",
       "overrideHint": "ここでの変更は今回の書き出しだけに適用され、プロジェクト設定は変更しません。",
+      "browserHint": "試験版ではWebGLでプレビューと同じ画面を描き、WebCodecsでこのPC上にMP4を書き出します。処理中はこの画面を閉じないでください。",
+      "browserStart": "このPCで書き出す（試験版）",
+      "browserProgress": "ブラウザ書き出し {{progress}}%",
+      "cancelBrowser": "書き出しを停止",
       "start": "書き出し開始",
       "starting": "開始中…"
     }
@@ -468,6 +472,8 @@
     "imageGenerationNotFound": "画像生成履歴が見つかりません。",
     "imageGenerationNotCancellable": "この画像生成はキャンセルできません。",
     "exportFailed": "動画の書き出しに失敗しました。",
+    "browserExportFailed": "このPCでの動画書き出しに失敗しました。サーバー書き出しをお試しください。",
+    "browserExportUnsupported": "このブラウザはWebGL・WebCodecs書き出しに対応していません。",
     "exportNotFound": "完成動画が見つかりません。",
     "exportNotCancellable": "この書き出しはキャンセルできません。",
     "exportQuotaExceeded": "動画書き出しの1時間あたりの上限に達しました。",

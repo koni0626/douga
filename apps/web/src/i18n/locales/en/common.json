@@ -120,6 +120,10 @@
       "fps": "FPS",
       "estimatedFrames": "Estimated frames: {{count}}",
       "overrideHint": "Changes here only apply to this export and do not change project settings.",
+      "browserHint": "The experimental exporter draws the same preview with WebGL and creates an MP4 on this device using WebCodecs. Keep this page open while it runs.",
+      "browserStart": "Export on this device (experimental)",
+      "browserProgress": "Browser export {{progress}}%",
+      "cancelBrowser": "Stop export",
       "start": "Start export",
       "starting": "Starting…"
     }
@@ -468,6 +472,8 @@
     "imageGenerationNotFound": "Image generation history was not found.",
     "imageGenerationNotCancellable": "This image generation cannot be cancelled.",
     "exportFailed": "Video export failed.",
+    "browserExportFailed": "Video export on this device failed. Try the server exporter instead.",
+    "browserExportUnsupported": "This browser does not support WebGL and WebCodecs export.",
     "exportNotFound": "The exported video was not found.",
     "exportNotCancellable": "This export cannot be cancelled.",
     "exportQuotaExceeded": "You have reached the hourly video export limit.",

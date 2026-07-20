@@ -5,7 +5,7 @@ import type { ProjectDocument } from "@douga/project-schema";
 import {
   isLayerVisibleAtTime,
   resolveCameraTransform,
-  SceneRenderer,
+  WebGlSceneRenderer,
 } from "@douga/scene-renderer";
 
 import { assetContentUrl } from "../../../shared/lib/api";
@@ -106,7 +106,7 @@ export function EditorCanvasWorkspace({
               width: `min(100%, calc((100vh - 19rem) * ${project.video.width / project.video.height}))`,
             }}
           >
-            <SceneRenderer
+            <WebGlSceneRenderer
               project={previewProject}
               sceneIndex={0}
               timeMs={timeMs}
