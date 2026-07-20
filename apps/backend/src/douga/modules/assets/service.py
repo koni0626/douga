@@ -6,7 +6,7 @@ import wave
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from PIL import Image, UnidentifiedImageError
@@ -201,6 +201,11 @@ class AssetService:
     async def get_asset(self, asset_id: UUID, user_id: UUID) -> AssetView:
         return await self._view(await self._owned(asset_id, user_id))
 
+    async def get_asset_metadata(self, asset_id: UUID, user_id: UUID) -> dict[str, Any]:
+        """Return metadata for an owned asset without exposing it through the public schema."""
+        asset = await self._owned(asset_id, user_id)
+        return dict(asset.asset_metadata or {})
+
     async def update_asset(
         self, asset_id: UUID, user_id: UUID, *, name: str | None, tags: list[str] | None
     ) -> AssetView:
@@ -216,6 +221,17 @@ class AssetService:
         asset = await self._owned(asset_id, user_id)
         await self.repository.soft_delete(asset)
         await self.uow.commit()
+
+    async def discard_generated_asset(self, asset_id: UUID, user_id: UUID) -> None:
+        """Remove an unreferenced generated asset created by a failed use case."""
+        asset = await self._owned(asset_id, user_id)
+        if asset.source != "generated":
+            raise ConflictError("ASSET_SOURCE_INVALID", "errors.assetNotFound")
+        storage_key = asset.storage_key
+        await self.repository.soft_delete(asset)
+        await self.uow.commit()
+        if storage_key:
+            await self.storage.delete(storage_key)
 
     async def content_path(self, asset_id: UUID, user_id: UUID) -> tuple[Path, str]:
         asset = await self._owned(asset_id, user_id)

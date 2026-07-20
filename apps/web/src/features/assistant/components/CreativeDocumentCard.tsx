@@ -4,8 +4,6 @@ import type { CreativeDocumentDto } from "../../../shared/lib/api";
 
 interface CreativeDocumentCardProps {
   document: CreativeDocumentDto;
-  onAdopt: (document: CreativeDocumentDto) => void;
-  adopting: boolean;
 }
 
 function textValue(value: unknown): string | undefined {
@@ -32,11 +30,7 @@ function itemCount(
   return Array.isArray(value) ? value.length : undefined;
 }
 
-export function CreativeDocumentCard({
-  document,
-  onAdopt,
-  adopting,
-}: CreativeDocumentCardProps) {
+export function CreativeDocumentCard({ document }: CreativeDocumentCardProps) {
   const { t } = useTranslation();
   const content = recordValue(document.content);
   const title =
@@ -51,8 +45,7 @@ export function CreativeDocumentCard({
       <header>
         <span>{t(`assistant.artifacts.${document.kind}`)}</span>
         <small>
-          v{document.version} ·{" "}
-          {t(`assistant.artifacts.status.${document.status}`)}
+          v{document.version} · {t("assistant.artifacts.currentMark")}
         </small>
       </header>
       <strong>{title}</strong>
@@ -60,21 +53,6 @@ export function CreativeDocumentCard({
       {count !== undefined ? (
         <small>{t("assistant.artifacts.itemCount", { count })}</small>
       ) : null}
-      {document.status !== "approved" ? (
-        <button
-          type="button"
-          disabled={adopting}
-          onClick={() => onAdopt(document)}
-        >
-          {adopting
-            ? t("assistant.artifacts.adopting")
-            : t("assistant.artifacts.adopt")}
-        </button>
-      ) : (
-        <span className="assistant-artifact-approved">
-          {t("assistant.artifacts.approvedMark")}
-        </span>
-      )}
     </article>
   );
 }

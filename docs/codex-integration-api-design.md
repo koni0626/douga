@@ -303,7 +303,7 @@ MP4書き出しやDouga側画像生成が必要な場合だけ、それぞれの
 | `GET` | `/api/v1/projects/{project_id}/creative-documents` | `creative:read` | 企画データ一覧 |
 | `GET` | `/api/v1/projects/{project_id}/creative-documents/{kind}` | `creative:read` | 種別ごとの企画データ取得 |
 | `POST` | `/api/v1/projects/{project_id}/creative-documents` | `creative:write` | 企画データ保存 |
-| `POST` | `/api/v1/projects/{project_id}/creative-documents/{document_id}/adopt` | `creative:write` | 企画データの採用 |
+| `POST` | `/api/v1/projects/{project_id}/creative-documents/{document_id}/adopt` | `creative:write` | 旧クライアント互換用。通常は保存した最新版をそのまま利用 |
 | `POST` | `/api/v1/exports` | `exports:write` | MP4書き出し開始 |
 | `GET` | `/api/v1/exports` | `exports:read` | 書き出し一覧取得 |
 | `GET` | `/api/v1/exports/{export_id}` | `exports:read` | 書き出し状態取得 |

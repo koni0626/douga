@@ -49,7 +49,7 @@ async def get_project_context(
     run = await service.run()
     document = detail.document
     scene = canvas(document)
-    creative = await CreativeDocumentService(context.session).list_approved(
+    creative = await CreativeDocumentService(context.session).list_documents(
         context.project_id, context.user_id
     )
     return ToolExecutionResult(
@@ -67,7 +67,7 @@ async def get_project_context(
                 "camera_effect_count": len(document.get("camera_effects", [])),
             },
             "editor_context": run.context_json,
-            "approved_creative_documents": [
+            "creative_documents": [
                 {
                     "id": str(item.id),
                     "kind": item.kind,
@@ -193,7 +193,7 @@ def project_read_tool_definitions() -> tuple[ToolDefinition, ...]:
         ToolDefinition(
             name="get_project_context",
             description=(
-                "Read video settings, current editor selection and approved creative documents "
+                "Read video settings, current editor selection and latest creative documents "
                 "before planning or editing."
             ),
             parameters=empty_parameters(),

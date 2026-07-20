@@ -299,7 +299,7 @@ async def test_approved_storyboard_is_built_with_multiple_tools_and_validated() 
     assert detail.document["scenes"][0]["layers"][0]["name"] == "Opening panel"
     assert detail.document["scenes"][0]["dialogues"][0]["text"].startswith("小さな工場")
     assert detail.document["camera_effects"][0]["preset"] == "breathe"
-    assert "approved script or storyboard" in provider.instructions
+    assert "script or storyboard" in provider.instructions
 
     plot_provider = PlotDraftEvaluationProvider()
     async with session_factory() as session:

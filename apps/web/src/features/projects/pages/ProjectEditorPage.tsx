@@ -80,6 +80,7 @@ export function ProjectEditorPage() {
   }, []);
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [audioBuffering, setAudioBuffering] = useState(false);
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(true);
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
@@ -211,7 +212,7 @@ export function ProjectEditorPage() {
   }, [captionEditing, resolvedCaption]);
 
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || audioBuffering) return;
     let frame = 0;
     let previous: number | undefined;
     const tick = (timestamp: number) => {
@@ -222,7 +223,7 @@ export function ProjectEditorPage() {
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [durationMs, playing]);
+  }, [audioBuffering, durationMs, playing]);
 
   useEffect(() => {
     setTimeMs((current) => Math.min(current, durationMs - 1));
@@ -401,6 +402,7 @@ export function ProjectEditorPage() {
           commitInlineCaption={commitInlineCaption}
           dropActive={dropActive}
           onDrop={dropImage}
+          onAudioBufferingChange={setAudioBuffering}
           playing={playing}
           previewProject={previewProject}
           previewScene={previewScene}

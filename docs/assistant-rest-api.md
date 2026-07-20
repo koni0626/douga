@@ -71,6 +71,24 @@ run = assistant.wait_for_run(project_id, call["run_id"])
 
 Bearer TokenによるすべてのPOSTには`Idempotency-Key`を付ける。付属Pythonクライアントは未指定時に自動生成する。同じ論理操作の再試行では同じキーを再利用する。
 
+## AIナレーション付き動画の一括作成
+
+編集画面のチャットとREST APIは同じOrchestratorを使う。動画全体の作成依頼では、AIは原則として`compose_narrated_video`を使用し、文章量からミリ秒を推測せずに次を一括処理する。
+
+1. 意味単位のセクションと、表示文・読み上げ文を分離したキューを組み立てる。
+2. AivisSpeechでキューごとに音声を生成する。
+3. WAVの実フレーム数から境界を計算し、1本のマスターナレーションへ連結する。
+4. 画像、見出し、テロップ、マスター音声を同じ境界に配置する。
+5. 音声・テロップ・画像・動画尺の整合性を検証してから、Project Revisionを1件だけ保存する。
+
+既存動画のナレーション全体や読みだけを変更する依頼では`rebuild_narration_master`、保存済み構成の再検証には`validate_narrated_video`が使われる。作成後の局所修正には従来のタイムライン編集ツールが使われる。
+
+読みが曖昧な語は、会話で表示文字と読みを明示する。例えば「表示は『辛い』のまま、読みは『カライ』」と依頼すると、テロップには`display_text`、AivisSpeechには`speech_text`が渡る。同じ語を繰り返し使う場合は読み辞書として扱われ、生成Assetのメタデータには適用後の`resolved_speech_text`と実測境界が保存される。
+
+`replace_scope=generated_draft`ではAI生成部分を置換し、既存のBGMと効果音は保持する。タイムライン全体を置換する`entire_timeline`は破壊的操作のため承認待ちになる。処理中はSSEに`validate_input`、`synthesize_narration`、`compile_master_audio`、`build_document`、`validate_document`、`save_revision`、`completed`の進捗イベントが流れる。
+
+一括作成ツールの成功結果には、保存済み`revision_number`、`master_audio_asset_id`、`duration_ms`、セクション数、キュー数、および`validation.valid`と`validation.issues`が含まれる。`validation.valid=true`かつ`issues=[]`になるまで、AIは完成したとは回答しない。
+
 ## 主な状態
 
 | 状態 | 意味 |

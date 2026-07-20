@@ -29,6 +29,7 @@ interface EditorCanvasWorkspaceProps {
   commitInlineCaption: () => void;
   dropActive: boolean;
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
+  onAudioBufferingChange: (buffering: boolean) => void;
   playing: boolean;
   previewProject: ProjectDocument;
   previewScene?: Scene;
@@ -57,6 +58,7 @@ export function EditorCanvasWorkspace({
   commitInlineCaption,
   dropActive,
   onDrop,
+  onAudioBufferingChange,
   playing,
   previewProject,
   previewScene,
@@ -224,6 +226,7 @@ export function EditorCanvasWorkspace({
       ) : null}
       {scene ? (
         <AudioPreview
+          onBufferingChange={onAudioBufferingChange}
           tracks={project.audio_tracks ?? []}
           playing={playing}
           timeMs={timeMs}

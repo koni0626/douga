@@ -428,15 +428,7 @@
       "storyboard": "絵コンテ",
       "itemCount_one": "{{count}}項目",
       "itemCount_other": "{{count}}項目",
-      "adopt": "この案を採用",
-      "adopting": "採用中…",
-      "approvedMark": "採用済み",
-      "status": {
-        "draft": "下書き",
-        "proposed": "提案",
-        "approved": "採用済み",
-        "superseded": "旧版"
-      }
+      "currentMark": "最新版"
     }
   },
   "jobs": {

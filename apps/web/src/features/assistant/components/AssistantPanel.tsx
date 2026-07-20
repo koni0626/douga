@@ -25,6 +25,11 @@ import { MarkdownMessage } from "./MarkdownMessage";
 import { ImageArtifactCard } from "./ImageArtifactCard";
 import { VideoArtifactCard } from "./VideoArtifactCard";
 import { useAssistantImageAttachments } from "../hooks/useAssistantImageAttachments";
+import {
+  assistantPanelMaxWidth,
+  clampAssistantPanelWidth,
+  MIN_ASSISTANT_PANEL_WIDTH,
+} from "./assistantPanelLayout";
 
 function imageArtifact(value: unknown): ImageArtifactDto | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -89,7 +94,6 @@ export function AssistantPanel({
   const [thread, setThread] = useState<AssistantThreadDto>();
   const [messages, setMessages] = useState<AssistantMessageDto[]>([]);
   const [documents, setDocuments] = useState<CreativeDocumentDto[]>([]);
-  const [adoptingId, setAdoptingId] = useState<string>();
   const [undoableRunId, setUndoableRunId] = useState<string>();
   const [undoing, setUndoing] = useState(false);
   const [approvals, setApprovals] = useState<AssistantToolCallDto[]>([]);
@@ -113,6 +117,16 @@ export function AssistantPanel({
   } = useAssistantImageAttachments();
   const messageEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    const keepWidthWithinViewport = () => {
+      const nextWidth = clampAssistantPanelWidth(width, window.innerWidth);
+      if (nextWidth !== width) onWidthChange(nextWidth);
+    };
+    keepWidthWithinViewport();
+    window.addEventListener("resize", keepWidthWithinViewport);
+    return () => window.removeEventListener("resize", keepWidthWithinViewport);
+  }, [onWidthChange, width]);
 
   useEffect(() => {
     let active = true;
@@ -477,28 +491,6 @@ export function AssistantPanel({
     }
   }
 
-  async function adoptDocument(document: CreativeDocumentDto) {
-    if (adoptingId) return;
-    setAdoptingId(document.id);
-    setErrorKey(undefined);
-    try {
-      const adopted = await apiRequest<CreativeDocumentDto>(
-        `/projects/${projectId}/creative-documents/${document.id}/adopt`,
-        { method: "POST" },
-      );
-      setDocuments((current) => [
-        adopted,
-        ...current.filter((item) => item.kind !== adopted.kind),
-      ]);
-    } catch (error) {
-      setErrorKey(
-        error instanceof ApiError ? error.messageKey : "errors.unknown",
-      );
-    } finally {
-      setAdoptingId(undefined);
-    }
-  }
-
   async function undoRun() {
     if (!undoableRunId || undoing) return;
     setUndoing(true);
@@ -550,9 +542,9 @@ export function AssistantPanel({
     const originWidth = width;
     const move = (pointerEvent: PointerEvent) =>
       onWidthChange(
-        Math.max(
-          320,
-          Math.min(560, originWidth + originX - pointerEvent.clientX),
+        clampAssistantPanelWidth(
+          originWidth + originX - pointerEvent.clientX,
+          window.innerWidth,
         ),
       );
     const finish = () => {
@@ -570,8 +562,8 @@ export function AssistantPanel({
         role="separator"
         aria-label={t("assistant.resize")}
         aria-orientation="vertical"
-        aria-valuemin={320}
-        aria-valuemax={560}
+        aria-valuemin={MIN_ASSISTANT_PANEL_WIDTH}
+        aria-valuemax={assistantPanelMaxWidth(window.innerWidth)}
         aria-valuenow={width}
         onPointerDown={startResize}
       />
@@ -651,12 +643,7 @@ export function AssistantPanel({
           </article>
         ))}
         {documents.map((document) => (
-          <CreativeDocumentCard
-            adopting={adoptingId === document.id}
-            document={document}
-            key={document.id}
-            onAdopt={(item) => void adoptDocument(item)}
-          />
+          <CreativeDocumentCard document={document} key={document.id} />
         ))}
         {videoArtifacts.map((artifact) => (
           <VideoArtifactCard key={artifact.export_id} artifact={artifact} />

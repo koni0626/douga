@@ -18,6 +18,7 @@
 - [実装計画書](implementation-plan.md)
 - [キーフレームアニメーション設計](keyframe-animation-design.md)
 - [カメラアニメーション設計](camera-animation-design.md)
+- [AIナレーション付き動画一括作成仕様](ai-narrated-video-composition-design.md)
 
 ## 2. プロダクト概要
 

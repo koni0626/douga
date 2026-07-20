@@ -28,7 +28,7 @@ class GetCreativeDocumentArgs(BaseModel):
 class UpdateCreativeStatusArgs(BaseModel):
     model_config = ConfigDict(extra="forbid")
     document_id: UUID
-    status: Literal["draft", "proposed"]
+    status: Literal["approved"]
 
 
 def serialize_document(document: CreativeDocument) -> dict[str, Any]:
@@ -73,7 +73,7 @@ def save_handler(kind: CreativeKind) -> ToolHandler:
             context.project_id,
             context.user_id,
             kind=kind,
-            status="proposed",
+            status="approved",
             content=content,
             source_run_id=context.run_id,
         )
@@ -113,7 +113,7 @@ def creative_tool_definitions() -> tuple[ToolDefinition, ...]:
         ToolDefinition(
             name="get_creative_document",
             description=(
-                "Read the latest approved creative brief, plot, script, or storyboard before "
+                "Read the latest creative brief, plot, script, or storyboard before "
                 "deriving another artifact or editing the timeline."
             ),
             parameters=model_parameters(GetCreativeDocumentArgs),
@@ -122,8 +122,8 @@ def creative_tool_definitions() -> tuple[ToolDefinition, ...]:
         ToolDefinition(
             name="update_creative_status",
             description=(
-                "Create a new draft or proposed version with a changed status. Approval is a "
-                "user-only UI action and cannot be performed by this tool."
+                "Promote a legacy draft or proposal to the current version. New creative "
+                "documents are current immediately and normally do not need this tool."
             ),
             parameters=model_parameters(UpdateCreativeStatusArgs),
             handler=update_creative_status,
@@ -131,8 +131,8 @@ def creative_tool_definitions() -> tuple[ToolDefinition, ...]:
         ToolDefinition(
             name="save_project_brief",
             description=(
-                "Save a structured video brief only when the user explicitly asks to create or "
-                "save the agreed brief. Do not call while merely discussing ideas."
+                "Save the agreed structured video brief as the current version. Do not call "
+                "while merely discussing ideas."
             ),
             parameters=content_parameters(BriefContent),
             handler=save_handler("brief"),
@@ -140,21 +140,21 @@ def creative_tool_definitions() -> tuple[ToolDefinition, ...]:
         ToolDefinition(
             name="save_plot",
             description=(
-                "Save a structured plot proposal only when the user explicitly asks to create or "
-                "save it. Do not call while the user is still exploring alternatives."
+                "Save the agreed structured plot as the current version. Do not call while the "
+                "user is still exploring alternatives."
             ),
             parameters=content_parameters(PlotContent),
             handler=save_handler("plot"),
         ),
         ToolDefinition(
             name="save_script",
-            description="Save an agreed structured narration and caption script as a proposal.",
+            description="Save the agreed narration and caption script as the current version.",
             parameters=content_parameters(ScriptContent),
             handler=save_handler("script"),
         ),
         ToolDefinition(
             name="save_storyboard",
-            description="Save an agreed structured shot-by-shot storyboard as a proposal.",
+            description="Save the agreed shot-by-shot storyboard as the current version.",
             parameters=content_parameters(StoryboardContent),
             handler=save_handler("storyboard"),
         ),

@@ -1,10 +1,21 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
 import { assetContentUrl } from "../../../shared/lib/api";
 
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
+const HAVE_FUTURE_DATA = 3;
+const AUDIO_RESYNC_THRESHOLD_SECONDS = 0.08;
+
+export function audioNeedsResync(
+  currentSeconds: number,
+  targetSeconds: number,
+): boolean {
+  return (
+    Math.abs(currentSeconds - targetSeconds) > AUDIO_RESYNC_THRESHOLD_SECONDS
+  );
+}
 
 export function audioVolumeAtTime(
   track: AudioTrack,
@@ -60,13 +71,23 @@ export function AudioPreview({
   tracks,
   playing,
   timeMs,
+  onBufferingChange,
 }: {
   tracks: AudioTrack[];
   playing: boolean;
   timeMs: number;
+  onBufferingChange?: (buffering: boolean) => void;
 }) {
   const refs = useRef<Record<string, HTMLAudioElement | null>>({});
+  const playRequests = useRef<Record<string, Promise<void> | undefined>>({});
+  const [mediaStateVersion, setMediaStateVersion] = useState(0);
+
   useEffect(() => {
+    const active: Array<{
+      audio: HTMLAudioElement;
+      track: AudioTrack;
+      localMs: number;
+    }> = [];
     for (const track of tracks) {
       const audio = refs.current[track.id];
       if (!audio) continue;
@@ -86,29 +107,64 @@ export function AudioPreview({
         audio.pause();
         continue;
       }
+      active.push({ audio, track, localMs });
+    }
+
+    if (!playing) {
+      for (const { audio } of active) audio.pause();
+      onBufferingChange?.(false);
+      return;
+    }
+
+    const buffering = active.some(
+      ({ audio }) => audio.readyState < HAVE_FUTURE_DATA,
+    );
+    onBufferingChange?.(buffering);
+    if (buffering) {
+      for (const { audio } of active) audio.pause();
+      return;
+    }
+
+    for (const { audio, track, localMs } of active) {
       const targetSeconds = localMs / 1000;
       if (
         Number.isFinite(audio.duration) &&
-        Math.abs(audio.currentTime - targetSeconds) > 0.35
+        audioNeedsResync(audio.currentTime, targetSeconds)
       ) {
         audio.currentTime =
           track.loop && audio.duration > 0
             ? targetSeconds % audio.duration
             : targetSeconds;
       }
-      if (playing) void audio.play().catch(() => undefined);
-      else audio.pause();
+      if (!audio.paused || playRequests.current[track.id]) continue;
+      const request = audio.play();
+      playRequests.current[track.id] = request;
+      void request
+        .catch(() => undefined)
+        .finally(() => delete playRequests.current[track.id]);
     }
-  }, [playing, timeMs, tracks]);
+  }, [mediaStateVersion, onBufferingChange, playing, timeMs, tracks]);
+
+  useEffect(
+    () => () => {
+      onBufferingChange?.(false);
+    },
+    [onBufferingChange],
+  );
 
   return tracks.map((track) => (
     <audio
-      key={track.id}
+      key={`${track.id}:${track.asset_id}`}
+      onCanPlay={() => setMediaStateVersion((current) => current + 1)}
+      onPlaying={() => setMediaStateVersion((current) => current + 1)}
+      onStalled={() => setMediaStateVersion((current) => current + 1)}
+      onWaiting={() => setMediaStateVersion((current) => current + 1)}
+      playsInline
+      preload="auto"
       ref={(element) => {
         refs.current[track.id] = element;
       }}
       src={assetContentUrl(track.asset_id)}
-      preload="metadata"
     />
   ));
 }

@@ -49,10 +49,7 @@ class CreativeDocumentRepository:
                     CreativeDocument.user_id == user_id,
                     CreativeDocument.kind == kind,
                 )
-                .order_by(
-                    (CreativeDocument.status == "approved").desc(),
-                    CreativeDocument.version.desc(),
-                )
+                .order_by(CreativeDocument.version.desc())
                 .limit(1)
             )
         ).one_or_none()

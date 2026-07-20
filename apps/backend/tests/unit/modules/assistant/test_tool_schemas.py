@@ -4,6 +4,9 @@ from douga.modules.assistant.tools.animation_tools import animation_tool_definit
 from douga.modules.assistant.tools.asset_tools import asset_tool_definitions
 from douga.modules.assistant.tools.creative_tools import creative_tool_definitions
 from douga.modules.assistant.tools.image_edit_tools import image_edit_tool_definitions
+from douga.modules.assistant.tools.narrated_video_tools import (
+    narrated_video_tool_definitions,
+)
 from douga.modules.assistant.tools.output_tools import output_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.speech_alignment_tools import (
@@ -42,6 +45,7 @@ def test_creative_tool_json_schemas_are_strict() -> None:
         + project_read_tool_definitions()
         + speech_tool_definitions()
         + speech_alignment_tool_definitions()
+        + narrated_video_tool_definitions()
         + timeline_tool_definitions()
     )
     for definition in definitions:
@@ -53,6 +57,9 @@ def test_high_cost_and_destructive_tools_require_approval() -> None:
     image_edit = {item.name: item for item in image_edit_tool_definitions()}["edit_visible_image"]
     delete = {item.name: item for item in timeline_tool_definitions()}["delete_clip"]
     export = {item.name: item for item in output_tool_definitions()}["export_video"]
+    compose = {item.name: item for item in narrated_video_tool_definitions()}[
+        "compose_narrated_video"
+    ]
 
     assert image.requires_approval({"quality": "high"})
     assert not image.requires_approval({"quality": "medium"})
@@ -60,6 +67,8 @@ def test_high_cost_and_destructive_tools_require_approval() -> None:
     assert not image_edit.requires_approval({"quality": "medium"})
     assert delete.requires_approval({"clip_id": "00000000-0000-0000-0000-000000000000"})
     assert export.requires_approval({})
+    assert compose.requires_approval({"replace_scope": "entire_timeline"})
+    assert not compose.requires_approval({"replace_scope": "generated_draft"})
 
 
 def test_design_tool_catalog_is_implemented() -> None:
@@ -71,6 +80,7 @@ def test_design_tool_catalog_is_implemented() -> None:
         + project_read_tool_definitions()
         + speech_tool_definitions()
         + speech_alignment_tool_definitions()
+        + narrated_video_tool_definitions()
         + timeline_tool_definitions()
         + output_tool_definitions()
     )
@@ -95,6 +105,9 @@ def test_design_tool_catalog_is_implemented() -> None:
         "generate_narration",
         "create_synced_captions_from_narration",
         "validate_narration_caption_sync",
+        "compose_narrated_video",
+        "rebuild_narration_master",
+        "validate_narrated_video",
         "add_text_clip",
         "add_caption_clip",
         "add_shape_clip",

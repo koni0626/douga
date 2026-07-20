@@ -156,7 +156,7 @@ async def test_project_assistant_conversation_and_tenant_isolation() -> None:
         documents = await owner.get(f"/api/v1/projects/{project_id}/creative-documents")
         assert documents.status_code == 200
         assert documents.json()["items"][0]["kind"] == "plot"
-        assert documents.json()["items"][0]["status"] == "proposed"
+        assert documents.json()["items"][0]["status"] == "approved"
 
         async with session_factory() as session:
             consultation_tool_calls = await session.scalar(

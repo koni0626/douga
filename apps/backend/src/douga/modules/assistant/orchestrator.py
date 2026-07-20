@@ -25,6 +25,9 @@ from douga.modules.assistant.tools.animation_tools import animation_tool_definit
 from douga.modules.assistant.tools.asset_tools import asset_tool_definitions
 from douga.modules.assistant.tools.creative_tools import creative_tool_definitions
 from douga.modules.assistant.tools.image_edit_tools import image_edit_tool_definitions
+from douga.modules.assistant.tools.narrated_video_tools import (
+    narrated_video_tool_definitions,
+)
 from douga.modules.assistant.tools.output_tools import output_tool_definitions
 from douga.modules.assistant.tools.project_read_tools import project_read_tool_definitions
 from douga.modules.assistant.tools.registry import ToolContext, ToolRegistry
@@ -70,6 +73,7 @@ class AssistantOrchestrator:
             + project_read_tool_definitions()
             + speech_tool_definitions()
             + speech_alignment_tool_definitions()
+            + narrated_video_tool_definitions()
             + timeline_tool_definitions()
         )
 
@@ -571,12 +575,16 @@ class AssistantOrchestrator:
             "When the user asks to think together, compare ideas, or discuss a draft, do not call "
             "a mutating tool. Once the user semantically asks to turn the agreed conversation into "
             "a video or draft, do not require a particular phrase or a separately approved "
-            "document. This includes requests based on an approved script or storyboard. "
-            "Infer the latest adopted direction, save or update the brief, plot, script, and "
-            "storyboard as needed, then compose the editable draft through the granular timeline "
-            "tools. Continue through assets, narration/captions, timing, and camera choices until "
-            "a "
-            "coherent draft exists. Validate the timeline and "
+            "document. This includes requests based on a script or storyboard. "
+            "Infer the latest direction, save or update the brief, plot, script, and "
+            "storyboard as needed. For a complete narration-led video draft, call "
+            "compose_narrated_video with semantic sections and cues; never estimate milliseconds "
+            "or assemble the complete narration through granular timeline tools. For a global "
+            "narration or caption correction, call rebuild_narration_master. Use granular tools "
+            "only for localized edits after composition. Continue through assets, timing, and "
+            "camera choices until a coherent draft exists. Call validate_narrated_video after "
+            "composition or narration rebuilding, and do not report completion unless it returns "
+            "validation.valid=true with no issues. Validate the timeline and "
             "inspect representative frames before reporting completion; offer or render a short "
             "preview when useful. Never claim an operation succeeded until its tool result "
             "confirms it, and never claim a draft is validated unless validation tools ran. "
@@ -584,9 +592,11 @@ class AssistantOrchestrator:
             "than one image layer is visible and the user did not identify one by layer name, "
             "ask which exact layer name to edit and do not guess. Image edits create a new asset; "
             "preserve the source asset. "
-            "For generated narration, call list_speech_voices unless an exact style ID is already "
-            "known. Never invent a style ID. Call generate_narration, then place the returned "
-            "audio asset with add_audio_clip using its exact duration and the narration role. "
+            "For any narration request, call list_speech_voices unless an exact style ID is "
+            "already known. Never invent a style ID. Pass the selected style ID to "
+            "compose_narrated_video for a complete draft. For a localized standalone narration "
+            "clip, call generate_narration and place the returned audio asset with add_audio_clip "
+            "using its exact duration and the narration role. "
             "For an existing uploaded audio file, call list_assets with kind audio and an exact "
             "name search, then place its returned asset ID with add_audio_clip. To repeat an "
             "existing timeline audio clip through a requested range, call duplicate_audio_clip; "
@@ -675,6 +685,9 @@ class AssistantOrchestrator:
                     "generate_narration",
                     "create_synced_captions_from_narration",
                     "validate_narration_caption_sync",
+                    "compose_narrated_video",
+                    "rebuild_narration_master",
+                    "validate_narrated_video",
                 }
             )
         if any(
@@ -702,6 +715,9 @@ class AssistantOrchestrator:
                     "duplicate_audio_clip",
                     "create_synced_captions_from_narration",
                     "validate_narration_caption_sync",
+                    "compose_narrated_video",
+                    "rebuild_narration_master",
+                    "validate_narrated_video",
                 }
             )
         if any(term in text for term in ("画像", "image", "素材", "asset")):

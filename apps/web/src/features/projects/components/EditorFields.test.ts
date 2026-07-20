@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { audioVolumeAtTime } from "./EditorFields";
+import { audioNeedsResync, audioVolumeAtTime } from "./EditorFields";
 
 const track = {
   id: "audio-1",
@@ -26,5 +26,12 @@ describe("audioVolumeAtTime", () => {
   it("applies fade out and stops after the clip", () => {
     expect(audioVolumeAtTime(track, 6000)).toBeCloseTo(0.4);
     expect(audioVolumeAtTime(track, 7000)).toBe(0);
+  });
+});
+
+describe("audioNeedsResync", () => {
+  it("corrects audible drift without seeking for normal frame jitter", () => {
+    expect(audioNeedsResync(1, 1.05)).toBe(false);
+    expect(audioNeedsResync(1, 1.081)).toBe(true);
   });
 });

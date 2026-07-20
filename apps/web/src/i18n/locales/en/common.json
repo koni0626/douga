@@ -428,15 +428,7 @@
       "storyboard": "Storyboard",
       "itemCount_one": "{{count}} item",
       "itemCount_other": "{{count}} items",
-      "adopt": "Adopt this version",
-      "adopting": "Adopting…",
-      "approvedMark": "Approved",
-      "status": {
-        "draft": "Draft",
-        "proposed": "Proposed",
-        "approved": "Approved",
-        "superseded": "Superseded"
-      }
+      "currentMark": "Current"
     }
   },
   "jobs": {

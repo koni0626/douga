@@ -72,6 +72,8 @@ class CreativeDocumentService:
             content=validated,
             source_run_id=source_run_id,
         )
+        if status == "approved":
+            await self.repository.supersede_approved(project_id, user_id, kind)
         await self.repository.add(document)
         await self.uow.commit()
         return document

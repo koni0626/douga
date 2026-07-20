@@ -132,7 +132,7 @@ async def test_creative_document_versions_adoption_and_tenant_isolation() -> Non
         latest_list = await owner.get(f"/api/v1/projects/{project_id}/creative-documents")
         assert latest_list.json()["items"][0]["version"] == 3
         preferred = await owner.get(f"/api/v1/projects/{project_id}/creative-documents/plot")
-        assert preferred.json()["version"] == 2
+        assert preferred.json()["version"] == 3
 
         invalid = await owner.post(
             f"/api/v1/projects/{project_id}/creative-documents",

@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { i18n } from "../../../i18n";
 import type { CreativeDocumentDto } from "../../../shared/lib/api";
@@ -31,20 +31,13 @@ describe("CreativeDocumentCard", () => {
     await i18n.changeLanguage("ja");
   });
 
-  it("shows a structured proposal and lets the user adopt it", () => {
-    const onAdopt = vi.fn();
-    render(
-      <CreativeDocumentCard
-        adopting={false}
-        document={document}
-        onAdopt={onAdopt}
-      />,
-    );
+  it("shows the latest structured document without an adoption choice", () => {
+    render(<CreativeDocumentCard document={document} />);
 
     expect(screen.getByText("プロット")).toBeInTheDocument();
     expect(screen.getByText("Factory revival")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "この案を採用" }));
-    expect(onAdopt).toHaveBeenCalledWith(document);
+    expect(screen.getByText(/v2/)).toHaveTextContent("最新版");
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("does not treat an audio artifact as a creative document", () => {
@@ -63,13 +56,7 @@ describe("CreativeDocumentCard", () => {
       content: undefined,
     } as unknown as CreativeDocumentDto;
 
-    render(
-      <CreativeDocumentCard
-        adopting={false}
-        document={legacyDocument}
-        onAdopt={vi.fn()}
-      />,
-    );
+    render(<CreativeDocumentCard document={legacyDocument} />);
 
     expect(screen.getByRole("article")).toBeInTheDocument();
   });
