@@ -31,6 +31,7 @@ import { ProjectSettingsDialog } from "../components/ProjectSettingsDialog";
 import type { LayerTransformPatch } from "../components/CanvasObjectEditor";
 import { buildCaptionTimelineClips } from "../lib/captionTimeline";
 import type { EditorTool } from "../lib/editorTypes";
+import { playbackTimeAt } from "../lib/playbackClock";
 import type { TextLayer } from "../lib/textLayers";
 import { AssistantPanel } from "../../assistant/components/AssistantPanel";
 import { useProjectDocumentEditor } from "../hooks/useProjectDocumentEditor";
@@ -40,6 +41,7 @@ import { useMediaEditorActions } from "../hooks/useMediaEditorActions";
 
 type LayerPreview = { layerId: string; patch: LayerTransformPatch };
 const TEXT_LAYER_CLIPBOARD_TYPE = "application/x-douga-text-layer";
+const PREVIEW_FRAME_INTERVAL_MS = 100;
 
 function isEditableShortcutTarget(target: EventTarget | null): boolean {
   return (
@@ -79,6 +81,7 @@ export function ProjectEditorPage() {
     setSelectedCaptionId(captionId);
   }, []);
   const [timeMs, setTimeMs] = useState(0);
+  const timeMsRef = useRef(0);
   const [playing, setPlaying] = useState(false);
   const [audioBuffering, setAudioBuffering] = useState(false);
   const [activeTool, setActiveTool] = useState<EditorTool | null>(null);
@@ -167,19 +170,33 @@ export function ProjectEditorPage() {
     setAssets,
   });
 
-  const resolvedCaption = useMemo(() => {
-    if (!detail) return undefined;
-    const scene = detail.document.scenes[selectedSceneIndex];
-    if (!scene) return undefined;
-    return resolveCaptionAtTime(
-      buildSceneTimeline(
-        scene,
-        detail.document.caption_style,
-        detail.document.content_locale,
-      ),
-      timeMs,
+  const selectedScene = detail?.document.scenes[selectedSceneIndex];
+  const captionTimeline = useMemo(() => {
+    if (!detail || !selectedScene) return undefined;
+    return buildSceneTimeline(
+      selectedScene,
+      detail.document.caption_style,
+      detail.document.content_locale,
     );
-  }, [detail, timeMs]);
+  }, [detail, selectedScene]);
+  const resolvedCaption = useMemo(
+    () =>
+      captionTimeline
+        ? resolveCaptionAtTime(captionTimeline, timeMs)
+        : undefined,
+    [captionTimeline, timeMs],
+  );
+  const captionClips = useMemo(
+    () =>
+      detail && selectedScene
+        ? buildCaptionTimelineClips(
+            selectedScene,
+            detail.document.caption_style,
+            detail.document.content_locale,
+          )
+        : [],
+    [detail, selectedScene],
+  );
 
   const addCaptionAndSelect = useCallback(
     (startMs: number) => {
@@ -212,13 +229,26 @@ export function ProjectEditorPage() {
   }, [captionEditing, resolvedCaption]);
 
   useEffect(() => {
+    timeMsRef.current = timeMs;
+  }, [timeMs]);
+
+  useEffect(() => {
     if (!playing || audioBuffering) return;
     let frame = 0;
-    let previous: number | undefined;
+    const startedAt = performance.now();
+    const startTimeMs = timeMsRef.current;
+    let lastPublishedAt = startedAt - PREVIEW_FRAME_INTERVAL_MS;
     const tick = (timestamp: number) => {
-      const elapsed = previous === undefined ? 0 : timestamp - previous;
-      previous = timestamp;
-      setTimeMs((current) => (current + elapsed) % durationMs);
+      if (timestamp - lastPublishedAt >= PREVIEW_FRAME_INTERVAL_MS) {
+        const nextTimeMs = playbackTimeAt(
+          startTimeMs,
+          timestamp - startedAt,
+          durationMs,
+        );
+        timeMsRef.current = nextTimeMs;
+        setTimeMs(nextTimeMs);
+        lastPublishedAt = timestamp;
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
@@ -316,29 +346,28 @@ export function ProjectEditorPage() {
 
   const project = detail.document;
   const scene = project.scenes[selectedSceneIndex];
-  const captionClips = scene
-    ? buildCaptionTimelineClips(
-        scene,
-        project.caption_style,
-        project.content_locale,
-      )
-    : [];
-  const previewProject = {
-    ...project,
-    scenes: project.scenes.map((item, sceneIndex) =>
-      sceneIndex === selectedSceneIndex
-        ? {
-            ...item,
-            layers: item.layers.map((layer) => {
-              const resolved = resolveLayerAtTime(layer, timeMs);
-              return layer.id === layerPreview?.layerId
-                ? { ...resolved, ...layerPreview.patch, keyframes: undefined }
-                : resolved;
-            }),
-          }
-        : item,
-    ),
-  };
+  const previewProject = playing
+    ? project
+    : {
+        ...project,
+        scenes: project.scenes.map((item, sceneIndex) =>
+          sceneIndex === selectedSceneIndex
+            ? {
+                ...item,
+                layers: item.layers.map((layer) => {
+                  const resolved = resolveLayerAtTime(layer, timeMs);
+                  return layer.id === layerPreview?.layerId
+                    ? {
+                        ...resolved,
+                        ...layerPreview.patch,
+                        keyframes: undefined,
+                      }
+                    : resolved;
+                }),
+              }
+            : item,
+        ),
+      };
   const previewScene = previewProject.scenes[selectedSceneIndex];
   const selectedLayer = previewScene?.layers.find(
     (layer) => layer.id === selectedLayerId,

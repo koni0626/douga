@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { ProjectDocument } from "@douga/project-schema";
 
@@ -6,7 +6,19 @@ import { assetContentUrl } from "../../../shared/lib/api";
 
 type AudioTrack = NonNullable<ProjectDocument["audio_tracks"]>[number];
 const HAVE_FUTURE_DATA = 3;
-const AUDIO_RESYNC_THRESHOLD_SECONDS = 0.08;
+const AUDIO_RESYNC_THRESHOLD_SECONDS = 0.2;
+const AUDIO_DRIFT_CHECK_INTERVAL_MS = 1_000;
+const AUDIO_TIMELINE_DISCONTINUITY_MS = 250;
+const AUDIO_PRELOAD_AHEAD_MS = 15_000;
+const AUDIO_PRELOAD_BEHIND_MS = 1_000;
+
+interface AudioPlaybackState {
+  activeTrackIds: Set<string>;
+  lastDriftCheckAt: number;
+  playing: boolean;
+  timeMs: number;
+  updatedAt: number;
+}
 
 export function audioNeedsResync(
   currentSeconds: number,
@@ -15,6 +27,15 @@ export function audioNeedsResync(
   return (
     Math.abs(currentSeconds - targetSeconds) > AUDIO_RESYNC_THRESHOLD_SECONDS
   );
+}
+
+export function audioTrackIsNearTime(
+  track: AudioTrack,
+  timeMs: number,
+): boolean {
+  if (track.start_ms > timeMs + AUDIO_PRELOAD_AHEAD_MS) return false;
+  if (track.loop || track.duration_ms === undefined) return true;
+  return track.start_ms + track.duration_ms >= timeMs - AUDIO_PRELOAD_BEHIND_MS;
 }
 
 export function audioVolumeAtTime(
@@ -80,15 +101,28 @@ export function AudioPreview({
 }) {
   const refs = useRef<Record<string, HTMLAudioElement | null>>({});
   const playRequests = useRef<Record<string, Promise<void> | undefined>>({});
+  const playbackState = useRef<AudioPlaybackState>({
+    activeTrackIds: new Set(),
+    lastDriftCheckAt: 0,
+    playing: false,
+    timeMs: 0,
+    updatedAt: 0,
+  });
   const [mediaStateVersion, setMediaStateVersion] = useState(0);
+  const preparedTracks = useMemo(
+    () => tracks.filter((track) => audioTrackIsNearTime(track, timeMs)),
+    [timeMs, tracks],
+  );
 
   useEffect(() => {
+    const now = performance.now();
+    const previous = playbackState.current;
     const active: Array<{
       audio: HTMLAudioElement;
       track: AudioTrack;
       localMs: number;
     }> = [];
-    for (const track of tracks) {
+    for (const track of preparedTracks) {
       const audio = refs.current[track.id];
       if (!audio) continue;
       const localMs = timeMs - track.start_ms + track.trim_start_ms;
@@ -113,6 +147,13 @@ export function AudioPreview({
     if (!playing) {
       for (const { audio } of active) audio.pause();
       onBufferingChange?.(false);
+      playbackState.current = {
+        activeTrackIds: new Set(),
+        lastDriftCheckAt: previous.lastDriftCheckAt,
+        playing: false,
+        timeMs,
+        updatedAt: now,
+      };
       return;
     }
 
@@ -122,19 +163,39 @@ export function AudioPreview({
     onBufferingChange?.(buffering);
     if (buffering) {
       for (const { audio } of active) audio.pause();
+      playbackState.current = {
+        activeTrackIds: new Set(),
+        lastDriftCheckAt: previous.lastDriftCheckAt,
+        playing: false,
+        timeMs,
+        updatedAt: now,
+      };
       return;
     }
 
+    const elapsedMs = previous.updatedAt > 0 ? now - previous.updatedAt : 0;
+    const timelineDeltaMs = timeMs - previous.timeMs;
+    const timelineDiscontinuity =
+      !previous.playing ||
+      timelineDeltaMs < 0 ||
+      Math.abs(timelineDeltaMs - elapsedMs) > AUDIO_TIMELINE_DISCONTINUITY_MS;
+    const driftCheckDue =
+      now - previous.lastDriftCheckAt >= AUDIO_DRIFT_CHECK_INTERVAL_MS;
+    const activeTrackIds = new Set<string>();
     for (const { audio, track, localMs } of active) {
-      const targetSeconds = localMs / 1000;
+      activeTrackIds.add(track.id);
+      const unwrappedTargetSeconds = localMs / 1000;
+      const targetSeconds =
+        track.loop && Number.isFinite(audio.duration) && audio.duration > 0
+          ? unwrappedTargetSeconds % audio.duration
+          : unwrappedTargetSeconds;
+      const newlyActive = !previous.activeTrackIds.has(track.id);
       if (
         Number.isFinite(audio.duration) &&
+        (timelineDiscontinuity || newlyActive || driftCheckDue) &&
         audioNeedsResync(audio.currentTime, targetSeconds)
       ) {
-        audio.currentTime =
-          track.loop && audio.duration > 0
-            ? targetSeconds % audio.duration
-            : targetSeconds;
+        audio.currentTime = targetSeconds;
       }
       if (!audio.paused || playRequests.current[track.id]) continue;
       const request = audio.play();
@@ -143,7 +204,14 @@ export function AudioPreview({
         .catch(() => undefined)
         .finally(() => delete playRequests.current[track.id]);
     }
-  }, [mediaStateVersion, onBufferingChange, playing, timeMs, tracks]);
+    playbackState.current = {
+      activeTrackIds,
+      lastDriftCheckAt: driftCheckDue ? now : previous.lastDriftCheckAt,
+      playing: true,
+      timeMs,
+      updatedAt: now,
+    };
+  }, [mediaStateVersion, onBufferingChange, playing, preparedTracks, timeMs]);
 
   useEffect(
     () => () => {
@@ -152,7 +220,7 @@ export function AudioPreview({
     [onBufferingChange],
   );
 
-  return tracks.map((track) => (
+  return preparedTracks.map((track) => (
     <audio
       key={`${track.id}:${track.asset_id}`}
       onCanPlay={() => setMediaStateVersion((current) => current + 1)}

@@ -2,6 +2,7 @@ import {
   type CSSProperties,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -11,6 +12,7 @@ import type { ProjectDocument } from "@douga/project-schema";
 import { SceneRenderer } from "../SceneRenderer";
 import {
   WebGlProjectRenderer,
+  projectRenderAssetIds,
   type WebGlAssetUrlResolver,
 } from "./WebGlProjectRenderer";
 
@@ -39,6 +41,15 @@ export function WebGlSceneRenderer({
 }: WebGlSceneRendererProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<WebGlProjectRenderer | undefined>(undefined);
+  const preparationProjectRef = useRef(project);
+  preparationProjectRef.current = project;
+  const assetSignature = useMemo(
+    () =>
+      projectRenderAssetIds(project)
+        .map((assetId) => `${assetId}:${assetUrl(assetId) ?? ""}`)
+        .join("|"),
+    [assetUrl, project],
+  );
   const [preparedRevision, setPreparedRevision] = useState(0);
   const [webGlUnavailable, setWebGlUnavailable] = useState(false);
 
@@ -79,7 +90,7 @@ export function WebGlSceneRenderer({
     if (!renderer) return;
     void Promise.all([
       document.fonts.ready,
-      renderer.prepare(project, assetUrl),
+      renderer.prepare(preparationProjectRef.current, assetUrl),
     ])
       .then(() => {
         if (!canceled) setPreparedRevision((current) => current + 1);
@@ -97,7 +108,7 @@ export function WebGlSceneRenderer({
     return () => {
       canceled = true;
     };
-  }, [assetUrl, onError, project]);
+  }, [assetSignature, assetUrl, onError]);
 
   useEffect(() => {
     rendererRef.current?.renderFrame(project, sceneIndex, timeMs, {

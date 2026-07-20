@@ -8,6 +8,34 @@ export interface RasterizedText {
   cacheKey: string;
 }
 
+export function textLayerRasterKey(
+  layer: TextLayer,
+  text: string,
+  pixelScale: number,
+) {
+  return JSON.stringify([
+    "layer",
+    text,
+    layer.width,
+    layer.height,
+    layer.font_size,
+    layer.font_family,
+    layer.color,
+    layer.writing_mode,
+    layer.text_style,
+    layer.neon_color,
+    pixelScale,
+  ]);
+}
+
+export function captionRasterKey(
+  style: ProjectDocument["caption_style"],
+  resolved: ResolvedCaption,
+  pixelScale: number,
+) {
+  return JSON.stringify(["caption", resolved.lines, style, pixelScale]);
+}
+
 function graphemes(value: string): string[] {
   if (typeof Intl.Segmenter === "function") {
     return Array.from(
@@ -85,19 +113,7 @@ export function rasterizeTextLayer(
   text: string,
   pixelScale: number,
 ): RasterizedText {
-  const cacheKey = JSON.stringify([
-    "layer",
-    text,
-    layer.width,
-    layer.height,
-    layer.font_size,
-    layer.font_family,
-    layer.color,
-    layer.writing_mode,
-    layer.text_style,
-    layer.neon_color,
-    pixelScale,
-  ]);
+  const cacheKey = textLayerRasterKey(layer, text, pixelScale);
   const canvas = createCanvas(layer.width, layer.height, pixelScale);
   const context = canvas.getContext("2d");
   if (!context)
@@ -112,12 +128,7 @@ export function rasterizeCaption(
   pixelScale: number,
 ): RasterizedText | undefined {
   if (!resolved.page) return undefined;
-  const cacheKey = JSON.stringify([
-    "caption",
-    resolved.lines,
-    style,
-    pixelScale,
-  ]);
+  const cacheKey = captionRasterKey(style, resolved, pixelScale);
   const canvas = createCanvas(style.width, style.height, pixelScale);
   const context = canvas.getContext("2d");
   if (!context)

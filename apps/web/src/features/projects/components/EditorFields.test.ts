@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { audioNeedsResync, audioVolumeAtTime } from "./EditorFields";
+import {
+  audioNeedsResync,
+  audioTrackIsNearTime,
+  audioVolumeAtTime,
+} from "./EditorFields";
 
 const track = {
   id: "audio-1",
@@ -31,7 +35,23 @@ describe("audioVolumeAtTime", () => {
 
 describe("audioNeedsResync", () => {
   it("corrects audible drift without seeking for normal frame jitter", () => {
-    expect(audioNeedsResync(1, 1.05)).toBe(false);
-    expect(audioNeedsResync(1, 1.081)).toBe(true);
+    expect(audioNeedsResync(1, 1.19)).toBe(false);
+    expect(audioNeedsResync(1, 1.201)).toBe(true);
+  });
+});
+
+describe("audioTrackIsNearTime", () => {
+  it("preloads upcoming tracks and releases completed tracks", () => {
+    expect(audioTrackIsNearTime(track, -13_000)).toBe(true);
+    expect(audioTrackIsNearTime(track, -13_001)).toBe(false);
+    expect(audioTrackIsNearTime(track, 7_999)).toBe(true);
+    expect(audioTrackIsNearTime(track, 8_001)).toBe(false);
+  });
+
+  it("keeps looped and unknown-duration tracks after their start", () => {
+    expect(audioTrackIsNearTime({ ...track, loop: true }, 60_000)).toBe(true);
+    expect(
+      audioTrackIsNearTime({ ...track, duration_ms: undefined }, 60_000),
+    ).toBe(true);
   });
 });

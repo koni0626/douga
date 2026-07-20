@@ -57,4 +57,30 @@ describe("AudioPreview", () => {
     expect(container.querySelector("audio")).not.toBe(first);
     expect(container.querySelector("audio")?.src).toContain("asset-2");
   });
+
+  it("only mounts audio near the current playback position", () => {
+    const laterTrack = {
+      ...track,
+      id: "audio-2",
+      asset_id: "asset-2",
+      start_ms: 30_000,
+    };
+    const { container, rerender } = render(
+      <AudioPreview playing={false} timeMs={0} tracks={[track, laterTrack]} />,
+    );
+
+    expect(container.querySelectorAll("audio")).toHaveLength(1);
+    expect(container.querySelector("audio")?.src).toContain("asset-1");
+
+    rerender(
+      <AudioPreview
+        playing={false}
+        timeMs={16_000}
+        tracks={[track, laterTrack]}
+      />,
+    );
+
+    expect(container.querySelectorAll("audio")).toHaveLength(1);
+    expect(container.querySelector("audio")?.src).toContain("asset-2");
+  });
 });

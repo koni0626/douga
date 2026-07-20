@@ -11,7 +11,12 @@ import {
   type Rectangle,
 } from "./geometry";
 import { WebGlSurface, type SurfaceTexture } from "./surface";
-import { rasterizeCaption, rasterizeTextLayer } from "./text-rasterizer";
+import {
+  captionRasterKey,
+  rasterizeCaption,
+  rasterizeTextLayer,
+  textLayerRasterKey,
+} from "./text-rasterizer";
 
 type Scene = ProjectDocument["scenes"][number];
 type Layer = Scene["layers"][number];
@@ -24,6 +29,19 @@ export interface WebGlRenderFrameOptions {
 
 interface AssetTexture extends SurfaceTexture {
   url: string;
+}
+
+export function projectRenderAssetIds(project: ProjectDocument) {
+  const assetIds = new Set<string>();
+  for (const scene of project.scenes) {
+    if (scene.background.type === "asset") {
+      assetIds.add(scene.background.asset_id);
+    }
+    for (const layer of scene.layers) {
+      if (layer.type === "image") assetIds.add(layer.asset_id);
+    }
+  }
+  return [...assetIds].sort();
 }
 
 function parseColor(
@@ -60,6 +78,12 @@ export class WebGlProjectRenderer {
   private readonly surface: WebGlSurface;
   private readonly assetTextures = new Map<string, AssetTexture>();
   private readonly rasterTextures = new Map<string, SurfaceTexture>();
+  private captionTimelineCache?: {
+    scene: Scene;
+    style: ProjectDocument["caption_style"];
+    locale: ProjectDocument["content_locale"];
+    timeline: ReturnType<typeof buildSceneTimeline>;
+  };
   private logicalWidth: number;
   private logicalHeight: number;
 
@@ -85,20 +109,11 @@ export class WebGlProjectRenderer {
   }
 
   async prepare(project: ProjectDocument, assetUrl: WebGlAssetUrlResolver) {
-    const assetIds = new Set<string>();
-    for (const scene of project.scenes) {
-      if (scene.background.type === "asset") {
-        assetIds.add(scene.background.asset_id);
-      }
-      for (const layer of scene.layers) {
-        if (layer.type === "image") assetIds.add(layer.asset_id);
-      }
-    }
     // Decode and upload one image at a time. Large projects otherwise keep all
     // decoded ImageBitmaps alive until Promise.all settles, temporarily using
     // roughly twice the final GPU/image memory and losing the WebGL context on
     // memory-constrained browser sessions.
-    for (const assetId of assetIds) {
+    for (const assetId of projectRenderAssetIds(project)) {
       const url = assetUrl(assetId);
       if (!url || this.assetTextures.get(assetId)?.url === url) continue;
       const response = await fetch(url, { credentials: "include" });
@@ -195,6 +210,12 @@ export class WebGlProjectRenderer {
       return;
     }
     const text = visibleTextAtTime(layer, timeMs, showFullText);
+    const cacheKey = textLayerRasterKey(layer, text, this.pixelScale());
+    const cached = this.rasterTextures.get(cacheKey);
+    if (cached) {
+      this.drawTexture(cached, rectangle, layer.opacity, camera);
+      return;
+    }
     const rasterized = rasterizeTextLayer(layer, text, this.pixelScale());
     const texture = this.rasterTexture(rasterized.cacheKey, rasterized.canvas);
     this.drawTexture(texture, rectangle, layer.opacity, camera);
@@ -206,12 +227,29 @@ export class WebGlProjectRenderer {
     timeMs: number,
     camera: CameraTransform,
   ) {
-    const timeline = buildSceneTimeline(
-      scene,
-      project.caption_style,
-      project.content_locale,
-    );
+    const timeline = this.captionTimeline(project, scene);
     const resolved = resolveCaptionAtTime(timeline, timeMs);
+    if (!resolved.page) return;
+    const cacheKey = captionRasterKey(
+      project.caption_style,
+      resolved,
+      this.pixelScale(),
+    );
+    const cached = this.rasterTextures.get(cacheKey);
+    if (cached) {
+      this.drawTexture(
+        cached,
+        {
+          x: project.caption_style.x,
+          y: project.caption_style.y,
+          width: project.caption_style.width,
+          height: project.caption_style.height,
+        },
+        resolved.opacity,
+        camera,
+      );
+      return;
+    }
     const rasterized = rasterizeCaption(
       project.caption_style,
       resolved,
@@ -295,6 +333,29 @@ export class WebGlProjectRenderer {
       }
     }
     return texture;
+  }
+
+  private captionTimeline(project: ProjectDocument, scene: Scene) {
+    const cached = this.captionTimelineCache;
+    if (
+      cached?.scene === scene &&
+      cached.style === project.caption_style &&
+      cached.locale === project.content_locale
+    ) {
+      return cached.timeline;
+    }
+    const timeline = buildSceneTimeline(
+      scene,
+      project.caption_style,
+      project.content_locale,
+    );
+    this.captionTimelineCache = {
+      scene,
+      style: project.caption_style,
+      locale: project.content_locale,
+      timeline,
+    };
+    return timeline;
   }
 
   private pixelScale() {
