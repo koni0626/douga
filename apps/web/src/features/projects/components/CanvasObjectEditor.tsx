@@ -44,6 +44,7 @@ type Interaction = {
 export interface CanvasObjectEditorProps {
   animationLabels: AnimationPresetLabels;
   cameraTransform: CameraTransform;
+  downloadImageLabel: string;
   flipHorizontalLabel: string;
   flipVerticalLabel: string;
   fillCanvasLabel: string;
@@ -59,6 +60,7 @@ export interface CanvasObjectEditorProps {
     durationMs: number,
   ) => void;
   onClearAnimation: (layerId: string) => void;
+  onDownloadImage: (assetId: string, layerName?: string) => void;
   onPreview: (layerId: string, patch?: LayerTransformPatch) => void;
   onSelect: (layerId: string) => void;
   selectedLayerId?: string;
@@ -102,6 +104,7 @@ function LockGlyph({ x, y, size }: { x: number; y: number; size: number }) {
 export function CanvasObjectEditor({
   animationLabels,
   cameraTransform,
+  downloadImageLabel,
   flipHorizontalLabel,
   flipVerticalLabel,
   fillCanvasLabel,
@@ -113,6 +116,7 @@ export function CanvasObjectEditor({
   onCommit,
   onApplyAnimation,
   onClearAnimation,
+  onDownloadImage,
   onPreview,
   onSelect,
   selectedLayerId,
@@ -436,6 +440,7 @@ export function CanvasObjectEditor({
       {contextMenu && menuLayer ? (
         <CanvasObjectContextMenu
           animationLabels={animationLabels}
+          downloadImageLabel={downloadImageLabel}
           fillCanvasLabel={fillCanvasLabel}
           flipHorizontalLabel={flipHorizontalLabel}
           flipVerticalLabel={flipVerticalLabel}
@@ -446,6 +451,11 @@ export function CanvasObjectEditor({
           }
           onClearAnimation={() => onClearAnimation(menuLayer.id)}
           onClose={() => setContextMenu(undefined)}
+          onDownloadImage={() => {
+            if (menuLayer.type === "image") {
+              onDownloadImage(menuLayer.asset_id, menuLayer.name);
+            }
+          }}
           onFillCanvas={fillCanvas}
           onPatch={commitFromMenu}
           onShapePatch={commitShapeStyle}

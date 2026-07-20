@@ -18,6 +18,7 @@ type MenuPatch = Partial<Pick<Layer, "flip_x" | "flip_y" | "locked">>;
 
 interface CanvasObjectContextMenuProps {
   animationLabels: AnimationPresetLabels;
+  downloadImageLabel: string;
   fillCanvasLabel: string;
   flipHorizontalLabel: string;
   flipVerticalLabel: string;
@@ -26,6 +27,7 @@ interface CanvasObjectContextMenuProps {
   onApplyAnimation: (preset: LayerAnimationPreset, durationMs: number) => void;
   onClearAnimation: () => void;
   onClose: () => void;
+  onDownloadImage: () => void;
   onFillCanvas: () => void;
   onPatch: (patch: MenuPatch) => void;
   onShapePatch: (patch: Partial<ShapeLayer>) => void;
@@ -38,6 +40,7 @@ interface CanvasObjectContextMenuProps {
 
 export function CanvasObjectContextMenu({
   animationLabels,
+  downloadImageLabel,
   fillCanvasLabel,
   flipHorizontalLabel,
   flipVerticalLabel,
@@ -46,6 +49,7 @@ export function CanvasObjectContextMenu({
   onApplyAnimation,
   onClearAnimation,
   onClose,
+  onDownloadImage,
   onFillCanvas,
   onPatch,
   onShapePatch,
@@ -116,14 +120,26 @@ export function CanvasObjectContextMenu({
             {flipVerticalLabel}
           </button>
           {layer.type === "image" ? (
-            <button
-              type="button"
-              role="menuitem"
-              disabled={layer.locked}
-              onClick={onFillCanvas}
-            >
-              {fillCanvasLabel}
-            </button>
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={layer.locked}
+                onClick={onFillCanvas}
+              >
+                {fillCanvasLabel}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onDownloadImage();
+                  onClose();
+                }}
+              >
+                {downloadImageLabel}
+              </button>
+            </>
           ) : null}
           {layer.type === "text" ? (
             <button

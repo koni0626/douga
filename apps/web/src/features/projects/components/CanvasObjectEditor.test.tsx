@@ -64,6 +64,7 @@ function renderEditor(onCommit = vi.fn(), layer: Layer = verticalTextLayer) {
             },
           }}
           cameraTransform={{ rotation: 0, scale: 1, x: 0, y: 0 }}
+          downloadImageLabel="Download image"
           fillCanvasLabel="Fill"
           flipHorizontalLabel="Flip horizontal"
           flipVerticalLabel="Flip vertical"
@@ -75,6 +76,7 @@ function renderEditor(onCommit = vi.fn(), layer: Layer = verticalTextLayer) {
           onApplyAnimation={vi.fn()}
           onClearAnimation={vi.fn()}
           onCommit={onCommit}
+          onDownloadImage={vi.fn()}
           onPreview={vi.fn()}
           onSelect={vi.fn()}
           selectedLayerId={layer.id}

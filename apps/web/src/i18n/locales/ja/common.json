@@ -219,6 +219,8 @@
     "flipHorizontal": "左右反転",
     "flipVertical": "上下反転",
     "fillCanvas": "キャンバスいっぱいに表示",
+    "downloadImage": "画像をダウンロード",
+    "downloadImageFailed": "画像をダウンロードできませんでした。",
     "animation": {
       "title": "アニメーション",
       "effect": "エフェクト",

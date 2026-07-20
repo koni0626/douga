@@ -1,4 +1,4 @@
-import { type DragEvent, useRef } from "react";
+import { type DragEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { ProjectDocument } from "@douga/project-schema";
@@ -8,8 +8,12 @@ import {
   WebGlSceneRenderer,
 } from "@douga/scene-renderer";
 
-import { assetContentUrl } from "../../../shared/lib/api";
+import { assetContentUrl, type AssetDto } from "../../../shared/lib/api";
 import type { EditorTool, Layer, Scene } from "../lib/editorTypes";
+import {
+  downloadImageAsset,
+  imageAssetForDownload,
+} from "../lib/assetDownload";
 import type { LayerAnimationPreset } from "../lib/layerKeyframes";
 import {
   CanvasObjectEditor,
@@ -28,6 +32,7 @@ interface EditorCanvasWorkspaceProps {
   clearAnimation: (layerId: string) => void;
   commitInlineCaption: () => void;
   dropActive: boolean;
+  imageAssets: AssetDto[];
   onDrop: (event: DragEvent<HTMLDivElement>) => void;
   onAudioBufferingChange: (buffering: boolean) => void;
   playing: boolean;
@@ -57,6 +62,7 @@ export function EditorCanvasWorkspace({
   clearAnimation,
   commitInlineCaption,
   dropActive,
+  imageAssets,
   onDrop,
   onAudioBufferingChange,
   playing,
@@ -78,6 +84,17 @@ export function EditorCanvasWorkspace({
 }: EditorCanvasWorkspaceProps) {
   const { t } = useTranslation();
   const captionInputRef = useRef<HTMLTextAreaElement>(null);
+  const [downloadErrorKey, setDownloadErrorKey] = useState<string>();
+
+  async function downloadImage(assetId: string, layerName?: string) {
+    const asset = imageAssetForDownload(assetId, layerName, imageAssets);
+    setDownloadErrorKey(undefined);
+    try {
+      await downloadImageAsset(asset);
+    } catch {
+      setDownloadErrorKey("editor.downloadImageFailed");
+    }
+  }
 
   return (
     <section className="editor-center">
@@ -144,6 +161,7 @@ export function EditorCanvasWorkspace({
                   project.camera_effects ?? [],
                   timeMs,
                 )}
+                downloadImageLabel={t("editor.downloadImage")}
                 fillCanvasLabel={t("editor.fillCanvas")}
                 flipHorizontalLabel={t("editor.flipHorizontal")}
                 flipVerticalLabel={t("editor.flipVertical")}
@@ -157,6 +175,9 @@ export function EditorCanvasWorkspace({
                 onApplyAnimation={applyAnimationPreset}
                 onClearAnimation={clearAnimation}
                 onCommit={updateLayer}
+                onDownloadImage={(assetId, layerName) =>
+                  void downloadImage(assetId, layerName)
+                }
                 onPreview={(layerId, patch) =>
                   setLayerPreview(patch ? { layerId, patch } : undefined)
                 }
@@ -219,9 +240,9 @@ export function EditorCanvasWorkspace({
           </div>
         ) : null}
       </div>
-      {uploadErrorKey ? (
+      {downloadErrorKey || uploadErrorKey ? (
         <p className="form-error" role="alert">
-          {t(uploadErrorKey)}
+          {t(downloadErrorKey ?? uploadErrorKey ?? "errors.unknown")}
         </p>
       ) : null}
       {scene ? (

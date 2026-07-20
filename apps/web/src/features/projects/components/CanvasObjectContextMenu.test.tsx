@@ -40,6 +40,18 @@ const shapeLayer: Layer = {
   opacity: 1,
 };
 
+const imageLayer: Layer = {
+  id: "image-1",
+  type: "image",
+  asset_id: "asset-1",
+  x: 0,
+  y: 0,
+  width: 800,
+  height: 600,
+  rotation: 0,
+  opacity: 1,
+};
+
 const animationLabels = {
   animation: "Animation",
   back: "Back",
@@ -68,6 +80,7 @@ const animationLabels = {
 function menuProps(layer: Layer) {
   return {
     animationLabels,
+    downloadImageLabel: "Download image",
     fillCanvasLabel: "Fill",
     flipHorizontalLabel: "Flip horizontal",
     flipVerticalLabel: "Flip vertical",
@@ -76,6 +89,7 @@ function menuProps(layer: Layer) {
     onApplyAnimation: vi.fn(),
     onClearAnimation: vi.fn(),
     onClose: vi.fn(),
+    onDownloadImage: vi.fn(),
     onFillCanvas: vi.fn(),
     onPatch: vi.fn(),
     onShapePatch: vi.fn(),
@@ -134,5 +148,25 @@ describe("CanvasObjectContextMenu", () => {
 
     expect(onShapePatch).toHaveBeenCalledWith({ fill: "#ff0000" });
     expect(onShapePatch).toHaveBeenCalledWith({ opacity: 0.65 });
+  });
+
+  it("downloads image layers even when they are locked", () => {
+    const onDownloadImage = vi.fn();
+    const onClose = vi.fn();
+    const props = menuProps({ ...imageLayer, locked: true });
+    const view = render(
+      <CanvasObjectContextMenu
+        {...props}
+        onClose={onClose}
+        onDownloadImage={onDownloadImage}
+      />,
+    );
+
+    const download = view.getByRole("menuitem", { name: "Download image" });
+    expect(download).not.toBeDisabled();
+    fireEvent.click(download);
+
+    expect(onDownloadImage).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

@@ -42,7 +42,7 @@ export function useProjectDocumentEditor(projectId?: string) {
     let active = true;
     void Promise.all([
       apiRequest<ProjectDetailDto>(`/projects/${projectId}`),
-      apiRequest<AssetListDto>("/assets?status=ready"),
+      apiRequest<AssetListDto>("/assets?status=ready&limit=100"),
     ])
       .then(([result, assetList]) => {
         if (!active) return;

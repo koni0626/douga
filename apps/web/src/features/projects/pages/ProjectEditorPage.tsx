@@ -430,6 +430,7 @@ export function ProjectEditorPage() {
           clearAnimation={clearAnimation}
           commitInlineCaption={commitInlineCaption}
           dropActive={dropActive}
+          imageAssets={imageAssets}
           onDrop={dropImage}
           onAudioBufferingChange={setAudioBuffering}
           playing={playing}

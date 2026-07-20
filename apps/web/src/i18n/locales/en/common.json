@@ -219,6 +219,8 @@
     "flipHorizontal": "Flip horizontally",
     "flipVertical": "Flip vertically",
     "fillCanvas": "Fill canvas",
+    "downloadImage": "Download image",
+    "downloadImageFailed": "The image could not be downloaded.",
     "animation": {
       "title": "Animation",
       "effect": "Effects",
